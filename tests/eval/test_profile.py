@@ -59,3 +59,44 @@ def test_default_profile_is_profile_a():
         ("diamond", 4, "reliability", True),
         ("lite", 1, "competence", False),
     }
+
+
+def test_load_profile_reads_stages_and_plan(tmp_path):
+    from spar.eval.profile import load_profile
+
+    toml = (
+        '[profile.competence]\n'
+        'temperature = 0.0\n'
+        'top_p = 1.0\n'
+        'max_tokens = 2048\n'
+        'seed = 7\n'
+        '\n'
+        '[profile.reliability]\n'
+        'temperature = 0.7\n'
+        'top_p = 1.0\n'
+        'max_tokens = 2048\n'
+        '\n'
+        '[[plan]]\n'
+        'split = "main"\n'
+        'k = 1\n'
+        'stage = "competence"\n'
+        'published = true\n'
+        '\n'
+        '[[plan]]\n'
+        'split = "diamond"\n'
+        'k = 4\n'
+        'stage = "reliability"\n'
+        'published = true\n'
+    )
+    path = tmp_path / "profile.toml"
+    path.write_text(toml, encoding="utf-8")
+
+    prof = load_profile(path)
+    assert prof.competence.temperature == 0.0
+    assert prof.competence.seed == 7
+    assert prof.reliability.temperature == 0.7
+    assert prof.reliability.seed is None
+    assert [(p.split, p.k, p.stage) for p in prof.plan] == [
+        ("main", 1, "competence"),
+        ("diamond", 4, "reliability"),
+    ]
