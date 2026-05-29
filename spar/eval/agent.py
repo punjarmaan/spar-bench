@@ -45,15 +45,17 @@ _TOOL_MODELS = (
 )
 
 
-def _tool_name(tool_schema: dict) -> str:
+def _tool_name(tool_schema: dict[str, object]) -> str:
     """Extract the `tool` Literal value from its JSON-schema fragment.
 
     A single-value `Literal[...]` may serialize as `{"const": "..."}` or `{"enum": ["..."]}`
     depending on the pydantic version; accept either so the catalog never breaks on an upgrade.
     """
     if "const" in tool_schema:
-        return tool_schema["const"]
-    return tool_schema["enum"][0]
+        return str(tool_schema["const"])
+    enum = tool_schema["enum"]
+    assert isinstance(enum, list)
+    return str(enum[0])
 
 
 def tool_catalog() -> str:
@@ -63,7 +65,7 @@ def tool_catalog() -> str:
     drift from the real action space. The `tool` discriminator field is stripped from `properties`
     and `required` (the agent supplies it as the top-level "tool" key, not inside args).
     """
-    catalog: dict[str, dict] = {}
+    catalog: dict[str, dict[str, object]] = {}
     for model in _TOOL_MODELS:
         schema = model.model_json_schema()
         props = {k: v for k, v in schema.get("properties", {}).items() if k != "tool"}
@@ -164,7 +166,7 @@ class ModelAgent:
                 response_cost=float(cost) if cost is not None else None,
             )
         )
-        return resp.choices[0].message.content
+        return str(resp.choices[0].message.content)
 
     def act(self, observation: Observation) -> Action:
         self.transcript.append({"role": "user", "content": render_observation(observation)})
