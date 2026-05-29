@@ -14,16 +14,25 @@ from __future__ import annotations
 
 import json
 
+from pydantic import BaseModel
+
+from spar.eval.models import ModelConfig
+from spar.eval.profile import StageSampling
+from spar.harness.passk import AgentFactory
+from spar.harness.user_sim import CompletionFn
 from spar.simulator.contract import (
     Abort,
+    Action,
     Capture,
     ComputeTax,
     HandleChallenge,
     ModifyCart,
+    Observation,
     RequestUserConfirmation,
     Retry,
     SelectRoute,
     SubmitAuthorization,
+    parse_action,
 )
 
 # Bump on ANY change to the prompt template, tool catalog, or parser (spec standard 1).
