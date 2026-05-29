@@ -198,6 +198,9 @@ class World:
         return resp
 
     def _transition(self, action: Action) -> ToolResponse:
+        if self.is_agent_terminal():
+            # Terminal states are absorbing: no action may cause a transition out.
+            return self._illegal()
         match action:
             case Abort():
                 self.state = FsmState.ABORTED
