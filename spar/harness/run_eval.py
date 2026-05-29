@@ -38,10 +38,21 @@ def _load_agent(spec: str) -> Agent:
 
 @app.command()
 def run(
-    split: str = typer.Option(..., help="lite | main | diamond | private"),
-    agent: str = typer.Option(..., help="module:Class implementing the Agent protocol"),
+    split: str = typer.Option(..., help="lite | main | diamond  (private is server-only, C5)"),
+    agent: str = typer.Option(..., help="module:Class implementing the Agent protocol "
+                                        "(TRUSTED LOCAL import only)"),
     out: Path = typer.Option(Path("results.json")),
 ) -> None:
+    if split == "private":
+        # C5: the local --agent path imports code in-process and must NEVER run against the
+        # private split + hidden gold + canary. Private is served only by the trajectory-replay
+        # leaderboard server (descoped from v1), not the local CLI.
+        typer.echo(
+            "refused: --split private is not served by the local CLI (C5). The local "
+            "--agent import is trusted-local-only and must never run against the private "
+            "split + hidden gold + canary. Use the trajectory-replay leaderboard server instead."
+        )
+        raise typer.Exit(code=2)
     samples = load_split(split)
     scores: list[SampleScore] = []
     canary = samples[0].canary if samples else "spar:none"
