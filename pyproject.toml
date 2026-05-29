@@ -15,6 +15,7 @@ llm = ["litellm>=1.40"]
 
 [project.scripts]
 spar = "spar.harness.run_eval:app"
+spar-submit = "spar.leaderboard.submit:app"
 
 [build-system]
 requires = ["hatchling"]
