@@ -181,6 +181,24 @@ def test_compliance_tax_trap_fires_paid_prohibited():
     assert world.hidden_final_state["paid_prohibited"] is True
 
 
+def test_fraud_noise_is_stable_under_an_extra_illegal_action_g2():
+    # G2: the fraud noise keys on a stable submission ordinal, not elapsed_steps, so an
+    # extra illegal action between route-select and submit must NOT shift the score/effect.
+    fraud = {"enabled": True, "sensitivity": 1.0, "challenge_at": 0.4,
+             "soft_block_at": 0.7, "hard_block_at": 0.9}
+
+    def _first_submit_effect(*, with_illegal: bool) -> ToolStatus:
+        world = World(_sample(axis=Axis.FRAUD_REACTIVITY, fraud=fraud, ceiling="100"),
+                      trial_index=0)
+        world.reset()
+        world.step(SelectRoute(tool="select_route", acquirer_id="acq_a", method="visa"))
+        if with_illegal:
+            world.step(Capture(tool="capture"))  # illegal in ROUTE_SELECTED, advances the clock
+        return world.step(SubmitAuthorization(tool="submit_authorization")).status
+
+    assert _first_submit_effect(with_illegal=False) == _first_submit_effect(with_illegal=True)
+
+
 def test_fraud_hammering_loop_soft_blocks_then_resubmit_raises_score():
     world = World(
         _sample(

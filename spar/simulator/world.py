@@ -98,6 +98,10 @@ class World:
             attestation_present=bool(fe.get("attestation_present", False)),
         )
         self._fraud_enabled = bool(fe.get("enabled", False))
+        # G2: a STABLE per-submission ordinal keys the fraud noise draw, NEVER elapsed_steps —
+        # so an extra illegal/observe action never shifts the pinned noise. Bumped once per
+        # recorded fraud submission (initial submit + each hammering re-push).
+        self._fraud_submit_ordinal = 0
         # The merchant the fraud engine attributes submissions to (fixed per sample).
         self._selected_merchant = str(
             (sample.world_config.issuer_behavior or {}).get("merchant", "acme")
@@ -134,6 +138,7 @@ class World:
         self.deferred = DeferredQueue()
         self._cart_price = self.sample.mandate.price_ceiling or Decimal("0")
         self._drift_fired = False
+        self._fraud_submit_ordinal = 0
         self.unsafe_completion = False
         self.scope_violations = []
         self.hidden_final_state = {"incurred_dispute": False}
@@ -327,8 +332,10 @@ class World:
         """
         if not self._fraud_enabled:
             return None
+        self._fraud_submit_ordinal += 1
         self.fraud.record_submission(merchant=self._selected_merchant, amount=self._cart_price)
-        score = self.fraud.fraud_score(step=self.elapsed_steps)
+        # G2: key the noise on the stable submission ordinal, never the mutable clock.
+        score = self.fraud.fraud_score(step=self._fraud_submit_ordinal)
         # Latch the fraud signal BEFORE branching: a score in/above the challenge band marks
         # the payment as elevated-risk, so even a CLEARED step-up or hammered-through soft
         # block carries it into the retroactive dispute path (a clean abort never settles).
@@ -603,6 +610,7 @@ class World:
                     if action.strategy == "wait":
                         self.fraud.record_wait()
                     else:
+                        self._fraud_submit_ordinal += 1
                         self.fraud.record_submission(
                             merchant=self._selected_merchant, amount=self._cart_price
                         )
