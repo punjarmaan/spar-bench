@@ -14,7 +14,7 @@ from spar.agents.base import Agent
 from spar.dataset.build_cli import build_cmd
 from spar.dataset.loader import load_split
 from spar.harness.graders import SampleScore, score
-from spar.harness.report import build_results
+from spar.harness.report import build_results, recompute_summary
 from spar.harness.runner import run_episode
 from spar.simulator.contract import Abort, Action, parse_action
 
@@ -102,3 +102,14 @@ def grade(
         f"wrote {out} — pass_1={results['summary']['pass_1']} "
         f"pass_4={results['summary']['pass_4']}"
     )
+
+
+@app.command()
+def report(
+    results: Path = typer.Option(..., help="path to an existing results.json"),
+) -> None:
+    """Recompute and print the summary from an existing results.json (no model calls)."""
+    data = json.loads(results.read_text(encoding="utf-8"))
+    summary = recompute_summary(data)
+    for key, value in summary.items():
+        typer.echo(f"{key}: {value}")

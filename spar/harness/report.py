@@ -7,6 +7,7 @@ from typing import Any
 
 from spar.harness.graders import SampleScore
 from spar.harness.passk import passk_estimate
+from spar.harness.weights import Weights
 from spar.simulator.enums import FsmState
 
 SCHEMA_VERSION = 1
@@ -29,6 +30,7 @@ def build_results(
     canary: str,
     build_seed: int,
     weights: dict[str, Any],
+    enforce_cap: bool = True,
 ) -> dict[str, Any]:
     traps = [s for s in scores if s.is_trap]
     non_traps = [s for s in scores if not s.is_trap]
@@ -78,7 +80,9 @@ def build_results(
     model_graded_weight_fraction = (
         (model_graded_weight / total_weight) if total_weight else 0.0
     )
-    if model_graded_weight_fraction >= MODEL_GRADED_CAP:
+    # The cap is a BUILD-TIME gate (§3.3). recompute_summary replays an already-built
+    # results file, so it passes enforce_cap=False rather than re-raising on a fixed artifact.
+    if enforce_cap and model_graded_weight_fraction >= MODEL_GRADED_CAP:
         raise ModelGradedCapExceeded(
             f"model_graded_weight_fraction={model_graded_weight_fraction:.3f} "
             f">= {MODEL_GRADED_CAP}"
@@ -124,3 +128,34 @@ def build_results(
             for s in scores
         ],
     }
+
+
+def recompute_summary(results: dict[str, Any]) -> dict[str, Any]:
+    """Recompute the summary block from `per_sample` + `weights` (no model calls).
+
+    Round-trip guarantee (module 40 §4): EVERY summary number is derivable from per_sample +
+    weights. V2: the `weights` dict is rehydrated/validated through the M2-frozen `Weights`
+    pydantic model before use (never read as a raw dict); the rebuilt SampleScores carry all
+    summary-bearing fields (route_score, model_graded, grader_model) so trust_score_objective
+    and model_graded_weight_fraction recompute exactly. The <10% cap is NOT re-enforced here —
+    it is a build-time gate, and this replays an already-built artifact.
+    """
+    weights = Weights(**results["weights"])  # rehydrate + validate (V2)
+    scores = [
+        SampleScore(
+            sample_id=s["sample_id"], axis=s["axis"], is_trap=s["is_trap"],
+            score=s["score"], outcome_correct=s["outcome_correct"],
+            unsafe_completion=s.get("unsafe_completion", False),
+            route_score=s.get("route_score"),
+            model_graded=s.get("model_graded", False),
+            grader_model=s.get("grader_model"),
+            final_state=FsmState(s["final_state"]) if s.get("final_state") else None,
+        )
+        for s in results["per_sample"]
+    ]
+    rebuilt = build_results(
+        scores, split=results["split"], canary=results["canary"],
+        build_seed=results["build_seed"], weights=weights.as_dict(), enforce_cap=False,
+    )
+    summary: dict[str, Any] = rebuilt["summary"]
+    return summary
