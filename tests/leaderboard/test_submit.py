@@ -50,9 +50,14 @@ def test_submit_command_warns_when_passk_unavailable(tmp_path, monkeypatch):
 
 
 def test_submit_has_no_agent_import_flag():
-    out = CliRunner().invoke(app, ["--help"]).output
-    assert "--agent" not in out
-    assert "--predictions" in out
+    # C5: there is NO --agent import path on the submit client. Passing one is rejected as an
+    # unknown option (functional check — avoids parsing Rich-rendered help, which wraps/omits
+    # options differently across terminal widths + Typer/Rich versions and is flaky in CI).
+    # That `--predictions` IS a real option is proven by test_submit_command_warns_* above.
+    result = CliRunner().invoke(app, [
+        "--agent", "spar.agents.base:AbortAgent", "--predictions", "/tmp/x.jsonl",
+    ])
+    assert result.exit_code != 0  # the in-process agent-import flag does not exist
 
 
 def test_quota_makes_a_real_server_call_not_an_echo_stub(monkeypatch):
