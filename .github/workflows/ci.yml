@@ -1,0 +1,60 @@
+name: spar-ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:        # manual trigger for the periodic frontier/audit jobs
+  schedule:
+    - cron: "0 6 * * 1"     # weekly: periodic frontier headroom + discrimination
+
+jobs:
+  # ---- per-commit deterministic gate (blocks merges; cheap, no model calls) ----
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.4.18"
+      - run: uv sync --frozen --extra dev
+      - name: Lint
+        run: uv run ruff check .
+      - name: Type-check
+        run: uv run mypy spar
+      - name: FSM property + determinism
+        run: uv run pytest tests/test_fsm.py -q
+      - name: Graders (fixtures, clamp, semantic tiers)
+        run: uv run pytest tests/harness/test_graders.py -q
+      - name: Baselines gate (deterministic, no model calls)
+        run: uv run pytest tests/test_baselines.py -q
+      - name: Full deterministic suite
+        run: uv run pytest -q -m "not frontier"
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker build + deterministic gate inside the image
+        run: ./docker/repro_smoke.sh
+
+  # ---- periodic / manual (costly model calls + human-in-the-loop; never blocks merges) ----
+  frontier-headroom:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.4.18"
+      - run: uv sync --frozen --extra dev
+      - name: Frontier headroom + discrimination (paid model calls)
+        env:
+          SPAR_FRONTIER_API_KEY: ${{ secrets.SPAR_FRONTIER_API_KEY }}
+        run: uv run pytest -q -m frontier
+
+  diamond-audit-reminder:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Human Diamond audit reminder (kappa + adjudication, F14)
+        run: echo "Run the periodic Diamond ground-truth audit (>=2 annotators + adjudication; report kappa)."
