@@ -12,6 +12,7 @@ A property test asserts the output contains no hidden/gold key.
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from spar.simulator.schemas import Sample
 
@@ -29,7 +30,7 @@ _VISIBLE_METHOD_KEYS: tuple[str, ...] = (
 )
 
 
-def public_view(sample: Sample) -> dict:  # type: ignore[type-arg]
+def public_view(sample: Sample) -> dict[str, Any]:
     """The agent-visible projection of one Sample (F17). Strips gold + hidden config."""
     # Use JSON round-trip so Decimals/enums serialize exactly as published.
     raw = json.loads(sample.model_dump_json())
