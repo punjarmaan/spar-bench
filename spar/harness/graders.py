@@ -100,6 +100,7 @@ def score(
         tool_responses=list(trace.tool_responses),
         sample=sample,
         grade_terminal=trace.grade_terminal,
+        extra={"completed_route_id": trace.completed_route_id},
     )
 
     must_ok = must_satisfied(gold.must, ctx)
