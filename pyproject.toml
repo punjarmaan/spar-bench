@@ -28,3 +28,9 @@ target-version = "py311"
 python_version = "3.11"
 plugins = ["pydantic.mypy"]
 strict = true
+
+# litellm is an optional `llm`-extra dependency imported lazily inside functions; it ships
+# no type stubs, so ignore its missing import under --strict (it never affects core typing).
+[[tool.mypy.overrides]]
+module = "litellm"
+ignore_missing_imports = true
