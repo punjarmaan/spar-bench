@@ -1,0 +1,29 @@
+# --- Design docs & context (intentionally NOT version-controlled) ---
+/SPAR_CONTEXT.md
+/docs/
+# any stray context/notes markdown at the repo root
+/*.context.md
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+
+# --- Tooling caches ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Eval outputs ---
+results.json
+
+# --- OS / editor ---
+.DS_Store
+.idea/
+.vscode/
