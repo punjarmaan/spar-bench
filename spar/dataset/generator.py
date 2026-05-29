@@ -147,6 +147,16 @@ def generate(spec: GenSpec) -> Sample:
     knobs = knobs_for(spec.axis, spec.difficulty, is_trap=spec.is_trap)
     surface = draw_surface(spec.sample_id, seed=spec.seed, n_acquirers=knobs.n_acquirers)
     acqs = build_acquirers(spec.sample_id, seed=spec.seed, n_acquirers=knobs.n_acquirers)
+    if spec.axis is Axis.ROUTING:
+        # F1: routing must be a genuine choice. Guarantee >=2 routes and ensure the oracle is
+        # never the first-presented (naive-pick) acquirer, so a bare select(methods[0]) ->
+        # submit -> capture lands on a NON-oracle route and fails `select_oracle_route`.
+        if len(acqs) < 2:
+            acqs = build_acquirers(spec.sample_id, seed=spec.seed, n_acquirers=2)
+        oracle_id = oracle_route(acqs).acquirer_id
+        if acqs[0].acquirer_id == oracle_id:
+            oracle = next(a for a in acqs if a.acquirer_id == oracle_id)
+            acqs = [a for a in acqs if a.acquirer_id != oracle_id] + [oracle]
     if spec.intent_spec is IntentSpec.EXPLICIT:
         mandate, wc, gold = _build_explicit(spec, knobs, acqs, surface.merchant, surface.amount)
         model_graded = False
