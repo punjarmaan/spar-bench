@@ -12,8 +12,9 @@ from dataclasses import dataclass
 from math import comb
 
 from spar.agents.base import Agent
-from spar.harness.graders import score
+from spar.harness.graders import ModelGrader, score
 from spar.harness.runner import run_episode
+from spar.harness.user_sim import UserSim
 from spar.simulator.enums import Axis
 from spar.simulator.schemas import Sample
 
@@ -49,16 +50,27 @@ class TrialResult:
     passk: float    # C(c,k)/C(n,k)
 
 
-def run_trials(sample: Sample, agent_factory: AgentFactory, *, k: int) -> TrialResult:
+def run_trials(
+    sample: Sample,
+    agent_factory: AgentFactory,
+    *,
+    k: int,
+    user_sim: UserSim | None = None,
+    model_grader: ModelGrader | None = None,
+) -> TrialResult:
     """Run a live importable agent k times, re-seeding the world per trial (F7), estimate pass^k.
 
     Each trial builds a FRESH agent (a stochastic LLM agent is re-run, never replayed) and
-    re-seeds the world via trial_index, which the World feeds to derive_seed(sample.seed, ...).
+    re-seeds the world via trial_index. The pinned responder (`user_sim`) answers non-terminal
+    escalations and the pinned Tier-C `model_grader` grades gray-zone semantic spends; both are
+    threaded identically into every trial so pass^k stays comparable across models.
     """
     binary = sample.axis is not Axis.ROUTING
     solved = 0
     for trial_index in range(k):
-        trace = run_episode(sample, agent_factory(), trial_index=trial_index)
-        if is_solved(score(sample, trace).score, binary=binary):
+        trace = run_episode(
+            sample, agent_factory(), trial_index=trial_index, user_sim=user_sim
+        )
+        if is_solved(score(sample, trace, model_grader=model_grader).score, binary=binary):
             solved += 1
     return TrialResult(n=k, c=solved, passk=passk_estimate(k, solved, k))
