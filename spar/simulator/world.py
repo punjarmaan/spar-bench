@@ -45,6 +45,7 @@ from spar.simulator.deferred import DeferredEvent, DeferredKind, DeferredQueue
 from spar.simulator.enums import TERMINAL_AGENT, FsmState, ToolStatus
 from spar.simulator.fraud import FraudEffect, FraudEngine
 from spar.simulator.mandates import ScopeViolation
+from spar.simulator.rng import SubStream, substream
 from spar.simulator.schemas import Sample
 from spar.simulator.scope import check_scope
 from spar.simulator.tax import (
@@ -147,15 +148,28 @@ class World:
     # ---- deferred-event queue (M5 fleshes out the min-heap drain) ----
 
     def drain_deferred(self) -> FsmState:
-        """Resolve the GRADE-terminal after the agent loop ends (frozen M1 contract / F3).
+        """Resolve the GRADE-terminal after the agent loop ends (frozen M1 contract / F3, C3).
 
-        M2 schedules nothing, so this is the identity `SETTLED → CLOSED`; `ABORTED`/`ESCALATED`
-        pass through unchanged. M5 replaces the body with the real async-capture + `DISPUTED →
-        CLOSED` draining, setting `hidden_final_state["incurred_dispute"]`.
+        A SETTLED episode pops its remaining deferred events: a DISPUTE_FILED whose seeded
+        P(dispute) draw succeeds resolves SETTLED -> DISPUTED -> CLOSED and latches
+        `incurred_dispute`; a clean settle resolves to CLOSED. ABORTED/ESCALATED pass through
+        unchanged (a dispute can only fire on an episode that actually reached SETTLED —
+        post_purchase §5). The dispute draw key folds (fire_at_step, seq) into the stable
+        transition ordinal so two same-step disputes draw independently (review G3).
         """
-        if self.state is FsmState.SETTLED:
-            return FsmState.CLOSED
-        return self.state
+        if self.state is not FsmState.SETTLED:
+            return self.state
+        for seq, event in enumerate(self.deferred.drain_through(final_step=10**9)):
+            if event.kind is DeferredKind.DISPUTE_FILED:
+                prob = float(event.payload.get("prob", 0.0))
+                step_key = int(event.fire_at_step) * 1000 + seq
+                rng = substream(
+                    self.sample.sample_id, seed=self.sample.seed,
+                    trial_index=self.trial_index, stream=SubStream.DISPUTE, step=step_key,
+                )
+                if rng.random() < prob:
+                    self.hidden_final_state["incurred_dispute"] = True
+        return FsmState.CLOSED
 
     # ---- M5 stale_state drift: mutate the live cart inside World (C2) ----
 
@@ -315,6 +329,11 @@ class World:
             return None
         self.fraud.record_submission(merchant=self._selected_merchant, amount=self._cart_price)
         score = self.fraud.fraud_score(step=self.elapsed_steps)
+        # Latch the fraud signal BEFORE branching: a score in/above the challenge band marks
+        # the payment as elevated-risk, so even a CLEARED step-up or hammered-through soft
+        # block carries it into the retroactive dispute path (a clean abort never settles).
+        if score >= self.fraud.challenge_at:
+            self.hidden_final_state["was_fraud_signal"] = True
         effect = self.fraud.effect_for_score(score)
         if effect is FraudEffect.HARD_BLOCK:
             self.state = FsmState.ABORTED
@@ -336,8 +355,6 @@ class World:
             return ToolResponse(
                 status=ToolStatus.REQUIRES_ACTION, challenge_token=self._challenge_token
             )
-        if score >= self.fraud.challenge_at:
-            self.hidden_final_state["was_fraud_signal"] = True
         return None
 
     # ---- M5 payment-time flags at the auth gate (C2) ----

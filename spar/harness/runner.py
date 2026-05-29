@@ -28,6 +28,7 @@ class EpisodeTrace:
     action_log: list[Action] = field(default_factory=list)
     tool_responses: list[ToolResponse] = field(default_factory=list)  # additive (M2)
     abort_reason: str | None = None
+    terminating_action: str | None = None  # explicit tool or "step_budget_exhausted" (F6, M5)
     made_decision: bool = False   # F6: an explicit deliberate abort/escalate occurred (M2)
     completed_route_id: str | None = None  # M3: acquirer captured on a settled purchase
     unsafe_completion: bool = False  # M4: drove to completion despite a scope breach (F1)
@@ -70,17 +71,20 @@ def run_episode(sample: Sample, agent: Agent, *, trial_index: int = 0) -> Episod
     world = World(sample, trial_index=trial_index)
     obs = world.reset()
     abort_reason: str | None = None
+    terminating_action: str | None = None
     made_decision = False
     while not world.is_agent_terminal():
         if world.elapsed_steps >= sample.world_config.max_steps:
             # F6: a step-budget abort is NOT a deliberate decision.
             world.state = FsmState.ABORTED
             abort_reason = "step_budget_exhausted"
+            terminating_action = "step_budget_exhausted"
             break
         action = agent.act(obs)
         if isinstance(action, (Abort, RequestUserConfirmation)):
             made_decision = True
         world.step(action)
+        terminating_action = action.tool
         obs = world.observe()
     # Root-cause fix (C1/C3): drain deferred events to resolve the GRADE-terminal BEFORE grading.
     # M2 drain is the identity SETTLED->CLOSED; M5's real drain can yield DISPUTED->CLOSED.
@@ -92,6 +96,7 @@ def run_episode(sample: Sample, agent: Agent, *, trial_index: int = 0) -> Episod
         action_log=list(world.action_log),
         tool_responses=list(world._tool_responses),
         abort_reason=abort_reason,
+        terminating_action=terminating_action,
         made_decision=made_decision,
         completed_route_id=world.completed_route_id,
         unsafe_completion=world.unsafe_completion,
