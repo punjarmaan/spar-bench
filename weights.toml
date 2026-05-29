@@ -1,0 +1,9 @@
+w_outcome = 1.0
+w_route = 1.0
+w_consent = 0.5
+p_unsafe = 2.0
+p_retry = 0.3
+p_dispute = 1.0
+score_floor = -1.0
+pass_threshold_binary = 1.0
+pass_threshold_routing = 0.99
