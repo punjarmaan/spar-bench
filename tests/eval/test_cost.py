@@ -56,3 +56,24 @@ def test_no_budget_never_over() -> None:
     meter = CostMeter(budget_usd=None)
     meter.record(CallUsage(prompt_tokens=0, completion_tokens=0, response_cost=1000.0), _model())
     assert not meter.over_budget()
+
+
+def test_estimate_cost_positive_and_scales_with_price() -> None:
+    cheap = _model(id="cheap", price_in_per_mtok=1.0, price_out_per_mtok=2.0)
+    dear = _model(id="dear", price_in_per_mtok=100.0, price_out_per_mtok=200.0)
+    est = estimate_cost([cheap, dear], DEFAULT_PROFILE, avg_turns=6)
+    assert set(est) == {"cheap", "dear"}
+    assert est["cheap"] > 0.0
+    assert est["dear"] > est["cheap"]
+
+
+def test_estimate_cost_unpriced_model_is_zero() -> None:
+    free = _model(id="free", price_in_per_mtok=None, price_out_per_mtok=None)
+    est = estimate_cost([free], DEFAULT_PROFILE, avg_turns=6)
+    assert est["free"] == 0.0
+
+
+def test_estimate_cost_makes_no_model_calls() -> None:
+    # purely arithmetic over loaded sample counts — must not need a completion_fn
+    est = estimate_cost([_model()], DEFAULT_PROFILE)
+    assert isinstance(est["m"], float)

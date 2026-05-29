@@ -5,6 +5,7 @@ per-call accrual via `CostMeter` (which enforces the hard budget cap)."""
 
 from __future__ import annotations
 
+from spar.dataset.loader import load_split
 from spar.eval.agent import CallUsage
 from spar.eval.models import ModelConfig
 from spar.eval.profile import Profile
@@ -40,8 +41,40 @@ class CostMeter:
         return self._budget is not None and self._spent >= self._budget
 
 
+# Heuristic per-request token sizes for the pre-flight estimate (deliberately coarse, §5.6):
+# a system prompt (policy + tool catalog) plus a redacted observation per turn, and a short
+# JSON action out. Real per-episode turn count + output length are emergent; this only informs
+# the launch decision and the cap.
+_EST_PROMPT_TOKENS_PER_TURN = 1500
+_EST_COMPLETION_TOKENS_PER_TURN = 200
+
+
+def _split_size(split: str) -> int:
+    try:
+        return len(load_split(split))
+    except Exception:
+        # An unconfigured release falls back to the bundled toy split; never fail a dry-run.
+        return len(load_split("lite"))
+
+
 def estimate_cost(
     models: list[ModelConfig], profile: Profile, *, avg_turns: int = 6
 ) -> dict[str, float]:
-    """PRE-FLIGHT heuristic projection (no model calls) — design §5.6. Filled in Task 4."""
-    raise NotImplementedError
+    """PRE-FLIGHT heuristic projection (no model calls). For each StagePlan:
+    n_samples x k x avg_turns requests, each a fixed prompt/completion token budget, priced off
+    models.toml. Unpriced models project to 0.0. Approximate by design (§5.6)."""
+    est: dict[str, float] = {}
+    for model in models:
+        pin = model.price_in_per_mtok
+        pout = model.price_out_per_mtok
+        if pin is None or pout is None:
+            est[model.id] = 0.0
+            continue
+        total = 0.0
+        for plan in profile.plan:
+            requests = _split_size(plan.split) * plan.k * avg_turns
+            prompt_mtok = requests * _EST_PROMPT_TOKENS_PER_TURN / 1_000_000
+            completion_mtok = requests * _EST_COMPLETION_TOKENS_PER_TURN / 1_000_000
+            total += prompt_mtok * pin + completion_mtok * pout
+        est[model.id] = total
+    return est
