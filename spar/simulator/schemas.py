@@ -37,6 +37,7 @@ class WorldConfig(_Model):
     fraud_engine: dict[str, Any] = {}
     settlement: Literal["sync", "async"] = "sync"
     dispute: dict[str, Any] = {}
+    responder: bool = False   # F4: when True, request_user_confirmation is non-terminal
     max_steps: int = 30
     market_context: MarketContext | None = None   # semantic/underspecified samples only
 

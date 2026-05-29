@@ -378,18 +378,26 @@ class World:
         # tax / FX / duties -> landed total (compliance_tax). The World charges the CORRECT
         # tax; the agent's `compute_tax` is an observe (sets `computed_tax_step`).
         tax_table = issuer.get("tax_table")
-        total = self._cart_price
+        # Realized-spend base: an explicit issuer_behavior.total (consent/semantic samples)
+        # else the live cart price (drifted for stale_state, the ceiling otherwise).
+        base = (
+            Decimal(str(issuer["total"])) if issuer.get("total") is not None
+            else self._cart_price
+        )
+        total = base
         if tax_table is not None:
             fx_cfg = issuer.get("fx")
             duties_cfg = issuer.get("duties")
             res = compute_tax(
-                subtotal=self._cart_price,
+                subtotal=base,
                 tax=TaxSpec(**tax_table),
                 fx=FxSpec(**fx_cfg) if fx_cfg else None,
                 duties=DutiesSpec(**duties_cfg) if duties_cfg else None,
             )
             total = res.total
         self.hidden_final_state["paid_total"] = str(total)
+        # Realized spend the grader compares to the semantic band / responder bound (M6).
+        self.hidden_final_state["spend"] = total
         # compliance_tax: prohibited (geo, method) combo + disallowed instrument.
         combos = issuer.get("prohibited_combos") or []
         geo = self._buyer_geo()
@@ -545,7 +553,14 @@ class World:
                 self._record_event("aborted")
                 return ToolResponse(status=ToolStatus.ABORTED)
             case RequestUserConfirmation():
-                # M2 ships no responder -> terminal handoff (F4 terminal mode).
+                # F4 two-mode: with a responder configured the confirmation is NON-terminal —
+                # the world stays put and the runner consults the user-sim, then the episode
+                # continues. With no responder it is the M2 terminal handoff (ESCALATED).
+                if self.sample.world_config.responder:
+                    self._record_event("user_confirmation_requested")
+                    return ToolResponse(
+                        status=ToolStatus.OK, detail={"awaiting_user_response": True}
+                    )
                 self.state = FsmState.ESCALATED
                 self._record_event("escalated")
                 return ToolResponse(status=ToolStatus.ESCALATED)
