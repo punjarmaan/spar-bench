@@ -11,6 +11,7 @@ import typer
 from typing import Any
 
 from spar.agents.base import Agent
+from spar.dataset.build_cli import build_cmd
 from spar.dataset.loader import load_split
 from spar.harness.graders import SampleScore, score
 from spar.harness.report import build_results
@@ -18,6 +19,9 @@ from spar.harness.runner import run_episode
 from spar.simulator.contract import Abort, Action, parse_action
 
 app = typer.Typer(add_completion=False, help="Spar — payment-execution benchmark")
+
+# `spar build` cuts a frozen dataset release (module 30 §5).
+app.command(name="build")(build_cmd)
 
 
 @app.callback()
