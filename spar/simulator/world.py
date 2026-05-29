@@ -203,14 +203,17 @@ class World:
 
     # ---- M5 deferred firing (intra-episode capture results arrive on later steps) ----
 
-    def _fire_due_capture_results(self) -> bool:
+    def _fire_due_capture_results(self, *, is_observe: bool) -> bool:
         """Fire any due CAPTURE_RESULT events; leave DISPUTE_FILED for drain_deferred.
 
-        Returns True iff a capture result fired this step (the agent's action that step was
-        the deliberate observe that surfaced it, so `step` consumes it without re-running the
-        FSM transition). A dispute is a post-settlement event and must NEVER resolve
-        intra-episode, so any DISPUTE_FILED popped here (because the agent kept stepping past
-        its fire_at) is re-pushed for the final drain.
+        Returns True iff a capture result fired this step. The async result arrives on its own
+        timeline regardless of the agent's action (reality), so the FSM transition fires either
+        way. But `verify_capture_result` CREDIT (`capture_verified`) is granted ONLY when the
+        triggering action was a deliberate observe — a `retry(wait)` (G1). An agent that merely
+        re-captures/re-submits while CAPTURE_PENDING crosses the latency without observing: it
+        still reaches SETTLED but is marked `relied_on_capture_success`, so it FAILS the
+        `verify_capture_result` must (closing the F1 hole where naive capture-spam verified for
+        free — review CODE-REVIEW H2/G1). A DISPUTE_FILED popped here is re-pushed for the drain.
         """
         fired = False
         requeue: list[DeferredEvent] = []
@@ -220,8 +223,11 @@ class World:
                 if event.payload.get("ok"):
                     self.state = FsmState.SETTLED
                     self.completed_route_id = self._selected_acquirer
-                    # G1: a deliberate post-CAPTURE_PENDING observe verifies the result.
-                    self.hidden_final_state["capture_verified"] = True
+                    if is_observe:
+                        self.hidden_final_state["capture_verified"] = True
+                    else:
+                        # crossed the latency by hammering, not by observing.
+                        self.hidden_final_state["relied_on_capture_success"] = True
                     self._record_event("settled")
                     self._maybe_schedule_dispute()
                 else:
@@ -531,9 +537,11 @@ class World:
         self.action_log.append(action)
         self.elapsed_steps += 1
         self._apply_due_drift()          # M5: stale_state drift mutates the live cart first
-        if self._fire_due_capture_results():
-            # M5: an async capture result arrived this step; the agent's action was the
-            # deliberate observe that surfaced it, so it is consumed without an FSM transition.
+        # G1/H2: only a deliberate observe (retry(wait)) earns verify_capture_result credit;
+        # re-capturing/submitting that merely crosses the latency does NOT.
+        is_observe = isinstance(action, Retry) and action.strategy == "wait"
+        if self._fire_due_capture_results(is_observe=is_observe):
+            # an async capture result arrived this step; it is consumed without an FSM transition.
             resp = ToolResponse(
                 status=ToolStatus.CAPTURE_RESULT, detail={"state": self.state.value}
             )

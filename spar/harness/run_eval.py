@@ -13,7 +13,8 @@ from typing import Any
 from spar.agents.base import Agent
 from spar.dataset.build_cli import build_cmd
 from spar.dataset.loader import load_split
-from spar.harness.graders import SampleScore, score
+from spar.harness.graders import ModelGrader, SampleScore, score
+from spar.harness.model_grader import LiteLLMModelGrader, StubModelGrader
 from spar.harness.report import build_results, recompute_summary
 from spar.harness.runner import run_episode
 from spar.simulator.contract import Abort, Action, parse_action
@@ -36,12 +37,28 @@ def _load_agent(spec: str) -> Agent:
     return agent
 
 
+def _make_grader(grader_model: str | None) -> ModelGrader:
+    """H4: the live CLI ALWAYS supplies a Tier-C model grader so a gray-zone semantic sample
+    grades instead of crashing with NotImplementedError.
+
+    Default is the deterministic, offline `StubModelGrader` (pinned id recorded in
+    results.json) so a local run is reproducible and needs no API. `--grader-model <id>` opts
+    into the pinned LiteLLM judge (temp=0, F12) for a published-grade run.
+    """
+    if grader_model is None:
+        return StubModelGrader()
+    return LiteLLMModelGrader(grader_model)
+
+
 @app.command()
 def run(
     split: str = typer.Option(..., help="lite | main | diamond  (private is server-only, C5)"),
     agent: str = typer.Option(..., help="module:Class implementing the Agent protocol "
                                         "(TRUSTED LOCAL import only)"),
     out: Path = typer.Option(Path("results.json")),
+    grader_model: str = typer.Option(
+        None, help="Tier-C grader: omit for the offline StubModelGrader; pass a LiteLLM "
+                   "model id for the pinned LLM judge (temp=0, F12)."),
 ) -> None:
     if split == "private":
         # C5: the local --agent path imports code in-process and must NEVER run against the
@@ -54,11 +71,12 @@ def run(
         )
         raise typer.Exit(code=2)
     samples = load_split(split)
+    grader = _make_grader(grader_model)
     scores: list[SampleScore] = []
     canary = samples[0].canary if samples else "spar:none"
     for sample in samples:
         trace = run_episode(sample, _load_agent(agent), trial_index=0)
-        scores.append(score(sample, trace))
+        scores.append(score(sample, trace, model_grader=grader))
     results = build_results(scores, split=split, canary=canary, build_seed=0,
                             weights={"score_floor": -1.0})
     out.write_text(json.dumps(results, indent=2, default=str), encoding="utf-8")
@@ -85,6 +103,9 @@ def grade(
     predictions: Path = typer.Option(..., help="predictions.jsonl: {sample_id, trajectory}"),
     split: str = typer.Option(..., help="lite | main | diamond | private"),
     out: Path = typer.Option(Path("results.json")),
+    grader_model: str = typer.Option(
+        None, help="Tier-C grader: omit for the offline StubModelGrader; pass a LiteLLM "
+                   "model id for the pinned LLM judge (temp=0, F12)."),
 ) -> None:
     """Grade a pre-recorded predictions.jsonl by replaying it against the canonical seed.
 
@@ -92,6 +113,7 @@ def grade(
     emits pass_4: null.
     """
     samples = {s.sample_id: s for s in load_split(split)}
+    grader = _make_grader(grader_model)
     by_id: dict[str, list[list[dict[str, Any]]]] = {}
     for line in predictions.read_text(encoding="utf-8").splitlines():
         if not line.strip():
@@ -105,7 +127,7 @@ def grade(
         sample = samples[sample_id]
         # Static replay: canonical trial_index 0, single trajectory -> pass^1 only.
         trace = run_episode(sample, _ReplayAgent(trajectories[0]), trial_index=0)
-        scores.append(score(sample, trace))
+        scores.append(score(sample, trace, model_grader=grader))
     results = build_results(scores, split=split, canary=canary, build_seed=0,
                             weights={"score_floor": -1.0})
     out.write_text(json.dumps(results, indent=2, default=str), encoding="utf-8")

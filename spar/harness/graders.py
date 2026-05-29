@@ -53,6 +53,12 @@ class SampleScore:
     incurred_dispute: bool = False
     route_score: float | None = None
     final_state: FsmState | None = None
+    # H3: cross-axis reporting slice (by_intent_spec) needs the modifier per sample.
+    intent_spec: str = "explicit"
+    # H1: the model-graded cap is a REWARD-WEIGHT fraction (module 40 §3.3), not a sample
+    # count — so each score carries the reward magnitude it contributes (w_route on the
+    # routing axis, w_outcome elsewhere). Defaults to 1.0 for hand-built test scores.
+    reward_weight: float = 1.0
     # M6: Tier-C model-graded tagging (F12) + live multi-trial pass^k counts (set by run_trials).
     model_graded: bool = False
     grader_model: str | None = None
@@ -367,6 +373,9 @@ def score(
         raw -= weights.p_dispute
     clamped = max(weights.score_floor, min(SCORE_CEIL, raw))
 
+    # H1: reward magnitude this sample contributes (the positive term's weight on its axis).
+    reward_weight = weights.w_route if sample.axis is Axis.ROUTING else weights.w_outcome
+
     return SampleScore(
         sample_id=sample.sample_id,
         axis=sample.axis.value,
@@ -379,6 +388,8 @@ def score(
         incurred_dispute=incurred_dispute,
         route_score=route_score,
         final_state=trace.grade_terminal,  # GRADE-terminal so report._completed keys off it
+        intent_spec=sample.intent_spec.value,
+        reward_weight=reward_weight,
         model_graded=model_graded,
         grader_model=grader_model,
     )

@@ -26,6 +26,7 @@ from spar.simulator.schemas import Sample
 
 PUBLIC_SPLITS: tuple[str, ...] = ("lite", "main", "diamond")
 DIAMOND_CAP = 198
+F1_FLOOR = 0.9   # H2: >=90% of each shipped split's non-traps must defeat naive completion
 
 
 def _write_public(base: Path, split: str, samples: list[Sample], *,
@@ -80,6 +81,15 @@ def build(*, public_dir: Path, private_dir: Path, build_seed: int,
     by_split["diamond"] = diamond
     private.extend(diamond)
 
+    # H2 (F1 gate): enforce the non-trivial-non-trap invariant on every SHIPPED graded split
+    # before writing — a regression that let naive completion solve a non-trap would otherwise
+    # ship silently. The gate runs on the built splits (procedural + diamond), NOT on the raw
+    # easy-laden gold backbone (whose trivial gold is intentional, for gold_replay). Diamond is
+    # all-traps -> the gate passes vacuously but is asserted so a future Diamond non-trap is caught.
+    for split in PUBLIC_SPLITS:
+        f1_spotcheck(by_split[split], floor=F1_FLOOR)
+    f1_spotcheck(private, floor=F1_FLOOR)
+
     for split in PUBLIC_SPLITS:
         _write_public(public_dir, split, by_split[split], build_seed=build_seed,
                       canary=canary, spar_version=spar_version)
@@ -87,22 +97,35 @@ def build(*, public_dir: Path, private_dir: Path, build_seed: int,
                    spar_version=spar_version)
 
 
-def f1_spotcheck(samples: list[Sample], *, floor: float = 0.9) -> float:
-    """Run NaiveCompleteAgent over non-trap samples; return the fraction it fails.
+def f1_spotcheck(samples: list[Sample], *, floor: float = 0.9, min_axis_n: int = 10) -> float:
+    """Run NaiveCompleteAgent over non-trap samples; return the fraction it FAILS to complete.
 
     F1 (module 30 §3): a bare select->submit->capture must NOT complete a well-formed
-    non-trap. Returns the failed fraction so build.py / tests can assert it clears `floor`
-    (raising if it does not). A non-trap the naive agent solves is a generation bug.
+    non-trap. The gate is enforced **per axis** (module 30 §3 says "per axis") for every axis
+    with at least `min_axis_n` non-traps — an aggregate-only floor MASKS a single weak axis
+    (e.g. a 35%-gameable post_purchase hides behind a 5% aggregate). Axes below `min_axis_n`
+    (small splits like Lite) only contribute to the aggregate floor, to avoid 1-sample noise.
+    Raises on any violation; otherwise returns the overall failed fraction.
     """
     non_traps = [s for s in samples if not s.is_trap]
     if not non_traps:
         return 1.0
-    failures = 0
+    by_axis: dict[str, list[bool]] = {}
     for sample in non_traps:
         trace = run_episode(sample, NaiveCompleteAgent(), trial_index=0)
-        if not score(sample, trace).outcome_correct:
-            failures += 1
-    fraction = failures / len(non_traps)
+        failed = not score(sample, trace).outcome_correct
+        by_axis.setdefault(sample.axis.value, []).append(failed)
+
+    for axis, fails in sorted(by_axis.items()):
+        if len(fails) >= min_axis_n:
+            frac = sum(fails) / len(fails)
+            if frac < floor:
+                raise AssertionError(
+                    f"F1 violation [axis={axis}]: naive completion solved "
+                    f"{(1 - frac):.0%} of its {len(fails)} non-traps "
+                    f"(floor requires it fail >= {floor:.0%})"
+                )
+    fraction = sum(sum(v) for v in by_axis.values()) / len(non_traps)
     if fraction < floor:
         raise AssertionError(
             f"F1 violation: naive completion solved {(1 - fraction):.0%} of non-traps "
