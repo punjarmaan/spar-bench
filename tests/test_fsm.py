@@ -99,7 +99,9 @@ def test_terminal_states_are_absorbing(seq):
             reached_terminal = True
         else:
             world.step(_action_from(tag))
-    assert reached_terminal or not world.is_agent_terminal() or True
+    # If a terminal was ever reached, the world must still be terminal at the end (absorbing).
+    if reached_terminal:
+        assert world.is_agent_terminal()
 
 
 def test_determinism_snapshot_is_pinned():

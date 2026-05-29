@@ -14,7 +14,7 @@ from spar.harness.runner import EpisodeTrace
 from spar.harness.tokens import TokenContext, must_not_occurred, must_satisfied
 from spar.harness.weights import DEFAULT_WEIGHTS, Weights
 from spar.simulator.contract import Retry
-from spar.simulator.enums import FsmState
+from spar.simulator.enums import FsmState, ToolStatus
 from spar.simulator.reasons import is_hard, retry_penalty_weight
 from spar.simulator.schemas import Sample
 
@@ -55,7 +55,11 @@ def _wasted_retry_weight(trace: EpisodeTrace) -> tuple[int, float]:
         if isinstance(action, Retry) and latched_hard is not None:
             count += 1
             weight += retry_penalty_weight(latched_hard)
-        if resp.reason_code is not None and is_hard(resp.reason_code):
+        if (
+            resp.status is ToolStatus.DECLINED
+            and resp.reason_code is not None
+            and is_hard(resp.reason_code)
+        ):
             latched_hard = resp.reason_code  # latched; never cleared by a later soft decline
     return count, weight
 

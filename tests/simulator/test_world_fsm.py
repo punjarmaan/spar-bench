@@ -6,6 +6,7 @@ from spar.simulator.contract import (
     HandleChallenge,
     SelectRoute,
     SubmitAuthorization,
+    ToolResponse,
 )
 from spar.simulator.enums import (
     Axis,
@@ -158,3 +159,26 @@ def test_drain_deferred_passes_aborted_through_unchanged():
     world.step(SubmitAuthorization(tool="submit_authorization"))
     world.step(Abort(tool="abort", reason="hard decline"))
     assert world.drain_deferred() is FsmState.ABORTED
+
+
+def test_auth_draw_is_stable_under_extra_illegal_steps_end_to_end():
+    # G2 end-to-end: reaching auth attempt 1 via different elapsed_steps counts (extra illegal
+    # actions that bump the clock but don't advance state) MUST draw the SAME sampled outcome,
+    # because the draw keys on the per-route `attempt` ordinal, never `elapsed_steps`.
+    plan = {"mode": "sampled", "p_decline": 1.0, "soft_reasons": ["51", "05", "91"]}
+
+    def first_auth(n_illegal: int) -> ToolResponse:
+        world = World(_sample(plan), trial_index=0)
+        world.reset()
+        world.step(SelectRoute(tool="select_route", acquirer_id="acq_a", method="visa"))
+        for _ in range(n_illegal):
+            # Capture is illegal in ROUTE_SELECTED: bumps elapsed_steps, never advances state.
+            r = world.step(Capture(tool="capture"))
+            assert r.status is ToolStatus.ILLEGAL_ACTION
+            assert world.state is FsmState.ROUTE_SELECTED
+        return world.step(SubmitAuthorization(tool="submit_authorization"))
+
+    clean = first_auth(0)
+    noisy = first_auth(4)
+    assert clean.status is ToolStatus.DECLINED and noisy.status is ToolStatus.DECLINED
+    assert clean.reason_code == noisy.reason_code  # same attempt -> same draw despite extra steps
