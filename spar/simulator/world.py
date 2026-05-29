@@ -11,6 +11,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+from spar.simulator import backends
 from spar.simulator.contract import (
     Abort,
     Action,
@@ -45,9 +46,13 @@ class World:
         self._selected_acquirer: str | None = None
         self._selected_method: str | None = None
         self._challenge_token: str | None = None
+        # M3 routing: the acquirer captured on a settled purchase (read by the oracle grader).
+        self.completed_route_id: str | None = None
         # G2: stable per-route authorization-attempt ordinal — keys every DECLINE/CHALLENGE
-        # draw, NEVER elapsed_steps. Bumped once per auth/challenge resolution.
+        # draw, NEVER elapsed_steps. Bumped once per auth/challenge resolution (decline_plan path).
         self._auth_attempt = 0
+        # M3 routing: per-acquirer authorization-attempt ordinals for the backend auth path.
+        self.auth_attempts: dict[str, int] = {}
         # F8: per-reason-code attempt history, total retry count, bounded recent events.
         self.attempt_counts: dict[str, int] = {}
         self.retry_count = 0
@@ -69,7 +74,9 @@ class World:
         self._selected_acquirer = None
         self._selected_method = None
         self._challenge_token = None
+        self.completed_route_id = None
         self._auth_attempt = 0
+        self.auth_attempts = {}
         self.attempt_counts = {}
         self.retry_count = 0
         self.recent_events = []
@@ -80,6 +87,9 @@ class World:
 
     def is_agent_terminal(self) -> bool:
         return self.state in TERMINAL_AGENT
+
+    def _buyer_geo(self) -> str:
+        return str(self.sample.mandate.conditions.get("buyer_geo", "US"))
 
     # ---- deferred-event queue (frozen M1 contract; M5 fleshes out the min-heap drain) ----
 
@@ -124,7 +134,7 @@ class World:
                 for a in wc.acquirers
             ],
             context=ObsContext(
-                buyer_geo="US",
+                buyer_geo=self._buyer_geo(),
                 elapsed_steps=self.elapsed_steps,
                 last_event=last_event,
                 last_reason_code=last_reason,
@@ -137,9 +147,15 @@ class World:
     # ---- transition ----
 
     def _resolve_auth(self) -> ToolResponse:
+        plan = self.sample.world_config.decline_plan
+        # Dispatch: a sample with a scripted/sampled `decline_plan.mode` uses the M2
+        # decline-taxonomy resolver (decline_recovery axis); a sample WITHOUT a plan mode
+        # resolves stochastically against the selected acquirer's hidden params via the
+        # backend (routing axis). Both key their draw on a per-route attempt ordinal (G2).
+        if not plan.get("mode"):
+            return self._resolve_backend_auth()
         # G2: bump the stable attempt ordinal once per resolution; key the draw on it.
         self._auth_attempt += 1
-        plan = self.sample.world_config.decline_plan
         outcome = resolve_auth_outcome(
             plan,
             sample_id=self.sample.sample_id,
@@ -161,6 +177,26 @@ class World:
         self.state = FsmState.APPROVED
         self._record_event("approved")
         return ToolResponse(status=ToolStatus.APPROVED)
+
+    def _resolve_backend_auth(self) -> ToolResponse:
+        # M3 routing: resolve against the SELECTED acquirer's hidden approval_prob/reliability
+        # (backends.resolve_authorization). Keyed on the PER-ROUTE attempt ordinal (read before
+        # incrementing) so unrelated/illegal steps never shift the pinned draw (G2).
+        acq = backends.find_acquirer(
+            self.sample.world_config.acquirers, self._selected_acquirer or ""
+        )
+        assert acq is not None  # ROUTE_SELECTED guarantees a valid prior selection
+        ordinal = self.auth_attempts.get(acq.acquirer_id, 0)
+        self.auth_attempts[acq.acquirer_id] = ordinal + 1
+        outcome = backends.resolve_authorization(
+            acq, sample_id=self.sample.sample_id, seed=self.sample.seed,
+            trial_index=self.trial_index, attempt_ordinal=ordinal,
+        )
+        if outcome.approved:
+            self.state = FsmState.APPROVED
+            self._record_event("approved")
+            return ToolResponse(status=ToolStatus.APPROVED)
+        return self._decline(outcome.reason_code or "05")
 
     def _decline(self, code: str) -> ToolResponse:
         self.state = FsmState.DECLINED
@@ -221,9 +257,18 @@ class World:
                      if a.acquirer_id == action.acquirer_id),
                     None,
                 )
-                if acq is None or action.method not in acq.methods:
+                if acq is None:
                     return ToolResponse(
-                        status=ToolStatus.ILLEGAL_ACTION, detail={"unsupported": "method"}
+                        status=ToolStatus.ILLEGAL_ACTION,
+                        detail={"reason": "unknown_acquirer", "acquirer_id": action.acquirer_id},
+                    )
+                if action.method not in acq.methods:
+                    return ToolResponse(
+                        status=ToolStatus.ILLEGAL_ACTION, detail={"reason": "unsupported_method"}
+                    )
+                if self._buyer_geo() not in acq.supported_geos:
+                    return ToolResponse(
+                        status=ToolStatus.ILLEGAL_ACTION, detail={"reason": "unsupported_geo"}
                     )
                 self._selected_acquirer = action.acquirer_id
                 self._selected_method = action.method
@@ -240,9 +285,12 @@ class World:
             case Retry() if self.state is FsmState.DECLINED:
                 self.retry_count += 1
                 self._record_event(f"retry:{action.strategy}")
-                if action.strategy in ("different_acquirer", "different_method", "same"):
-                    self.state = FsmState.ROUTE_SELECTED
-                else:  # "wait" — back off without resubmitting; stay routable
+                if action.strategy == "different_acquirer":
+                    # Failover: clear the selection so the agent must re-select a route.
+                    self._selected_acquirer = None
+                    self._selected_method = None
+                    self.state = FsmState.CART
+                else:  # same / different_method / wait: re-auth the same selected route
                     self.state = FsmState.ROUTE_SELECTED
                 return ToolResponse(status=ToolStatus.OK, detail={"retry": action.strategy})
             case ModifyCart() if self.state in (FsmState.CART, FsmState.DECLINED):
@@ -252,6 +300,7 @@ class World:
                 return ToolResponse(status=ToolStatus.OK)
             case Capture() if self.state is FsmState.APPROVED:
                 # sync settlement: capture advances straight to SETTLED (agent-terminal, F3).
+                self.completed_route_id = self._selected_acquirer  # M3: exposed to the grader
                 self.state = FsmState.SETTLED
                 self._record_event("settled")
                 return ToolResponse(status=ToolStatus.OK)
