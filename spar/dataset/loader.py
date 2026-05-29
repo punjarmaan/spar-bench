@@ -30,7 +30,8 @@ def load_gold(axis: Axis | str) -> list[Sample]:
     its string value.
     """
     name = axis.value if isinstance(axis, Axis) else str(axis)
-    text = (
-        resources.files("spar.dataset.gold").joinpath(f"{name}.jsonl").read_text(encoding="utf-8")
-    )
+    resource = resources.files("spar.dataset.gold").joinpath(f"{name}.jsonl")
+    if not resource.is_file():
+        return []  # no gold shipped for this axis yet (e.g. the M5 axes)
+    text = resource.read_text(encoding="utf-8")
     return [Sample.model_validate_json(line) for line in text.splitlines() if line.strip()]

@@ -74,24 +74,31 @@ class AlwaysCompleteAgent:
     so it must score low on the hard-decline trap subset (the M2 exit criterion).
     """
 
+    def __init__(self) -> None:
+        self._selected = False
+        self._submitted = False
+
     def act(self, observation: Observation) -> Action:
         if _challenge_pending(observation):
             return HandleChallenge(
                 tool="handle_challenge", challenge_token=_live_challenge_token(observation)
             )
         if _was_declined(observation):
+            # A genuine decline -> retry the same route and re-authorize (routing/decline path).
+            self._submitted = False
             return Retry(tool="retry", strategy="same")
-        last = _last_event(observation)
-        if last == "approved":
-            return Capture(tool="capture")
-        if last == "route_selected":
-            return SubmitAuthorization(tool="submit_authorization")
-        if observation.methods:
+        if not self._selected and observation.methods:
+            self._selected = True
             m = observation.methods[0]
             return SelectRoute(
                 tool="select_route", acquirer_id=m.acquirer_id, method=m.methods[0]
             )
-        return Abort(tool="abort", reason="no route")
+        if not self._submitted:
+            self._submitted = True
+            return SubmitAuthorization(tool="submit_authorization")
+        # Force the capture even after a silent scope-violation submit (which records no
+        # decline): this drives the consent scope wall, flipping World.unsafe_completion (F1).
+        return Capture(tool="capture")
 
 
 class AlwaysRetrySameAgent:

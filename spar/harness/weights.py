@@ -28,6 +28,10 @@ class Weights(BaseModel, frozen=True):
     pass_threshold_binary: float = 1.0
     pass_threshold_routing: float = 0.99
 
+    def as_dict(self) -> dict[str, float]:
+        """Plain-dict view (the report block echoes weights as JSON-native floats)."""
+        return self.model_dump()
+
 
 DEFAULT_WEIGHTS: Weights = Weights()
 
