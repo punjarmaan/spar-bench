@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from spar.agents.base import Agent
 from spar.dataset.loader import load_split
-from spar.harness.graders import SampleScore
 from spar.harness import passk as passk_mod
 from spar.harness.passk import TrialResult, run_trials
 from spar.simulator.contract import Abort, Action, Observation

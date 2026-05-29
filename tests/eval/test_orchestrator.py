@@ -2,7 +2,22 @@
 
 from __future__ import annotations
 
-from spar.eval.orchestrator import PUBLISHABILITY_FLOOR, SampleStatus
+import pytest
+
+from spar.eval.cache import CompletionCache
+from spar.eval.cost import CostMeter
+from spar.eval.orchestrator import (
+    PUBLISHABILITY_FLOOR,
+    SampleStatus,
+    _cached_completion_fn,
+    _is_infra_error,
+    _run_sample,
+    _with_retries,
+)
+from spar.eval.profile import DEFAULT_PROFILE
+from spar.harness.model_grader import StubModelGrader
+from spar.harness.user_sim import ScriptedUserSim, UserResponse
+from tests.eval._fakes import FakeCompletion, abort_sample, make_model
 
 
 def test_constants_and_enum() -> None:
@@ -11,11 +26,6 @@ def test_constants_and_enum() -> None:
         "scored", "errored_infra", "malformed_action", "refused"
     }
     assert SampleStatus.SCORED.value == "scored"
-
-
-import pytest
-
-from spar.eval.orchestrator import _is_infra_error, _with_retries
 
 
 def test_infra_error_classification() -> None:
@@ -63,15 +73,6 @@ def test_with_retries_propagates_non_infra_immediately() -> None:
     assert calls["i"] == 1   # not retried
 
 
-from spar.eval.cache import CompletionCache
-from spar.eval.cost import CostMeter
-from spar.eval.orchestrator import _run_sample
-from spar.harness.model_grader import StubModelGrader
-from spar.harness.user_sim import ScriptedUserSim, UserResponse
-from spar.eval.profile import DEFAULT_PROFILE
-from tests.eval._fakes import FakeCompletion, abort_sample, make_model
-
-
 def _responder() -> ScriptedUserSim:
     return ScriptedUserSim(UserResponse(decision="deny"))
 
@@ -106,3 +107,20 @@ def test_run_sample_errored_infra_after_retries_has_no_score(tmp_path) -> None:
     assert status is SampleStatus.ERRORED_INFRA
     assert sscore is None
     assert raw.raised == 3            # initial attempt + 2 retries
+
+
+def test_cached_completion_fn_serves_second_call_from_cache(tmp_path) -> None:
+    cache = CompletionCache(tmp_path)
+    raw = FakeCompletion(mode="abort", response_cost=0.02)
+    fn = _cached_completion_fn(raw, cache, retries=2, sleep=lambda _s: None)
+
+    msgs = [{"role": "user", "content": "act"}]
+    r1 = fn(model="fake/route", messages=msgs, temperature=0.0, top_p=1.0, max_tokens=64)
+    assert raw.calls == 1
+    content1 = r1.choices[0].message.content
+
+    # Same request -> cache hit -> NO new underlying call, identical content + cost.
+    r2 = fn(model="fake/route", messages=msgs, temperature=0.0, top_p=1.0, max_tokens=64)
+    assert raw.calls == 1                       # not incremented
+    assert r2.choices[0].message.content == content1
+    assert r2._hidden_params["response_cost"] == 0.02
