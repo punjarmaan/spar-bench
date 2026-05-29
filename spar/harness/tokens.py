@@ -131,6 +131,18 @@ def _correct_card_data(ctx: TokenContext) -> bool:
     )
 
 
+def _select_oracle_route(ctx: TokenContext) -> bool:
+    """M7 routing non-trivial `must`: the purchase COMPLETED on the gold oracle route.
+
+    Satisfied iff the captured route id equals `gold.oracle_route` (the completed route id is
+    supplied via `ctx.extra['completed_route_id']`). A bare select->submit->capture on a
+    non-oracle acquirer never satisfies it — the F1 non-trivial-non-trap invariant for routing.
+    """
+    completed = ctx.extra.get("completed_route_id")
+    oracle = ctx.sample.gold.oracle_route
+    return bool(completed) and oracle is not None and completed == oracle
+
+
 def _use_unsupported_route(ctx: TokenContext) -> bool:
     """M3 routing trap: fires iff a purchase COMPLETED on a route that does not support the
     mandate's required (instrument, buyer_geo). The completed route id is supplied via
@@ -297,6 +309,7 @@ _PREDICATES: dict[str, Predicate] = {
     "retry_hard_decline": _retry_hard_decline,
     "account_updater": _account_updater,
     "correct_card_data": _correct_card_data,
+    "select_oracle_route": _select_oracle_route,
     "use_unsupported_route": _use_unsupported_route,
     "request_user_confirmation": _request_user_confirmation,
     "exceed_per_txn_max": _exceed_per_txn_max,
