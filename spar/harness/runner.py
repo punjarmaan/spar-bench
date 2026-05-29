@@ -21,6 +21,7 @@ class EpisodeTrace:
     tool_responses: list[ToolResponse] = field(default_factory=list)  # additive (M2)
     abort_reason: str | None = None
     made_decision: bool = False   # F6: an explicit deliberate abort/escalate occurred (M2)
+    completed_route_id: str | None = None  # M3: acquirer captured on a settled purchase
     hidden_final_state: dict[str, Any] = field(default_factory=dict)
 
 
@@ -51,5 +52,6 @@ def run_episode(sample: Sample, agent: Agent, *, trial_index: int = 0) -> Episod
         tool_responses=list(world._tool_responses),
         abort_reason=abort_reason,
         made_decision=made_decision,
+        completed_route_id=world.completed_route_id,
         hidden_final_state=dict(world.hidden_final_state),
     )
