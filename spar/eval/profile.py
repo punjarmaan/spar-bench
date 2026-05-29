@@ -31,3 +31,34 @@ class StagePlan(BaseModel):
     k: int
     stage: Literal["competence", "reliability"]
     published: bool
+
+
+class Profile(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    competence: StageSampling          # Main pass^1 + per-axis breakdown
+    reliability: StageSampling         # Diamond pass^4
+    plan: list[StagePlan]              # ordered (split, k, stage, published) entries
+
+
+def load_profile(path: str | Path) -> Profile:
+    """Read a profile TOML (`[profile.competence]`, `[profile.reliability]`, `[[plan]]`)."""
+    data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
+    profile = data.get("profile", {})
+    return Profile(
+        competence=StageSampling.model_validate(profile["competence"]),
+        reliability=StageSampling.model_validate(profile["reliability"]),
+        plan=[StagePlan.model_validate(row) for row in data.get("plan", [])],
+    )
+
+
+# Profile "A" (spec §6): the published default. Sampling per §5.3.
+DEFAULT_PROFILE: Profile = Profile(
+    competence=StageSampling(temperature=0.0, top_p=1.0, max_tokens=2048, seed=7),
+    reliability=StageSampling(temperature=0.7, top_p=1.0, max_tokens=2048, seed=7),
+    plan=[
+        StagePlan(split="main", k=1, stage="competence", published=True),
+        StagePlan(split="diamond", k=4, stage="reliability", published=True),
+        StagePlan(split="lite", k=1, stage="competence", published=False),
+    ],
+)
