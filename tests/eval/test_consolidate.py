@@ -175,3 +175,43 @@ def test_consolidate_ignores_dirs_without_main_results(runs_dir: Path) -> None:
     (runs_dir / "trajectories-junk").mkdir()        # a stray dir with no main.results.json
     entries = consolidate(runs_dir)
     assert {e.model for e in entries} == {"opus-frontier", "llama-open"}
+
+
+def test_write_leaderboard_json_sort_order(runs_dir: Path, tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    write_leaderboard(consolidate(runs_dir), out)
+    data = json.loads((out / "leaderboard.json").read_text(encoding="utf-8"))
+    # private_verified above public_self_run, then trust_score desc.
+    assert [row["model"] for row in data] == ["opus-frontier", "llama-open"]
+    assert data[0]["provenance"] == "private_verified"
+    assert data[0]["class"] == "frontier"        # serialized via alias
+    assert data[0]["trust_score_ci95"] == list(data[0]["trust_score_ci95"])  # JSON list
+
+
+def test_write_leaderboard_json_verified_above_unverified() -> None:
+    # A higher-trust public_self_run still sorts BELOW any private_verified (provenance first).
+    from tests.eval.conftest import (
+        OPUS_DIAMOND, OPUS_MAIN, _manifest, _write_model)
+    import tempfile
+    tmp = Path(tempfile.mkdtemp())
+    runs = tmp / "runs"
+    # high-trust public model
+    hi_pub = _manifest(model="hi-pub", cls="open", provenance="public_self_run",
+                       cost_usd=1.0, version_pin="x@1", canary="spar:abc")
+    _write_model(runs / "hi-pub", main=OPUS_MAIN, diamond=OPUS_DIAMOND, manifest=hi_pub)
+    # lower-trust private-verified model
+    lo_priv_main = json.loads(json.dumps(OPUS_MAIN))
+    lo_priv_main["summary"]["trust_score"] = 0.10
+    lo_priv = _manifest(model="lo-priv", cls="frontier", provenance="private_verified",
+                        cost_usd=2.0, version_pin="y@1", canary="spar:abc")
+    _write_model(runs / "lo-priv", main=lo_priv_main, diamond=OPUS_DIAMOND, manifest=lo_priv)
+    out = tmp / "out"
+    write_leaderboard(consolidate(runs), out)
+    data = json.loads((out / "leaderboard.json").read_text(encoding="utf-8"))
+    assert [r["model"] for r in data] == ["lo-priv", "hi-pub"]   # verified first despite lower trust
+
+
+def test_write_leaderboard_json_has_trailing_newline(runs_dir: Path, tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    write_leaderboard(consolidate(runs_dir), out)
+    assert (out / "leaderboard.json").read_text(encoding="utf-8").endswith("\n")
