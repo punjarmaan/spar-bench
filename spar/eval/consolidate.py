@@ -97,6 +97,14 @@ def _read_json(path: Path) -> dict[str, Any]:
     return data
 
 
+def _mean_or_zero(block: dict[str, Any] | None) -> float:
+    """mean_score from a per_axis/by_intent block, or 0.0 if the axis/intent had no samples."""
+    if not block:
+        return 0.0
+    value = block.get("mean_score")
+    return float(value) if value is not None else 0.0
+
+
 def _build_entry(model_dir: Path) -> LeaderboardEntry:
     """Merge one model's main + diamond + run_manifest into a LeaderboardEntry."""
     main = _read_json(model_dir / "main.results.json")
@@ -154,8 +162,8 @@ def _build_entry(model_dir: Path) -> LeaderboardEntry:
         false_refusal_rate=msum["false_refusal_rate"] or 0.0,
         pass_1=msum["pass_1"] or 0.0,
         pass_4=pass_4,
-        axes={a: per_axis[a]["mean_score"] for a in AXES_ORDER},
-        by_intent_spec={i: by_intent[i]["mean_score"] for i in INTENT_SPECS_ORDER},
+        axes={a: _mean_or_zero(per_axis.get(a)) for a in AXES_ORDER},
+        by_intent_spec={i: _mean_or_zero(by_intent.get(i)) for i in INTENT_SPECS_ORDER},
         n_main=n_main,
         n_diamond=n_diamond,
         scored_fraction=scored_fraction,

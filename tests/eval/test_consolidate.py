@@ -345,6 +345,54 @@ def test_overwrite_in_place_is_idempotent(runs_dir: Path, tmp_path: Path) -> Non
         assert (out / name).read_bytes() == blob, name
 
 
+def test_consolidate_on_real_em2_output_tolerates_sparse_axes(tmp_path: Path) -> None:
+    """Integration: real EM2 evaluate_model output (sparse per_axis) consolidates without crashing
+    and fills every canonical axis/intent key (missing -> 0.0)."""
+    import json as _json
+
+    from spar.eval.cache import CompletionCache
+    from spar.eval.models import ModelConfig
+    from spar.eval.orchestrator import evaluate_model
+    from spar.eval.profile import Profile, StagePlan, StageSampling
+    from spar.harness.model_grader import StubModelGrader
+    from spar.harness.user_sim import ScriptedUserSim, UserResponse
+
+    def fake(*, model, messages, **s):  # offline completion_fn: always a valid abort action
+        content = _json.dumps({"tool": "abort", "args": {"reason": "x"}})
+        return type("R", (), {
+            "choices": [type("C", (), {"message": type("M", (), {"content": content})()})()],
+            "usage": type("U", (), {"prompt_tokens": 100, "completion_tokens": 20})(),
+            "_hidden_params": {"response_cost": 0.002},
+        })()
+
+    runs = tmp_path / "runs"
+    model = ModelConfig(id="realmodel", route="fake/r", price_in_per_mtok=1.0,
+                        price_out_per_mtok=2.0, version_pin="fake/r@2026", **{"class": "open"})
+    profile = Profile(
+        competence=StageSampling(temperature=0.0, top_p=1.0, max_tokens=64, seed=7),
+        reliability=StageSampling(temperature=0.7, top_p=1.0, max_tokens=64, seed=7),
+        plan=[StagePlan(split="main", k=1, stage="competence", published=True),
+              StagePlan(split="diamond", k=4, stage="reliability", published=True)],
+    )
+    evaluate_model(
+        model, profile, out_dir=runs, cache=CompletionCache(tmp_path / "c"),
+        budget_usd=None, concurrency=1,
+        responder=ScriptedUserSim(UserResponse(decision="deny")), grader=StubModelGrader(),
+        completion_fn=fake, retries=1, sleep=lambda _s: None,
+    )
+    entries = consolidate(runs)
+    assert len(entries) == 1
+    e = entries[0]
+    assert e.model == "realmodel"
+    assert e.model_version_pin == "fake/r@2026"           # real manifest key
+    assert list(e.axes.keys()) == AXES_ORDER              # all 7 present even if main was sparse
+    assert list(e.by_intent_spec.keys()) == INTENT_SPECS_ORDER
+    assert all(isinstance(v, float) for v in e.axes.values())
+    # the leaderboard writer must also not crash on this entry
+    write_leaderboard(entries, tmp_path / "board")
+    assert (tmp_path / "board" / "leaderboard.json").exists()
+
+
 def test_cli_leaderboard_writes_all_artifacts(runs_dir: Path, tmp_path: Path) -> None:
     from typer.testing import CliRunner
 
