@@ -73,13 +73,15 @@ def build(*, public_dir: Path, private_dir: Path, build_seed: int,
         by_split[planned.split].append(sample)
         # Private holds the full graded copy of every procedural sample too, so the
         # leaderboard can grade public submissions server-side against hidden gold.
-        private.append(sample)
+        # The split tag is stamped only here (private), never on by_split, so public
+        # rows remain byte-identical regardless of projection allowlist changes.
+        private.append(sample.model_copy(update={"split": planned.split}))
 
     # Diamond: hand-authored backbone only (F14), capped at 198.
     diamond = sorted(diamond_backbone(), key=lambda s: s.sample_id)[:DIAMOND_CAP]
     diamond = [apply_canary(s, canary) for s in diamond]
     by_split["diamond"] = diamond
-    private.extend(diamond)
+    private.extend(d.model_copy(update={"split": "diamond"}) for d in diamond)
 
     # H2 (F1 gate): enforce the non-trivial-non-trap invariant on every SHIPPED graded split
     # before writing — a regression that let naive completion solve a non-trap would otherwise
