@@ -1,5 +1,5 @@
-"""EM4 — the SINGLE live smoke test (spec §9). ONE real cheap model on Spar-Lite k=1,
-end-to-end through evaluate_model → consolidate → write_leaderboard.
+"""EM4 — the SINGLE live smoke test (spec §9). ONE real cheap model end-to-end through
+evaluate_model → consolidate → write_leaderboard.
 
 RUN ONLY: OPENROUTER_API_KEY=… uv run pytest -q -m frontier tests/eval/test_frontier_smoke.py
 EXCLUDED from the per-commit gate by `-m "not frontier"`. Double-gated: the `frontier`
@@ -45,11 +45,17 @@ def test_one_cheap_model_produces_a_leaderboard_row(tmp_path: Path) -> None:
         version_pin=f"{SMOKE_MODEL_ROUTE}@smoke",
         **{"class": "open"},
     )
-    # Lite-only, k=1, competence stage at temp=0 — the cheapest end-to-end path.
+    # The leaderboard consolidates the COMPETENCE (main) + RELIABILITY (diamond) splits — a
+    # lite-only run writes no main.results.json and cannot consolidate (spec §6: lite is dev,
+    # never published). Run the published shape at k=1 (cheapest publishable end-to-end path; the
+    # bundled main/diamond splits are tiny, so this stays ~cents).
     profile = Profile(
         competence=StageSampling(temperature=0.0, top_p=1.0, max_tokens=512, seed=7),
         reliability=StageSampling(temperature=0.7, top_p=1.0, max_tokens=512),
-        plan=[StagePlan(split="lite", k=1, stage="competence", published=True)],
+        plan=[
+            StagePlan(split="main", k=1, stage="competence", published=True),
+            StagePlan(split="diamond", k=1, stage="reliability", published=True),
+        ],
     )
     # Pinned infra: live responder (temp=0) sharing the agent route; offline stub grader so
     # a malformed/refused agent still grades and the row is well-formed without a judge call.
