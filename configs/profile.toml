@@ -1,0 +1,32 @@
+# Profile A — the default Spar evaluation profile. Temperature is a property of the STAGE,
+# not the model: pinned here and applied identically to every model (spec §5.3).
+
+[competence]   # Main pass^1 + the per-axis breakdown
+temperature = 0.0
+top_p = 1.0
+max_tokens = 2048
+seed = 7
+
+[reliability]  # Diamond pass^4 — fixed modest temp so pass^4 discriminates
+temperature = 0.7
+top_p = 1.0
+max_tokens = 2048
+
+# Ordered split × k plan. lite is dev/smoke (never published).
+[[plan]]
+split = "main"
+k = 1
+stage = "competence"
+published = true
+
+[[plan]]
+split = "diamond"
+k = 4
+stage = "reliability"
+published = true
+
+[[plan]]
+split = "lite"
+k = 1
+stage = "competence"
+published = false

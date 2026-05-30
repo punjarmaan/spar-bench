@@ -1,0 +1,30 @@
+# Spar cross-model evaluation roster — model IDENTITY ONLY (no sampling knobs; those live in
+# profile.toml so no model can be tuned). OpenRouter is the default route; set OPENROUTER_API_KEY.
+# Adding/switching a model = editing this file. Prices are optional (cost reporting fallback).
+
+[[model]]
+id            = "claude-opus-4"
+route         = "openrouter/anthropic/claude-opus-4"
+class         = "frontier"
+supports_response_format = true
+price_in_per_mtok  = 15.0
+price_out_per_mtok = 75.0
+version_pin   = "anthropic/claude-opus-4@2026-05"
+
+[[model]]
+id            = "gpt-5"
+route         = "openrouter/openai/gpt-5"
+class         = "frontier"
+supports_response_format = true
+price_in_per_mtok  = 10.0
+price_out_per_mtok = 30.0
+version_pin   = "openai/gpt-5@2026-05"
+
+[[model]]
+id            = "llama-3.3-70b"
+route         = "openrouter/meta-llama/llama-3.3-70b-instruct"
+class         = "open"
+supports_response_format = false
+price_in_per_mtok  = 0.12
+price_out_per_mtok = 0.30
+version_pin   = "meta-llama/llama-3.3-70b-instruct@2026-05"
