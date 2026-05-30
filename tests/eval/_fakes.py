@@ -77,6 +77,11 @@ class FakeCompletion:
         self.calls += 1
         if self.mode == "garbage":
             return _Resp("not a tool action, just prose", self.response_cost)
+        if self.mode == "counter":
+            return _Resp(
+                json.dumps({"tool": "abort", "args": {"reason": f"t{self.calls}"}}),
+                self.response_cost,
+            )
         step = sum(1 for m in messages if m.get("role") == "assistant")
         action = _HAPPY_PATH[min(step, len(_HAPPY_PATH) - 1)]
         return _Resp(json.dumps(action), self.response_cost)

@@ -123,12 +123,14 @@ def _cached_completion_fn(
     *,
     retries: int,
     sleep: Callable[[float], None],
+    trial_index: int = 0,
 ) -> Callable[..., _CachedResponse]:
     """Wrap a completion_fn with the content-addressed cache + infra retries. A cache hit replays
-    the stored response and makes NO underlying call (resume idempotency, design §5.5/§5.6)."""
+    the stored response and makes NO underlying call (resume idempotency, design §5.5/§5.6).
+    `trial_index` partitions the cache so each pass^k trial samples & resumes independently (B1)."""
 
     def fn(*, model: str, messages: list[dict[str, Any]], **sampling: Any) -> _CachedResponse:
-        key = cache_key(model, messages, sampling)
+        key = cache_key(model, messages, sampling, trial_index=trial_index)
         cached = cache.get(key)
         if cached is not None:
             return _CachedResponse(cached)
@@ -141,6 +143,15 @@ def _cached_completion_fn(
         return _CachedResponse(payload)
 
     return fn
+
+
+def _trial_sampling(sampling: StageSampling, trial_index: int) -> StageSampling:
+    """Per-trial sampling for pass^k: offset the seed (when set) so trials diversify even on
+    seed-honoring providers; temperature/top_p stay IDENTICAL across trials (fairness — design
+    §5.3 pins one temperature per stage, diversity comes from sampling variation, not temp)."""
+    if sampling.seed is None:
+        return sampling
+    return sampling.model_copy(update={"seed": sampling.seed + trial_index})
 
 
 def _classify(score_obj: SampleScore, trace: EpisodeTrace) -> SampleStatus:
@@ -174,20 +185,20 @@ def _run_sample(
     """Run one sample's pass^k offline. Infra errors that survive retries -> ERRORED_INFRA (no
     score, excluded from the denominator but counted). Otherwise grade + classify the status and
     accrue confirmed agent cost."""
-    cached_fn = _cached_completion_fn(completion_fn, cache, retries=retries, sleep=sleep)
-    policy_text = load_policy(sample.policy_id)
-    factory = agent_factory(
-        model,
-        policy_text=policy_text,
-        sampling=sampling,
-        completion_fn=cached_fn,
-        mandate_text=sample.mandate.goal,
-    )
     binary = sample.axis is not Axis.ROUTING
+    policy_text = load_policy(sample.policy_id)
     solved = 0
     last_trace = None
     last_agent = None
     for trial_index in range(k):
+        tsamp = _trial_sampling(sampling, trial_index)
+        cached_fn = _cached_completion_fn(
+            completion_fn, cache, retries=retries, sleep=sleep, trial_index=trial_index
+        )
+        factory = agent_factory(
+            model, policy_text=policy_text, sampling=tsamp,
+            completion_fn=cached_fn, mandate_text=sample.mandate.goal,
+        )
         agent = factory()
         try:
             trace = run_episode(sample, agent, trial_index=trial_index, user_sim=responder)

@@ -14,10 +14,21 @@ from typing import Any
 from spar.simulator.rng import stable_hash
 
 
-def cache_key(model: str, messages: list[dict[str, Any]], sampling: dict[str, Any]) -> str:
+def cache_key(
+    model: str,
+    messages: list[dict[str, Any]],
+    sampling: dict[str, Any],
+    *,
+    trial_index: int = 0,
+) -> str:
     """Stable hex key for one completion request. Same inputs -> same key (cross-process)."""
     payload = json.dumps(
-        {"model": model, "messages": messages, "sampling": sampling},
+        {
+            "model": model,
+            "messages": messages,
+            "sampling": sampling,
+            "trial_index": trial_index,
+        },
         sort_keys=True,
         separators=(",", ":"),
         default=str,

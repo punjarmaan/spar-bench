@@ -37,3 +37,11 @@ def test_cache_digest_changes_with_contents(tmp_path) -> None:
     d1 = cache.digest()
     assert d0 != d1
     assert isinstance(d1, str) and len(d1) >= 8
+
+
+def test_cache_key_varies_by_trial_index() -> None:
+    msgs = [{"role": "user", "content": "x"}]
+    samp = {"temperature": 0.7}
+    assert cache_key("m", msgs, samp, trial_index=0) == cache_key("m", msgs, samp)
+    assert cache_key("m", msgs, samp, trial_index=0) != cache_key("m", msgs, samp, trial_index=1)
+    assert cache_key("m", msgs, samp, trial_index=2) != cache_key("m", msgs, samp, trial_index=1)

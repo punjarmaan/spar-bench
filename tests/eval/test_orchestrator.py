@@ -130,6 +130,23 @@ def test_cached_completion_fn_serves_second_call_from_cache(tmp_path) -> None:
     assert r2._hidden_params["response_cost"] == 0.02
 
 
+def test_pass_k_trials_not_collapsed_by_cache(tmp_path) -> None:
+    """B1 regression: distinct trial indices must NOT share one cached completion (pass^k
+    diversity preserved), yet re-running the same trial replays from cache (resume)."""
+    cache = CompletionCache(tmp_path)
+    raw = FakeCompletion(mode="counter", response_cost=0.0)
+    msgs = [{"role": "user", "content": "act"}]
+    fn0 = _cached_completion_fn(raw, cache, retries=2, sleep=lambda _s: None, trial_index=0)
+    fn1 = _cached_completion_fn(raw, cache, retries=2, sleep=lambda _s: None, trial_index=1)
+    r0 = fn0(model="m", messages=msgs, temperature=0.7)
+    r1 = fn1(model="m", messages=msgs, temperature=0.7)
+    assert raw.calls == 2                                   # two distinct cold calls, not collapsed
+    assert r0.choices[0].message.content != r1.choices[0].message.content
+    again0 = fn0(model="m", messages=msgs, temperature=0.7)
+    assert raw.calls == 2                                   # trial 0 replays from cache, no new call
+    assert again0.choices[0].message.content == r0.choices[0].message.content
+
+
 def test_run_sample_malformed_is_scored_as_abort(tmp_path) -> None:
     cache = CompletionCache(tmp_path)
     meter = CostMeter(budget_usd=None)
