@@ -23,7 +23,9 @@ def _confirmed_cost(usage: CallUsage, model: ModelConfig) -> float:
 
 
 class CostMeter:
-    """Accrues CONFIRMED agent+judge+user-sim spend and enforces the cap (design §5.6)."""
+    """Accrues CONFIRMED agent inference spend (the published cost_usd) and enforces the hard
+    budget cap (design §5.6). Only ModelAgent.usage is recorded — the pinned judge/user-sim are
+    shared overhead and are not metered in v1."""
 
     def __init__(self, *, budget_usd: float | None) -> None:
         self._budget = budget_usd
