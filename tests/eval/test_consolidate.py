@@ -83,3 +83,44 @@ def test_trust_ci95_degenerate_single_score() -> None:
 
 def test_trust_ci95_empty_is_zero_zero() -> None:
     assert trust_ci95([]) == (0.0, 0.0)
+
+
+def test_consolidate_single_model_pulls_competence_from_main(single_runs_dir: Path) -> None:
+    entries = consolidate(single_runs_dir)
+    assert len(entries) == 1
+    e = entries[0]
+    assert e.model == "opus-frontier"
+    assert e.cls == "frontier"
+    assert e.trust_score == 0.71                  # summary.trust_score from main
+    assert e.trust_score_objective == 0.70        # summary.trust_score_objective from main
+    assert e.overspend_rate == 0.03
+    assert e.false_refusal_rate == 0.09
+    assert e.pass_1 == 0.74                        # main pass^1
+    assert e.pass_4 == 0.62                        # diamond pass^4
+    assert e.n_main == 8                           # main summary.n_samples
+    assert e.n_diamond == 6                        # diamond summary.n_samples
+
+
+def test_consolidate_pulls_axes_and_intents_from_main(single_runs_dir: Path) -> None:
+    e = consolidate(single_runs_dir)[0]
+    assert e.axes == {"routing": 0.81, "decline_recovery": 0.74, "consent_mandate": 0.69,
+                      "stale_state": 0.70, "compliance_tax": 0.78, "fraud_reactivity": 0.66,
+                      "post_purchase": 0.71}
+    assert list(e.axes.keys()) == AXES_ORDER       # canonical ordering preserved
+    assert e.by_intent_spec == {"explicit": 0.75, "semantic": 0.61, "underspecified": 0.55}
+    assert list(e.by_intent_spec.keys()) == INTENT_SPECS_ORDER
+
+
+def test_consolidate_computes_ci_from_main_per_sample(single_runs_dir: Path) -> None:
+    e = consolidate(single_runs_dir)[0]
+    expected = trust_ci95([0.7, 0.8, 0.6, 0.9, 0.7, 0.65, 0.75, 0.72])  # opus main per_sample
+    assert e.trust_score_ci95 == expected
+
+
+def test_consolidate_pulls_version_pins_and_canary(single_runs_dir: Path) -> None:
+    e = consolidate(single_runs_dir)[0]
+    assert e.model_version_pin == "anthropic/claude-opus-4@2026-xx"
+    assert e.scaffold_version == "1.0.0"
+    assert e.spar_version == "0.1.0"
+    assert e.dataset_canary == "spar:00000000-0000-0000-0000-000000000000"
+    assert e.run_date == "2026-05-29"
