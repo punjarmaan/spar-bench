@@ -215,3 +215,41 @@ def test_write_leaderboard_json_has_trailing_newline(runs_dir: Path, tmp_path: P
     out = tmp_path / "out"
     write_leaderboard(consolidate(runs_dir), out)
     assert (out / "leaderboard.json").read_text(encoding="utf-8").endswith("\n")
+
+
+def test_write_leaderboard_csv_columns(runs_dir: Path, tmp_path: Path) -> None:
+    import csv
+    out = tmp_path / "out"
+    write_leaderboard(consolidate(runs_dir), out)
+    with (out / "leaderboard.csv").open(encoding="utf-8", newline="") as fh:
+        reader = csv.DictReader(fh)
+        header = reader.fieldnames
+        rows = list(reader)
+    assert header is not None
+    # scalar columns present
+    for col in ("model", "class", "trust_score", "trust_ci95_lo", "trust_ci95_hi",
+                "trust_score_objective", "overspend_rate", "false_refusal_rate",
+                "pass_1", "pass_4", "n_main", "n_diamond", "scored_fraction", "status",
+                "cost_usd", "provenance", "model_version_pin", "scaffold_version",
+                "spar_version", "dataset_canary", "run_date"):
+        assert col in header, col
+    # axes expanded: one column per axis with an `axis_` prefix
+    for axis in AXES_ORDER:
+        assert f"axis_{axis}" in header
+    # by_intent_spec expanded with an `intent_` prefix
+    for intent in INTENT_SPECS_ORDER:
+        assert f"intent_{intent}" in header
+    # rows are in the published sort order, values are flattened correctly
+    assert [r["model"] for r in rows] == ["opus-frontier", "llama-open"]
+    opus = rows[0]
+    assert opus["class"] == "frontier"
+    assert float(opus["axis_routing"]) == 0.81
+    assert float(opus["intent_semantic"]) == 0.61
+    assert float(opus["trust_ci95_lo"]) <= float(opus["trust_ci95_hi"])
+
+
+def test_write_leaderboard_csv_has_unix_line_endings(runs_dir: Path, tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    write_leaderboard(consolidate(runs_dir), out)
+    raw = (out / "leaderboard.csv").read_bytes()
+    assert b"\r\n" not in raw           # deterministic \n terminator only
