@@ -5,23 +5,31 @@ via the unchanged build_results. litellm is never imported at module load (lazy 
 
 from __future__ import annotations
 
+import json
 import random
+import time
+from collections import Counter
 from collections.abc import Callable
+from datetime import date
 from enum import Enum
+from pathlib import Path
 from typing import Any, TypeVar
 
-from spar.eval.agent import agent_factory
+from spar.eval.agent import SCAFFOLD_VERSION, agent_factory
 from spar.eval.cache import CompletionCache, cache_key
 from spar.eval.cost import CostMeter
 from spar.eval.models import ModelConfig
-from spar.eval.profile import StageSampling
+from spar.eval.profile import Profile, StageSampling
 from spar.harness.graders import ModelGrader, SampleScore, score
 from spar.harness.passk import is_solved
-from spar.harness.runner import run_episode
+from spar.harness.report import build_results
+from spar.harness.runner import EpisodeTrace, run_episode
 from spar.harness.user_sim import UserSim
+from spar.harness.weights import DEFAULT_WEIGHTS
 from spar.policies.loader import load_policy
 from spar.simulator.contract import Abort
 from spar.simulator.enums import Axis
+from spar.simulator.schemas import Sample
 
 _T = TypeVar("_T")
 
@@ -201,3 +209,168 @@ def _run_sample(
     final.trials_n = k
     final.trials_c = solved
     return _classify(final, last_trace), final
+
+
+def _grader_id(grader: ModelGrader) -> str | None:
+    return getattr(grader, "grader_model", None)
+
+
+def _responder_id(responder: UserSim) -> str:
+    return getattr(responder, "model", type(responder).__name__)
+
+
+def _write_trajectory(
+    path: Path, sample: Sample, trace: EpisodeTrace, status: SampleStatus
+) -> None:
+    """One JSONL episode transcript per sample (design §5.5 audit log)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "sample_id": sample.sample_id,
+        "axis": sample.axis.value,
+        "status": status.value,
+        "final_state": trace.final_state.value if trace.final_state else None,
+        "grade_terminal": trace.grade_terminal.value if trace.grade_terminal else None,
+        "actions": [
+            {"tool": a.tool, "args": a.model_dump(mode="json", exclude={"tool"})}
+            for a in trace.action_log
+        ],
+        "abort_reason": trace.abort_reason,
+        "terminating_action": trace.terminating_action,
+    }
+    with path.open("w", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, sort_keys=True, default=str) + "\n")
+
+
+def evaluate_model(
+    model: ModelConfig,
+    profile: Profile,
+    *,
+    out_dir: Path,
+    cache: CompletionCache,
+    budget_usd: float | None,
+    concurrency: int,
+    responder: UserSim,
+    grader: ModelGrader,
+    completion_fn: Callable[..., Any] | None = None,
+    retries: int = 4,
+    sleep: Callable[[float], None] = time.sleep,
+    samples_for: Callable[[str], list[Sample]] | None = None,
+) -> None:
+    """Orchestrate one model over the profile's split x k plan (design §5.5): typed-status tally,
+    confirmed cost + hard cap, per-episode audit trajectories, and a reproducibility manifest.
+    Writes runs/<id>/<split>.results.json + run_manifest.json. litellm stays lazy (the agent)."""
+    if samples_for is None:
+        from spar.dataset.loader import load_split
+
+        samples_for = load_split
+    if completion_fn is None:
+        import litellm
+
+        completion_fn = litellm.completion
+
+    model_dir = Path(out_dir) / model.id
+    meter = CostMeter(budget_usd=budget_usd)
+    budget_hit = False
+    canary: str | None = None
+    splits_block: dict[str, dict[str, Any]] = {}
+
+    for plan in profile.plan:
+        sampling = profile.competence if plan.stage == "competence" else profile.reliability
+        samples = samples_for(plan.split)
+        if samples:
+            canary = samples[0].canary
+        tally: Counter[str] = Counter()
+        scores: list[SampleScore] = []
+        attempted = 0
+        for sample in samples:
+            if budget_hit or meter.over_budget():
+                break
+            attempted += 1
+            status, sscore = _run_sample(
+                sample, model,
+                sampling=sampling, completion_fn=completion_fn,
+                cache=cache, meter=meter, responder=responder, grader=grader,
+                k=plan.k, retries=retries, sleep=sleep,
+            )
+            tally[status.value] += 1
+            if sscore is not None:
+                scores.append(sscore)
+                # Replay the canonical trajectory from cache (no new model call) for the audit log.
+                cached_fn = _cached_completion_fn(
+                    completion_fn, cache, retries=retries, sleep=sleep
+                )
+                policy_text = load_policy(sample.policy_id)
+                factory = agent_factory(
+                    model, policy_text=policy_text, sampling=sampling,
+                    completion_fn=cached_fn, mandate_text=sample.mandate.goal,
+                )
+                trace = run_episode(sample, factory(), trial_index=0, user_sim=responder)
+                _write_trajectory(
+                    model_dir / "trajectories" / f"{sample.sample_id}.jsonl",
+                    sample, trace, status,
+                )
+            if meter.over_budget():
+                budget_hit = True
+                break
+
+        scored_count = len(scores)
+        scored_fraction = scored_count / attempted if attempted else 0.0
+        status_label = (
+            "verified"
+            if (scored_fraction >= PUBLISHABILITY_FLOOR and not budget_hit)
+            else "partial"
+        )
+
+        results = build_results(
+            scores, split=plan.split, canary=canary or "",
+            build_seed=0, weights=DEFAULT_WEIGHTS.as_dict(),
+        )
+        results["scaffold_version"] = SCAFFOLD_VERSION
+        results["status"] = status_label
+        results["scored_fraction"] = scored_fraction
+        results["status_tally"] = dict(tally)
+        model_dir.mkdir(parents=True, exist_ok=True)
+        (model_dir / f"{plan.split}.results.json").write_text(
+            json.dumps(results, indent=2, sort_keys=True, default=str), encoding="utf-8"
+        )
+
+        splits_block[plan.split] = {
+            "status": status_label,
+            "scored_fraction": scored_fraction,
+            "n": attempted,
+            "n_scored": scored_count,
+            "tally": dict(tally),
+            "stage": plan.stage,
+            "k": plan.k,
+            "published": plan.published,
+        }
+
+    manifest = {
+        "model": model.id,
+        "class": model.cls,
+        "route": model.route,
+        "spar_version": results["spar_version"],
+        "model_version_pin": model.version_pin,
+        "scaffold_version": SCAFFOLD_VERSION,
+        "canary": canary,
+        "build_seed": 0,
+        "weights": DEFAULT_WEIGHTS.as_dict(),
+        "provenance": "public_self_run",
+        "grader_model": _grader_id(grader),
+        "responder_model": _responder_id(responder),
+        "sampling": {
+            "competence": profile.competence.model_dump(),
+            "reliability": profile.reliability.model_dump(),
+        },
+        "cost_usd": meter.spent(),
+        "run_date": date.today().isoformat(),
+        "cache_digest": cache.digest(),
+        "concurrency": concurrency,
+        "budget_usd": budget_usd,
+        "budget_hit": budget_hit,
+        "splits": splits_block,
+    }
+    model_dir.mkdir(parents=True, exist_ok=True)
+    (model_dir / "run_manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True, default=str), encoding="utf-8"
+    )

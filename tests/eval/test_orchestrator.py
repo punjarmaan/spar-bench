@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from spar.eval.cache import CompletionCache
@@ -13,8 +15,9 @@ from spar.eval.orchestrator import (
     _is_infra_error,
     _run_sample,
     _with_retries,
+    evaluate_model,
 )
-from spar.eval.profile import DEFAULT_PROFILE
+from spar.eval.profile import DEFAULT_PROFILE, Profile, StagePlan, StageSampling
 from spar.harness.model_grader import StubModelGrader
 from spar.harness.user_sim import ScriptedUserSim, UserResponse
 from tests.eval._fakes import FakeCompletion, abort_sample, make_model
@@ -139,3 +142,89 @@ def test_run_sample_malformed_is_scored_as_abort(tmp_path) -> None:
     assert status is SampleStatus.MALFORMED_ACTION
     assert sscore is not None
     assert sscore.trials_n == 1
+
+
+def _toy_profile() -> Profile:
+    s = StageSampling(temperature=0.0, top_p=1.0, max_tokens=64, seed=7)
+    r = StageSampling(temperature=0.7, top_p=1.0, max_tokens=64, seed=7)
+    return Profile(
+        competence=s, reliability=r,
+        plan=[
+            StagePlan(split="lite", k=1, stage="competence", published=True),
+            StagePlan(split="lite", k=4, stage="reliability", published=True),
+        ],
+    )
+
+
+def test_evaluate_model_writes_results_trajectories_and_manifest(tmp_path) -> None:
+    model = make_model(id="fakemodel")
+    out_dir = tmp_path / "runs"
+    cache = CompletionCache(tmp_path / "cache")
+    evaluate_model(
+        model, _toy_profile(),
+        out_dir=out_dir, cache=cache, budget_usd=None, concurrency=1,
+        responder=_responder(), grader=StubModelGrader(),
+        completion_fn=FakeCompletion(mode="abort", response_cost=0.001),
+        retries=2, sleep=lambda _s: None,
+    )
+    base = out_dir / "fakemodel"
+    res = json.loads((base / "lite.results.json").read_text())
+    assert res["split"] == "lite"
+    assert res["summary"]["n_samples"] >= 1
+    traj_dir = base / "trajectories"
+    traj_files = list(traj_dir.glob("*.jsonl"))
+    assert traj_files
+    first_line = traj_files[0].read_text().splitlines()[0]
+    json.loads(first_line)
+    manifest = json.loads((base / "run_manifest.json").read_text())
+    for key in (
+        "spar_version", "canary", "build_seed", "weights", "grader_model",
+        "responder_model", "scaffold_version", "model_version_pin", "run_date",
+        "cache_digest", "splits",
+    ):
+        assert key in manifest, key
+    assert manifest["scaffold_version"]
+    assert manifest["grader_model"] == "stub-model-grader@1"
+    assert manifest["model_version_pin"] == "fake/route@2026-05"
+    assert "lite" in manifest["splits"]
+    assert manifest["splits"]["lite"]["status"] in ("verified", "partial")
+    assert 0.0 <= manifest["splits"]["lite"]["scored_fraction"] <= 1.0
+
+
+def test_evaluate_model_cap_marks_partial(tmp_path) -> None:
+    model = make_model(id="capped")
+    out_dir = tmp_path / "runs"
+    cache = CompletionCache(tmp_path / "cache")
+    evaluate_model(
+        model, _toy_profile(),
+        out_dir=out_dir, cache=cache, budget_usd=0.0005, concurrency=1,
+        responder=_responder(), grader=StubModelGrader(),
+        completion_fn=FakeCompletion(mode="abort", response_cost=0.01),
+        retries=2, sleep=lambda _s: None,
+    )
+    manifest = json.loads((out_dir / "capped" / "run_manifest.json").read_text())
+    assert manifest["budget_hit"] is True
+    assert manifest["splits"]["lite"]["status"] == "partial"
+
+
+def test_evaluate_model_resume_is_idempotent(tmp_path) -> None:
+    model = make_model(id="resumed")
+    out_dir = tmp_path / "runs"
+    cache = CompletionCache(tmp_path / "cache")
+    raw = FakeCompletion(mode="abort", response_cost=0.002)
+
+    def run() -> dict:
+        evaluate_model(
+            model, _toy_profile(),
+            out_dir=out_dir, cache=cache, budget_usd=None, concurrency=1,
+            responder=_responder(), grader=StubModelGrader(),
+            completion_fn=raw, retries=2, sleep=lambda _s: None,
+        )
+        return json.loads((out_dir / "resumed" / "lite.results.json").read_text())
+
+    first = run()
+    calls_after_first = raw.calls
+    second = run()
+    assert raw.calls == calls_after_first
+    assert first["summary"]["trust_score"] == second["summary"]["trust_score"]
+    assert first["per_sample"] == second["per_sample"]
