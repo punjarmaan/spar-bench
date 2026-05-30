@@ -298,3 +298,27 @@ def test_leaderboard_md_has_trailing_newline(runs_dir: Path, tmp_path: Path) -> 
     out = tmp_path / "out"
     write_leaderboard(consolidate(runs_dir), out)
     assert (out / "LEADERBOARD.md").read_text(encoding="utf-8").endswith("\n")
+
+
+def test_leaderboard_manifest_union(runs_dir: Path, tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    write_leaderboard(consolidate(runs_dir), out)
+    manifest = json.loads((out / "leaderboard_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["spar_version"] == "0.1.0"
+    assert manifest["scaffold_version"] == "1.0.0"
+    assert sorted(manifest["dataset_canaries"]) == \
+        ["spar:00000000-0000-0000-0000-000000000000"]
+    assert manifest["bootstrap_seed"] == 12345          # documents the CI seed
+    assert manifest["publishability_floor"] == 0.98
+    # per-model pinned inputs union: model -> version pin
+    assert manifest["model_version_pins"] == {
+        "llama-open": "meta-llama/llama-3-70b@2026-xx",
+        "opus-frontier": "anthropic/claude-opus-4@2026-xx"}
+    assert sorted(manifest["run_dates"]) == ["2026-05-29"]
+
+
+def test_leaderboard_manifest_has_trailing_newline(runs_dir: Path, tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    write_leaderboard(consolidate(runs_dir), out)
+    assert (out / "leaderboard_manifest.json").read_text(
+        encoding="utf-8").endswith("\n")
