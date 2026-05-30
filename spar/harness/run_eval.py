@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import typer
@@ -13,10 +14,16 @@ from typing import Any
 from spar.agents.base import Agent
 from spar.dataset.build_cli import build_cmd
 from spar.dataset.loader import load_split
+from spar.eval.cache import CompletionCache
+from spar.eval.cost import estimate_cost
+from spar.eval.models import load_models
+from spar.eval.orchestrator import evaluate_all
+from spar.eval.profile import load_profile
 from spar.harness.graders import ModelGrader, SampleScore, score
 from spar.harness.model_grader import LiteLLMModelGrader, StubModelGrader
 from spar.harness.report import build_results, recompute_summary
 from spar.harness.runner import run_episode
+from spar.harness.user_sim import LiteLLMUserSim, ScriptedUserSim, UserResponse, UserSim
 from spar.simulator.contract import Abort, Action, parse_action
 
 app = typer.Typer(add_completion=False, help="Spar — payment-execution benchmark")
@@ -146,3 +153,77 @@ def report(
     summary = recompute_summary(data)
     for key, value in summary.items():
         typer.echo(f"{key}: {value}")
+
+
+def _offline_completion_fn() -> Callable[..., Any]:
+    """A no-network completion_fn for `spar eval --offline`: always emits a valid abort action."""
+    import json as _json
+
+    class _Msg:
+        def __init__(self, c: str) -> None:
+            self.content = c
+
+    class _Choice:
+        def __init__(self, c: str) -> None:
+            self.message = _Msg(c)
+
+    class _Resp:
+        def __init__(self, c: str) -> None:
+            self.choices = [_Choice(c)]
+            self.usage = type("U", (), {"prompt_tokens": 100, "completion_tokens": 20})()
+            self._hidden_params = {"response_cost": 0.0}
+
+    def fn(*, model: str, messages: list[dict[str, Any]], **sampling: Any) -> _Resp:
+        return _Resp(_json.dumps({"tool": "abort", "args": {"reason": "offline"}}))
+
+    return fn
+
+
+@app.command(name="eval")
+def eval_models(
+    models: Path = typer.Option(..., help="models.toml roster (identity only)"),
+    profile: Path = typer.Option(..., help="profile.toml (per-stage sampling + split×k plan)"),
+    only: str = typer.Option(None, help="run/refresh a single model id (idempotent via cache)"),
+    budget_usd: float = typer.Option(None, help="hard per-model confirmed-cost cap (USD)"),
+    concurrency: int = typer.Option(1, help="bounded per-provider fan-out (recorded in manifest)"),
+    cache_dir: Path = typer.Option(Path(".eval_cache"), help="completion cache dir (resume)"),
+    out_dir: Path = typer.Option(Path("runs"), help="output root: runs/<model>/…"),
+    grader_model: str = typer.Option(
+        None, help="Tier-C grader: omit for offline StubModelGrader; LiteLLM id for the judge"),
+    responder_model: str = typer.Option(
+        None, help="escalation responder: omit for offline ScriptedUserSim(deny); LiteLLM id else"),
+    offline: bool = typer.Option(
+        False, "--offline", help="use a no-network completion_fn (CI/dev; no live model calls)"),
+) -> None:
+    """Run one or all models for a profile (design §5.5/§7). Writes per-model results +
+    trajectories + manifest. Resumable via the completion cache."""
+    roster = load_models(models)
+    prof = load_profile(profile)
+    grader = _make_grader(grader_model)
+    responder: UserSim = (
+        LiteLLMUserSim(responder_model)
+        if responder_model is not None
+        else ScriptedUserSim(UserResponse(decision="deny"))
+    )
+    completion_fn = _offline_completion_fn() if offline else None
+    cache = CompletionCache(cache_dir)
+    evaluate_all(
+        roster, prof,
+        out_dir=out_dir, cache=cache, budget_usd=budget_usd, concurrency=concurrency,
+        responder=responder, grader=grader, only=only, completion_fn=completion_fn,
+    )
+    typer.echo(f"wrote runs under {out_dir}/")
+
+
+@app.command(name="eval-cost")
+def eval_cost(
+    models: Path = typer.Option(..., help="models.toml roster"),
+    profile: Path = typer.Option(..., help="profile.toml"),
+    avg_turns: int = typer.Option(6, help="heuristic turns-per-episode for the estimate"),
+) -> None:
+    """Dry-run pre-flight cost ESTIMATE (no model calls; design §5.6). Sets the launch decision."""
+    roster = load_models(models)
+    prof = load_profile(profile)
+    est = estimate_cost(roster, prof, avg_turns=avg_turns)
+    for model_id, usd in est.items():
+        typer.echo(f"{model_id}\t${usd:.4f}")
