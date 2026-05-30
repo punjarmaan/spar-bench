@@ -374,3 +374,32 @@ def evaluate_model(
     (model_dir / "run_manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True, default=str), encoding="utf-8"
     )
+
+
+def evaluate_all(
+    models: list[ModelConfig],
+    profile: Profile,
+    *,
+    out_dir: Path,
+    cache: CompletionCache,
+    budget_usd: float | None = None,
+    concurrency: int = 1,
+    responder: UserSim,
+    grader: ModelGrader,
+    only: str | None = None,
+    completion_fn: Callable[..., Any] | None = None,
+    retries: int = 4,
+    sleep: Callable[[float], None] = time.sleep,
+    samples_for: Callable[[str], list[Sample]] | None = None,
+) -> None:
+    """Run a roster of models; `only` filters to a single model id. The budget cap is per-model
+    (design §5.6) — each model gets a fresh CostMeter inside evaluate_model."""
+    for model in models:
+        if only is not None and model.id != only:
+            continue
+        evaluate_model(
+            model, profile,
+            out_dir=out_dir, cache=cache, budget_usd=budget_usd, concurrency=concurrency,
+            responder=responder, grader=grader, completion_fn=completion_fn,
+            retries=retries, sleep=sleep, samples_for=samples_for,
+        )

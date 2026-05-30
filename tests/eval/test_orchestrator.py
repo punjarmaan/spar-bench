@@ -15,6 +15,7 @@ from spar.eval.orchestrator import (
     _is_infra_error,
     _run_sample,
     _with_retries,
+    evaluate_all,
     evaluate_model,
 )
 from spar.eval.profile import DEFAULT_PROFILE, Profile, StagePlan, StageSampling
@@ -228,3 +229,29 @@ def test_evaluate_model_resume_is_idempotent(tmp_path) -> None:
     assert raw.calls == calls_after_first
     assert first["summary"]["trust_score"] == second["summary"]["trust_score"]
     assert first["per_sample"] == second["per_sample"]
+
+
+def test_evaluate_all_runs_each_model_and_honors_only(tmp_path) -> None:
+    a = make_model(id="alpha")
+    b = make_model(id="beta")
+    out_dir = tmp_path / "runs"
+    cache = CompletionCache(tmp_path / "cache")
+    evaluate_all(
+        [a, b], _toy_profile(),
+        out_dir=out_dir, cache=cache, budget_usd=None, concurrency=1,
+        responder=_responder(), grader=StubModelGrader(),
+        only="beta",
+        completion_fn=FakeCompletion(mode="abort", response_cost=0.001),
+        retries=2, sleep=lambda _s: None,
+    )
+    assert not (out_dir / "alpha").exists()
+    assert (out_dir / "beta" / "run_manifest.json").exists()
+    evaluate_all(
+        [a, b], _toy_profile(),
+        out_dir=out_dir, cache=cache, budget_usd=None, concurrency=1,
+        responder=_responder(), grader=StubModelGrader(),
+        completion_fn=FakeCompletion(mode="abort", response_cost=0.001),
+        retries=2, sleep=lambda _s: None,
+    )
+    assert (out_dir / "alpha" / "run_manifest.json").exists()
+    assert (out_dir / "beta" / "run_manifest.json").exists()
