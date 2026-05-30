@@ -110,6 +110,23 @@ def test_eval_dataset_dir_runs_real_samples_not_toy(tmp_path) -> None:
     assert res["summary"]["n_samples"] == 2     # ran the 2 tagged 'main' samples, NOT the 1 toy
 
 
+def test_eval_dataset_dir_bad_path_fails_loudly(tmp_path) -> None:
+    # A bad --dataset-dir surfaces the resolver error instead of silently running the toy split.
+    bad = runner.invoke(
+        app,
+        [
+            "eval",
+            "--models", _models_toml(tmp_path),
+            "--profile", _main_profile_toml(tmp_path),
+            "--out-dir", str(tmp_path / "runs"),
+            "--cache-dir", str(tmp_path / "cache"),
+            "--dataset-dir", str(tmp_path / "nonexistent"),
+            "--offline",
+        ],
+    )
+    assert bad.exit_code != 0
+
+
 def test_eval_cost_dataset_dir_sizes_real_split(tmp_path) -> None:
     priv = _tagged_private_release(tmp_path, n_main=50)   # 50 real main samples
     result = runner.invoke(

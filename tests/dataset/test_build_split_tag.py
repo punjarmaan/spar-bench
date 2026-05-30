@@ -21,7 +21,9 @@ def test_build_stamps_split_on_private_not_public(tmp_path: Path) -> None:
     assert private_rows, "private build is non-empty"
     # every private sample carries a valid split tag
     assert all(r["split"] in {"lite", "main", "diamond"} for r in private_rows)
-    # the diamond backbone is tagged "diamond"
+    # each procedural + backbone split is actually present (a dropped split would slip past `all`)
+    assert any(r["split"] == "lite" for r in private_rows)
+    assert any(r["split"] == "main" for r in private_rows)
     assert any(r["split"] == "diamond" for r in private_rows)
 
     # public rows NEVER carry the tag (projection allowlist + private-only stamping)
