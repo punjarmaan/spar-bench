@@ -77,3 +77,13 @@ def test_estimate_cost_makes_no_model_calls() -> None:
     # purely arithmetic over loaded sample counts — must not need a completion_fn
     est = estimate_cost([_model()], DEFAULT_PROFILE)
     assert isinstance(est["m"], float)
+
+
+def test_estimate_cost_uses_injected_samples_for() -> None:
+    # An injected sizer makes the estimate scale with the REAL split size, not the toy fallback.
+    def big(_split: str) -> list[None]:        # pretend every split has 100 samples
+        return [None] * 100
+
+    est_big = estimate_cost([_model()], DEFAULT_PROFILE, samples_for=big)
+    est_toy = estimate_cost([_model()], DEFAULT_PROFILE)   # default: toy sizing (1 sample/split)
+    assert est_big["m"] > est_toy["m"]

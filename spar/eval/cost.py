@@ -5,10 +5,13 @@ per-call accrual via `CostMeter` (which enforces the hard budget cap)."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from spar.dataset.loader import load_split
 from spar.eval.agent import CallUsage
 from spar.eval.models import ModelConfig
 from spar.eval.profile import Profile
+from spar.simulator.schemas import Sample
 
 
 def _confirmed_cost(usage: CallUsage, model: ModelConfig) -> float:
@@ -60,11 +63,14 @@ def _split_size(split: str) -> int:
 
 
 def estimate_cost(
-    models: list[ModelConfig], profile: Profile, *, avg_turns: int = 6
+    models: list[ModelConfig], profile: Profile, *, avg_turns: int = 6,
+    samples_for: Callable[[str], list[Sample]] | None = None,
 ) -> dict[str, float]:
     """PRE-FLIGHT heuristic projection (no model calls). For each StagePlan:
     n_samples x k x avg_turns requests, each a fixed prompt/completion token budget, priced off
-    models.toml. Unpriced models project to 0.0. Approximate by design (§5.6)."""
+    models.toml. Unpriced models project to 0.0. `samples_for` (when given) sizes against the real
+    release; default sizes the bundled toy split. Approximate by design (§5.6)."""
+    size = (lambda s: len(samples_for(s))) if samples_for is not None else _split_size
     est: dict[str, float] = {}
     for model in models:
         pin = model.price_in_per_mtok
@@ -74,7 +80,7 @@ def estimate_cost(
             continue
         total = 0.0
         for plan in profile.plan:
-            requests = _split_size(plan.split) * plan.k * avg_turns
+            requests = size(plan.split) * plan.k * avg_turns
             prompt_mtok = requests * _EST_PROMPT_TOKENS_PER_TURN / 1_000_000
             completion_mtok = requests * _EST_COMPLETION_TOKENS_PER_TURN / 1_000_000
             total += prompt_mtok * pin + completion_mtok * pout
