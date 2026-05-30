@@ -124,3 +124,19 @@ def test_consolidate_pulls_version_pins_and_canary(single_runs_dir: Path) -> Non
     assert e.spar_version == "0.1.0"
     assert e.dataset_canary == "spar:00000000-0000-0000-0000-000000000000"
     assert e.run_date == "2026-05-29"
+
+
+def _by_model(runs: Path) -> dict[str, LeaderboardEntry]:
+    return {e.model: e for e in consolidate(runs)}
+
+
+def test_full_run_is_verified(runs_dir: Path) -> None:
+    opus = _by_model(runs_dir)["opus-frontier"]
+    assert opus.scored_fraction == 1.0
+    assert opus.status == "verified"
+
+
+def test_partial_run_below_floor_is_partial(runs_dir: Path) -> None:
+    llama = _by_model(runs_dir)["llama-open"]
+    assert llama.scored_fraction == 0.90        # scored_main=9 / total_main=10
+    assert llama.status == "partial"            # 0.90 < PUBLISHABILITY_FLOOR (0.98)
