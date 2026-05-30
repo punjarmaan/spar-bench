@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import importlib
 import json
 from collections.abc import Callable
@@ -13,7 +14,7 @@ from typing import Any
 
 from spar.agents.base import Agent
 from spar.dataset.build_cli import build_cmd
-from spar.dataset.loader import load_split
+from spar.dataset.loader import load_graded_split, load_split
 from spar.eval.cache import CompletionCache
 from spar.eval.cost import estimate_cost
 from spar.eval.live import CompletionFn, default_completion_fn
@@ -226,6 +227,8 @@ def eval_models(
         None, help="escalation responder: omit for offline ScriptedUserSim(deny); LiteLLM id else"),
     offline: bool = typer.Option(
         False, "--offline", help="use a no-network completion_fn (CI/dev; no live model calls)"),
+    dataset_dir: Path = typer.Option(
+        None, help="a `spar build --private-out` dir; resolve REAL graded splits (else toy fallback)"),
 ) -> None:
     """Run one or all models for a profile (design §5.5/§7). Writes per-model results +
     trajectories + manifest. Resumable via the completion cache."""
@@ -238,10 +241,15 @@ def eval_models(
         else ScriptedUserSim(UserResponse(decision="deny"))
     )
     agent_completion_fn = _offline_completion_fn() if offline else default_completion_fn()
+    samples_for: Callable[[str], list[Sample]] | None = (
+        functools.partial(load_graded_split, base_dir=dataset_dir)
+        if dataset_dir is not None else None
+    )
     _run_eval(
         models=roster, profile=prof, out_dir=out_dir, cache_dir=cache_dir,
         budget_usd=budget_usd, concurrency=concurrency,
         agent_completion_fn=agent_completion_fn, responder=responder, grader=grader, only=only,
+        samples_for=samples_for,
     )
     typer.echo(f"wrote runs under {out_dir}/")
 
