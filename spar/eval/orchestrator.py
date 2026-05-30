@@ -306,16 +306,18 @@ def evaluate_model(
             tally[status.value] += 1
             if sscore is not None:
                 scores.append(sscore)
-                # Replay the canonical trajectory from cache (no new model call) for the audit log.
+                # Replay the classified (last) trial from cache (no new model call) so the audit
+                # log matches the reported status (N1).
+                last_idx = plan.k - 1
+                tsamp = _trial_sampling(sampling, last_idx)
                 cached_fn = _cached_completion_fn(
-                    completion_fn, cache, retries=retries, sleep=sleep
+                    completion_fn, cache, retries=retries, sleep=sleep, trial_index=last_idx
                 )
-                policy_text = load_policy(sample.policy_id)
                 factory = agent_factory(
-                    model, policy_text=policy_text, sampling=sampling,
+                    model, policy_text=load_policy(sample.policy_id), sampling=tsamp,
                     completion_fn=cached_fn, mandate_text=sample.mandate.goal,
                 )
-                trace = run_episode(sample, factory(), trial_index=0, user_sim=responder)
+                trace = run_episode(sample, factory(), trial_index=last_idx, user_sim=responder)
                 _write_trajectory(
                     model_dir / "trajectories" / f"{sample.sample_id}.jsonl",
                     sample, trace, status,
