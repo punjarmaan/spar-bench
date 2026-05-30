@@ -96,7 +96,7 @@ class _CachedChoice:
 class _CachedResponse:
     """Replays a cached completion in the litellm response shape the agent reads."""
 
-    def __init__(self, payload: dict) -> None:
+    def __init__(self, payload: dict[str, Any]) -> None:
         self.choices = [_CachedChoice(payload["content"])]
         self.usage = type("U", (), {
             "prompt_tokens": payload.get("prompt_tokens", 0),
@@ -105,7 +105,7 @@ class _CachedResponse:
         self._hidden_params = {"response_cost": payload.get("response_cost")}
 
 
-def _extract(resp: Any) -> dict:
+def _extract(resp: Any) -> dict[str, Any]:
     """Pull the cache-storable fields out of any litellm-shaped response object."""
     usage = getattr(resp, "usage", None)
     hidden = getattr(resp, "_hidden_params", {}) or {}
@@ -127,7 +127,7 @@ def _cached_completion_fn(
     """Wrap a completion_fn with the content-addressed cache + infra retries. A cache hit replays
     the stored response and makes NO underlying call (resume idempotency, design §5.5/§5.6)."""
 
-    def fn(*, model: str, messages: list[dict], **sampling: Any) -> _CachedResponse:
+    def fn(*, model: str, messages: list[dict[str, Any]], **sampling: Any) -> _CachedResponse:
         key = cache_key(model, messages, sampling)
         cached = cache.get(key)
         if cached is not None:
@@ -143,7 +143,7 @@ def _cached_completion_fn(
     return fn
 
 
-def _classify(score_obj: SampleScore, trace) -> SampleStatus:
+def _classify(score_obj: SampleScore, trace: EpisodeTrace) -> SampleStatus:
     """Tag the model-behaviour sub-case of a graded sample (design §5.5).
 
     A graded sample is SCORED unless the agent layer flagged a malformed action or an in-band
@@ -158,7 +158,7 @@ def _classify(score_obj: SampleScore, trace) -> SampleStatus:
 
 
 def _run_sample(
-    sample,
+    sample: Sample,
     model: ModelConfig,
     *,
     sampling: StageSampling,
@@ -198,7 +198,7 @@ def _run_sample(
                     meter.record(u, model)
                 return SampleStatus.ERRORED_INFRA, None
             raise
-        for u in agent.usage:
+        for u in getattr(agent, "usage", []):
             meter.record(u, model)
         if is_solved(score(sample, trace, model_grader=grader).score, binary=binary):
             solved += 1

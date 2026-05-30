@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from spar.simulator.rng import stable_hash
 
 
-def cache_key(model: str, messages: list[dict], sampling: dict) -> str:
+def cache_key(model: str, messages: list[dict[str, Any]], sampling: dict[str, Any]) -> str:
     """Stable hex key for one completion request. Same inputs -> same key (cross-process)."""
     payload = json.dumps(
         {"model": model, "messages": messages, "sampling": sampling},
@@ -34,13 +35,14 @@ class CompletionCache:
     def _path(self, key: str) -> Path:
         return self.dir / f"{key}.json"
 
-    def get(self, key: str) -> dict | None:
+    def get(self, key: str) -> dict[str, Any] | None:
         path = self._path(key)
         if not path.is_file():
             return None
-        return json.loads(path.read_text(encoding="utf-8"))
+        result: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+        return result
 
-    def put(self, key: str, response: dict) -> None:
+    def put(self, key: str, response: dict[str, Any]) -> None:
         self._path(key).write_text(
             json.dumps(response, sort_keys=True, default=str), encoding="utf-8"
         )
