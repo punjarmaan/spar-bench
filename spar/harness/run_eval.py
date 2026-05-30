@@ -259,11 +259,17 @@ def eval_cost(
     models: Path = typer.Option(..., help="models.toml roster"),
     profile: Path = typer.Option(..., help="profile.toml"),
     avg_turns: int = typer.Option(6, help="heuristic turns-per-episode for the estimate"),
+    dataset_dir: Path = typer.Option(
+        None, help="a `spar build --private-out` dir; size the estimate against REAL splits"),
 ) -> None:
     """Dry-run pre-flight cost ESTIMATE (no model calls; design §5.6). Sets the launch decision."""
     roster = load_models(models)
     prof = load_profile(profile)
-    est = estimate_cost(roster, prof, avg_turns=avg_turns)
+    samples_for: Callable[[str], list[Sample]] | None = (
+        functools.partial(load_graded_split, base_dir=dataset_dir)
+        if dataset_dir is not None else None
+    )
+    est = estimate_cost(roster, prof, avg_turns=avg_turns, samples_for=samples_for)
     for model_id, usd in est.items():
         typer.echo(f"{model_id}\t${usd:.4f}")
 

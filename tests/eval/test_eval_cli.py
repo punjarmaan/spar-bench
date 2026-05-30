@@ -108,3 +108,30 @@ def test_eval_dataset_dir_runs_real_samples_not_toy(tmp_path) -> None:
     assert result.exit_code == 0, result.output
     res = json.loads((out_dir / "fakecli" / "main.results.json").read_text())
     assert res["summary"]["n_samples"] == 2     # ran the 2 tagged 'main' samples, NOT the 1 toy
+
+
+def test_eval_cost_dataset_dir_sizes_real_split(tmp_path) -> None:
+    priv = _tagged_private_release(tmp_path, n_main=50)   # 50 real main samples
+    result = runner.invoke(
+        app,
+        [
+            "eval-cost",
+            "--models", _models_toml(tmp_path),
+            "--profile", _main_profile_toml(tmp_path),
+            "--dataset-dir", str(priv),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "fakecli" in result.output
+
+    # A bad --dataset-dir fails LOUDLY (no silent toy fallback for a pre-flight estimate).
+    bad = runner.invoke(
+        app,
+        [
+            "eval-cost",
+            "--models", _models_toml(tmp_path),
+            "--profile", _main_profile_toml(tmp_path),
+            "--dataset-dir", str(tmp_path / "nonexistent"),
+        ],
+    )
+    assert bad.exit_code != 0
