@@ -13,7 +13,7 @@ import csv
 import io
 import json
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
@@ -92,8 +92,9 @@ def trust_ci95(per_sample_scores: list[float]) -> tuple[float, float]:
     return (lo, hi)
 
 
-def _read_json(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
+def _read_json(path: Path) -> dict[str, Any]:
+    data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return data
 
 
 def _build_entry(model_dir: Path) -> LeaderboardEntry:
@@ -289,7 +290,7 @@ def _render_markdown(ordered: list[LeaderboardEntry]) -> str:
     return "\n".join(parts)
 
 
-def _build_leaderboard_manifest(ordered: list[LeaderboardEntry]) -> dict:
+def _build_leaderboard_manifest(ordered: list[LeaderboardEntry]) -> dict[str, object]:
     """Top-level union of every pinned input needed to reconstruct any row (spec §5.10).
 
     Deterministic: sorted/unique collections, fixed scalar keys.
