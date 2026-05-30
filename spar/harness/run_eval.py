@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import typer
@@ -154,7 +155,7 @@ def report(
         typer.echo(f"{key}: {value}")
 
 
-def _offline_completion_fn():
+def _offline_completion_fn() -> Callable[..., Any]:
     """A no-network completion_fn for `spar eval --offline`: always emits a valid abort action."""
     import json as _json
 
@@ -172,7 +173,7 @@ def _offline_completion_fn():
             self.usage = type("U", (), {"prompt_tokens": 100, "completion_tokens": 20})()
             self._hidden_params = {"response_cost": 0.0}
 
-    def fn(*, model: str, messages, **sampling):
+    def fn(*, model: str, messages: list[dict[str, Any]], **sampling: Any) -> _Resp:
         return _Resp(_json.dumps({"tool": "abort", "args": {"reason": "offline"}}))
 
     return fn
