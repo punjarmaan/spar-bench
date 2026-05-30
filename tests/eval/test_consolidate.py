@@ -55,3 +55,31 @@ def test_entry_round_trips_from_class_alias() -> None:
     entry = LeaderboardEntry.model_validate(payload)
     assert entry.cls == "open"
     assert entry.status == "partial"
+
+
+def test_trust_ci95_is_ordered_and_within_bounds() -> None:
+    scores = [0.7, 0.8, 0.6, 0.9, 0.7, 0.65, 0.75, 0.72]
+    lo, hi = trust_ci95(scores)
+    assert 0.0 <= lo <= hi <= 1.0
+    mean = sum(scores) / len(scores)
+    assert lo <= mean <= hi           # the sample mean lies inside its own 95% CI
+
+
+def test_trust_ci95_is_deterministic_across_two_calls() -> None:
+    scores = [0.7, 0.8, 0.6, 0.9, 0.7, 0.65, 0.75, 0.72]
+    assert trust_ci95(scores) == trust_ci95(scores)     # byte-identical (seeded RNG)
+
+
+def test_trust_ci95_clamps_out_of_range_scores() -> None:
+    # Scores below 0 / above 1 are clamped before resampling (spec §5.8 "clamped scores").
+    lo, hi = trust_ci95([-0.5, 1.5, 0.5])
+    assert 0.0 <= lo <= hi <= 1.0
+
+
+def test_trust_ci95_degenerate_single_score() -> None:
+    lo, hi = trust_ci95([0.5])
+    assert lo == hi == 0.5            # every resample is the same single value
+
+
+def test_trust_ci95_empty_is_zero_zero() -> None:
+    assert trust_ci95([]) == (0.0, 0.0)
