@@ -26,6 +26,7 @@ from spar.harness.report import build_results, recompute_summary
 from spar.harness.runner import run_episode
 from spar.harness.user_sim import LiteLLMUserSim, ScriptedUserSim, UserResponse, UserSim
 from spar.simulator.contract import Abort, Action, parse_action
+from spar.simulator.schemas import Sample
 
 app = typer.Typer(add_completion=False, help="Spar — payment-execution benchmark")
 
@@ -70,6 +71,7 @@ def _run_eval(
     responder: UserSim,
     grader: ModelGrader,
     only: str | None,
+    samples_for: Callable[[str], list[Sample]] | None = None,
 ) -> None:
     """Pure, offline-testable wiring: run evaluate_model for each selected model, threading the
     injected agent completion_fn + pinned responder/grader through the shared completion cache.
@@ -83,6 +85,7 @@ def _run_eval(
             model, profile,
             out_dir=out_dir, cache=cache, budget_usd=budget_usd, concurrency=concurrency,
             responder=responder, grader=grader, completion_fn=agent_completion_fn,
+            samples_for=samples_for,
         )
 
 

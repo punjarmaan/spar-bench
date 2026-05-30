@@ -33,7 +33,7 @@ def test_run_eval_injects_fake_completion_fn_and_pinned_infra(monkeypatch, tmp_p
     captured: dict[str, object] = {}
 
     def fake_evaluate_model(model, profile, *, out_dir, cache, budget_usd,
-                            concurrency, responder, grader, completion_fn) -> None:
+                            concurrency, responder, grader, completion_fn, samples_for) -> None:
         captured.update(
             model=model, profile=profile, out_dir=out_dir, budget_usd=budget_usd,
             concurrency=concurrency, responder=responder, grader=grader,
@@ -73,7 +73,7 @@ def test_run_eval_honours_only_filter(monkeypatch, tmp_path) -> None:
     seen: list[str] = []
 
     def fake_evaluate_model(model, profile, *, out_dir, cache, budget_usd,
-                            concurrency, responder, grader, completion_fn) -> None:
+                            concurrency, responder, grader, completion_fn, samples_for) -> None:
         seen.append(model.id)
 
     monkeypatch.setattr(re, "evaluate_model", fake_evaluate_model)
@@ -87,3 +87,31 @@ def test_run_eval_honours_only_filter(monkeypatch, tmp_path) -> None:
         grader=StubModelGrader(), only="beta",
     )
     assert seen == ["beta"]
+
+
+def test_run_eval_threads_samples_for(monkeypatch, tmp_path) -> None:
+    import spar.harness.run_eval as re
+    from spar.eval.models import ModelConfig
+    from spar.eval.profile import DEFAULT_PROFILE
+    from spar.harness.model_grader import StubModelGrader
+    from spar.harness.user_sim import ScriptedUserSim, UserResponse
+
+    captured: dict[str, object] = {}
+
+    def fake_evaluate_model(model, profile, *, out_dir, cache, budget_usd, concurrency,
+                            responder, grader, completion_fn, samples_for) -> None:
+        captured["samples_for"] = samples_for
+
+    monkeypatch.setattr(re, "evaluate_model", fake_evaluate_model)
+
+    def sentinel(_split: str) -> list:
+        return []
+
+    re._run_eval(
+        models=[ModelConfig(id="m", route="openrouter/test/m", **{"class": "open"})],
+        profile=DEFAULT_PROFILE, out_dir=tmp_path / "runs", cache_dir=tmp_path / "cache",
+        budget_usd=None, concurrency=1, agent_completion_fn=lambda **kw: None,
+        responder=ScriptedUserSim(UserResponse(decision="deny")), grader=StubModelGrader(),
+        only=None, samples_for=sentinel,
+    )
+    assert captured["samples_for"] is sentinel
