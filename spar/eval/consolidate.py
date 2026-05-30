@@ -240,7 +240,8 @@ _FRAMING = (
     "top_p=1.0; reliability stage (Diamond pass^4) temperature=0.7, top_p=1.0. "
     "Reproducibility comes from the completion cache + pinned model snapshots, not from "
     "temperature=0.\n\n"
-    "Differences within overlapping CIs are not significant — rankings carry no false precision."
+    "Statistical honesty: differences within overlapping CIs are not significant — rankings "
+    "carry no false precision."
 )
 
 

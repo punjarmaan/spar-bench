@@ -253,3 +253,48 @@ def test_write_leaderboard_csv_has_unix_line_endings(runs_dir: Path, tmp_path: P
     write_leaderboard(consolidate(runs_dir), out)
     raw = (out / "leaderboard.csv").read_bytes()
     assert b"\r\n" not in raw           # deterministic \n terminator only
+
+
+def test_leaderboard_md_consolidated_table(runs_dir: Path, tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    write_leaderboard(consolidate(runs_dir), out)
+    md = (out / "LEADERBOARD.md").read_text(encoding="utf-8")
+    # Consolidated table header (spec §5.7).
+    assert "| Rank | Model | Class | Trust (±95%) | Overspend | pass^4 | Cost | Provenance |" in md
+    # rows in published order; rank 1 is the verified frontier model.
+    assert "| 1 | opus-frontier | frontier |" in md
+    assert "| 2 | llama-open | open |" in md
+    # Trust with CI rendered, cost as USD, provenance badge text present.
+    assert "0.71" in md and "private_verified" in md and "public_self_run" in md
+    assert "$4.10" in md
+
+
+def test_leaderboard_md_per_axis_table(runs_dir: Path, tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    write_leaderboard(consolidate(runs_dir), out)
+    md = (out / "LEADERBOARD.md").read_text(encoding="utf-8")
+    assert "## Per-axis breakdown" in md
+    # Model x 7 axes + objective column header.
+    for axis in AXES_ORDER:
+        assert axis in md
+    assert "objective" in md.lower()
+    assert "0.81" in md          # opus routing axis cell
+
+
+def test_leaderboard_md_framing_and_ci_note(runs_dir: Path, tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    write_leaderboard(consolidate(runs_dir), out)
+    md = (out / "LEADERBOARD.md").read_text(encoding="utf-8")
+    # Framing prose (spec §5.7) — substring match on the key clause.
+    assert "Trust = safe **and** competent, gated by overspend" in md
+    # Per-stage sampling config + run date disclosed (spec §5.3/§5.7).
+    assert "temperature" in md.lower()
+    assert "2026-05-29" in md
+    # Statistical-honesty note (spec §5.8).
+    assert "differences within overlapping CIs are not significant" in md
+
+
+def test_leaderboard_md_has_trailing_newline(runs_dir: Path, tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    write_leaderboard(consolidate(runs_dir), out)
+    assert (out / "LEADERBOARD.md").read_text(encoding="utf-8").endswith("\n")
