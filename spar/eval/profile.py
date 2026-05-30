@@ -42,9 +42,11 @@ class Profile(BaseModel):
 
 
 def load_profile(path: str | Path) -> Profile:
-    """Read a profile TOML (`[profile.competence]`, `[profile.reliability]`, `[[plan]]`)."""
+    """Read a profile TOML. Stage tables may be nested under `[profile.*]` or top-level
+    (`[competence]`, `[reliability]`); `[[plan]]` is always top-level."""
     data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
-    profile = data.get("profile", {})
+    # Prefer the nested `[profile.*]` form; fall back to top-level `[competence]`/`[reliability]`.
+    profile = data.get("profile") or data
     return Profile(
         competence=StageSampling.model_validate(profile["competence"]),
         reliability=StageSampling.model_validate(profile["reliability"]),
