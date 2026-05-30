@@ -343,3 +343,20 @@ def test_overwrite_in_place_is_idempotent(runs_dir: Path, tmp_path: Path) -> Non
     write_leaderboard(consolidate(runs_dir), out)     # overwrite same dir
     for name, blob in first.items():
         assert (out / name).read_bytes() == blob, name
+
+
+def test_cli_leaderboard_writes_all_artifacts(runs_dir: Path, tmp_path: Path) -> None:
+    from typer.testing import CliRunner
+
+    from spar.harness.run_eval import app
+
+    out = tmp_path / "board"
+    result = CliRunner().invoke(
+        app, ["leaderboard", "--runs", str(runs_dir), "--out-dir", str(out)])
+    assert result.exit_code == 0, result.output
+    for name in ("leaderboard.json", "leaderboard.csv", "LEADERBOARD.md",
+                 "leaderboard_manifest.json"):
+        assert (out / name).exists(), name
+    data = json.loads((out / "leaderboard.json").read_text(encoding="utf-8"))
+    assert [r["model"] for r in data] == ["opus-frontier", "llama-open"]
+    assert "wrote" in result.output.lower()
