@@ -140,3 +140,25 @@ def test_partial_run_below_floor_is_partial(runs_dir: Path) -> None:
     llama = _by_model(runs_dir)["llama-open"]
     assert llama.scored_fraction == 0.90        # scored_main=9 / total_main=10
     assert llama.status == "partial"            # 0.90 < PUBLISHABILITY_FLOOR (0.98)
+
+
+def test_provenance_private_verified_from_manifest(runs_dir: Path) -> None:
+    opus = _by_model(runs_dir)["opus-frontier"]
+    assert opus.provenance == "private_verified"
+    assert opus.cost_usd == 4.10               # agent inference only (from manifest)
+
+
+def test_provenance_public_self_run_from_manifest(runs_dir: Path) -> None:
+    llama = _by_model(runs_dir)["llama-open"]
+    assert llama.provenance == "public_self_run"
+    assert llama.cost_usd == 0.15
+
+
+def test_provenance_defaults_public_when_absent(single_runs_dir: Path) -> None:
+    # Strip provenance from the manifest -> default to public_self_run (spec §5.9).
+    manifest_path = single_runs_dir / "opus-frontier" / "run_manifest.json"
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    del data["provenance"]
+    manifest_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    e = consolidate(single_runs_dir)[0]
+    assert e.provenance == "public_self_run"
