@@ -248,6 +248,27 @@ def test_evaluate_model_resume_is_idempotent(tmp_path) -> None:
     assert first["per_sample"] == second["per_sample"]
 
 
+def test_evaluate_model_empty_plan_writes_manifest_without_crash(tmp_path) -> None:
+    model = make_model(id="emptyplan")
+    out_dir = tmp_path / "runs"
+    cache = CompletionCache(tmp_path / "cache")
+    profile = Profile(
+        competence=StageSampling(temperature=0.0, top_p=1.0, max_tokens=64, seed=7),
+        reliability=StageSampling(temperature=0.7, top_p=1.0, max_tokens=64, seed=7),
+        plan=[],
+    )
+    evaluate_model(
+        model, profile,
+        out_dir=out_dir, cache=cache, budget_usd=None, concurrency=1,
+        responder=_responder(), grader=StubModelGrader(),
+        completion_fn=FakeCompletion(mode="abort", response_cost=0.0),
+        retries=2, sleep=lambda _s: None,
+    )
+    manifest = json.loads((out_dir / "emptyplan" / "run_manifest.json").read_text())
+    assert manifest["splits"] == {}
+    assert manifest["spar_version"]
+
+
 def test_evaluate_all_runs_each_model_and_honors_only(tmp_path) -> None:
     a = make_model(id="alpha")
     b = make_model(id="beta")

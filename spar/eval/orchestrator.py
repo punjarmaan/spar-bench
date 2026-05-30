@@ -22,7 +22,7 @@ from spar.eval.models import ModelConfig
 from spar.eval.profile import Profile, StageSampling
 from spar.harness.graders import ModelGrader, SampleScore, score
 from spar.harness.passk import is_solved
-from spar.harness.report import build_results
+from spar.harness.report import SPAR_VERSION, build_results
 from spar.harness.runner import EpisodeTrace, run_episode
 from spar.harness.user_sim import UserSim
 from spar.harness.weights import DEFAULT_WEIGHTS
@@ -280,6 +280,7 @@ def evaluate_model(
         completion_fn = litellm.completion
 
     model_dir = Path(out_dir) / model.id
+    model_dir.mkdir(parents=True, exist_ok=True)
     meter = CostMeter(budget_usd=budget_usd)
     budget_hit = False
     canary: str | None = None
@@ -362,7 +363,7 @@ def evaluate_model(
         "model": model.id,
         "class": model.cls,
         "route": model.route,
-        "spar_version": results["spar_version"],
+        "spar_version": SPAR_VERSION,
         "model_version_pin": model.version_pin,
         "scaffold_version": SCAFFOLD_VERSION,
         "canary": canary,
