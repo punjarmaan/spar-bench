@@ -59,6 +59,8 @@ class FakeCompletion:
         settles on a non-Abort terminal, so `_run_sample` classifies it SCORED. Stateless across
         fresh per-trial agents: the step is inferred from the assistant-turn count in `messages`.
       - "raise_429": always raise a retryable infra (429) error; `raised` counts every attempt.
+      - "garbage": always return non-JSON prose; the agent's one reformat retry also fails, so it
+        emits Abort(reason="malformed_action") and `_run_sample` classifies it MALFORMED_ACTION.
     `calls` counts every invocation that returns a response (cache-hit assertions read it).
     """
 
@@ -73,18 +75,24 @@ class FakeCompletion:
             self.raised += 1
             raise RuntimeError("429 Too Many Requests")
         self.calls += 1
+        if self.mode == "garbage":
+            return _Resp("not a tool action, just prose", self.response_cost)
         step = sum(1 for m in messages if m.get("role") == "assistant")
         action = _HAPPY_PATH[min(step, len(_HAPPY_PATH) - 1)]
         return _Resp(json.dumps(action), self.response_cost)
 
 
-def make_model() -> ModelConfig:
-    """A minimal valid open-class `ModelConfig` whose route the fake echoes back."""
+def make_model(*, id: str = "fake") -> ModelConfig:
+    """A minimal valid open-class `ModelConfig` whose route the fake echoes back.
+
+    `version_pin` is set so the run_manifest reproducibility field is populated (design §5.5).
+    """
     return ModelConfig(
-        id="fake",
+        id=id,
         route="fake/route",
         cls="open",
         supports_response_format=False,
+        version_pin="fake/route@2026-05",
     )
 
 

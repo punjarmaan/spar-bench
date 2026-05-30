@@ -124,3 +124,18 @@ def test_cached_completion_fn_serves_second_call_from_cache(tmp_path) -> None:
     assert raw.calls == 1                       # not incremented
     assert r2.choices[0].message.content == content1
     assert r2._hidden_params["response_cost"] == 0.02
+
+
+def test_run_sample_malformed_is_scored_as_abort(tmp_path) -> None:
+    cache = CompletionCache(tmp_path)
+    meter = CostMeter(budget_usd=None)
+    status, sscore = _run_sample(
+        abort_sample(), make_model(),
+        sampling=DEFAULT_PROFILE.competence,
+        completion_fn=FakeCompletion(mode="garbage", response_cost=0.01),
+        cache=cache, meter=meter, responder=_responder(), grader=StubModelGrader(),
+        k=1, retries=2, sleep=lambda _s: None,
+    )
+    assert status is SampleStatus.MALFORMED_ACTION
+    assert sscore is not None
+    assert sscore.trials_n == 1
