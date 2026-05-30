@@ -322,3 +322,24 @@ def test_leaderboard_manifest_has_trailing_newline(runs_dir: Path, tmp_path: Pat
     write_leaderboard(consolidate(runs_dir), out)
     assert (out / "leaderboard_manifest.json").read_text(
         encoding="utf-8").endswith("\n")
+
+
+def test_full_rerun_is_byte_identical(runs_dir: Path, tmp_path: Path) -> None:
+    out_a = tmp_path / "a"
+    out_b = tmp_path / "b"
+    write_leaderboard(consolidate(runs_dir), out_a)
+    write_leaderboard(consolidate(runs_dir), out_b)
+    for name in ("leaderboard.json", "leaderboard.csv", "LEADERBOARD.md",
+                 "leaderboard_manifest.json"):
+        assert (out_a / name).read_bytes() == (out_b / name).read_bytes(), name
+
+
+def test_overwrite_in_place_is_idempotent(runs_dir: Path, tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    write_leaderboard(consolidate(runs_dir), out)
+    first = {n: (out / n).read_bytes() for n in
+             ("leaderboard.json", "leaderboard.csv", "LEADERBOARD.md",
+              "leaderboard_manifest.json")}
+    write_leaderboard(consolidate(runs_dir), out)     # overwrite same dir
+    for name, blob in first.items():
+        assert (out / name).read_bytes() == blob, name
