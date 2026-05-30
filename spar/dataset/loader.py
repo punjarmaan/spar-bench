@@ -67,6 +67,33 @@ def load_split(split: str, *, base_dir: Path | None = None) -> list[Sample]:
     return _parse_full(text)
 
 
+def load_graded_split(split: str, *, base_dir: Path) -> list[Sample]:
+    """Load the FULL-GOLD samples for one split from a built release's private.jsonl.
+
+    The operator who cut the release (`spar build --private-out`) holds the gold, so a local
+    self-run can grade against it. Reads `<base_dir>/private.jsonl` (the full graded build) and
+    returns the samples whose build-stamped `split` matches. Unlike `load_split`, this is the
+    operator-holds-gold local-run path (the F17 guard on `load_split` is left intact).
+
+    Raises ValueError for an unknown split name or when no sample carries the requested tag
+    (an old build cut before split-tagging -> re-cut), and FileNotFoundError when private.jsonl
+    is absent.
+    """
+    if split not in _PUBLIC_SPLITS:
+        raise ValueError(f"unknown graded split: {split!r}")
+    path = Path(base_dir) / "private.jsonl"
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{path} not found; cut a release with `spar build --private-out {base_dir}` first"
+        )
+    matched = [s for s in _parse_full(path.read_text(encoding="utf-8")) if s.split == split]
+    if not matched:
+        raise ValueError(
+            f"no samples tagged {split!r} in {path}; re-cut with a split-tagging build"
+        )
+    return matched
+
+
 def load_gold(axis: Axis | str) -> list[Sample]:
     """Load the hand-authored gold samples for an axis from spar/dataset/gold/<axis>.jsonl.
 
