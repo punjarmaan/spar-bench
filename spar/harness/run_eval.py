@@ -227,3 +227,19 @@ def eval_cost(
     est = estimate_cost(roster, prof, avg_turns=avg_turns)
     for model_id, usd in est.items():
         typer.echo(f"{model_id}\t${usd:.4f}")
+
+
+@app.command()
+def leaderboard(
+    runs: Path = typer.Option(Path("runs"), help="directory of runs/<model>/ results (EM2 output)"),
+    out_dir: Path = typer.Option(Path("."), help="where to write leaderboard.{json,csv,md} + manifest"),
+) -> None:
+    """Consolidate every runs/<model>/ result into the published leaderboard artifacts (EM3)."""
+    from spar.eval.consolidate import consolidate, write_leaderboard
+
+    entries = consolidate(runs)
+    write_leaderboard(entries, out_dir)
+    typer.echo(
+        f"wrote {out_dir}/leaderboard.json + .csv + LEADERBOARD.md + manifest "
+        f"({len(entries)} models)"
+    )
