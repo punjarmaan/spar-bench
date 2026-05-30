@@ -16,9 +16,10 @@ from spar.dataset.build_cli import build_cmd
 from spar.dataset.loader import load_split
 from spar.eval.cache import CompletionCache
 from spar.eval.cost import estimate_cost
-from spar.eval.models import load_models
-from spar.eval.orchestrator import evaluate_all
-from spar.eval.profile import load_profile
+from spar.eval.live import CompletionFn, default_completion_fn
+from spar.eval.models import ModelConfig, load_models
+from spar.eval.orchestrator import evaluate_model
+from spar.eval.profile import Profile, load_profile
 from spar.harness.graders import ModelGrader, SampleScore, score
 from spar.harness.model_grader import LiteLLMModelGrader, StubModelGrader
 from spar.harness.report import build_results, recompute_summary
@@ -55,6 +56,34 @@ def _make_grader(grader_model: str | None) -> ModelGrader:
     if grader_model is None:
         return StubModelGrader()
     return LiteLLMModelGrader(grader_model)
+
+
+def _run_eval(
+    *,
+    models: list[ModelConfig],
+    profile: Profile,
+    out_dir: Path,
+    cache_dir: Path,
+    budget_usd: float | None,
+    concurrency: int,
+    agent_completion_fn: CompletionFn,
+    responder: UserSim,
+    grader: ModelGrader,
+    only: str | None,
+) -> None:
+    """Pure, offline-testable wiring: run evaluate_model for each selected model, threading the
+    injected agent completion_fn + pinned responder/grader through the shared completion cache.
+    The Typer `eval` command builds the live infra (default_completion_fn + LiteLLMUserSim) and
+    delegates here; tests inject fakes. No litellm import in this function."""
+    cache = CompletionCache(cache_dir)
+    for model in models:
+        if only is not None and model.id != only:
+            continue
+        evaluate_model(
+            model, profile,
+            out_dir=out_dir, cache=cache, budget_usd=budget_usd, concurrency=concurrency,
+            responder=responder, grader=grader, completion_fn=agent_completion_fn,
+        )
 
 
 @app.command()
@@ -205,12 +234,11 @@ def eval_models(
         if responder_model is not None
         else ScriptedUserSim(UserResponse(decision="deny"))
     )
-    completion_fn = _offline_completion_fn() if offline else None
-    cache = CompletionCache(cache_dir)
-    evaluate_all(
-        roster, prof,
-        out_dir=out_dir, cache=cache, budget_usd=budget_usd, concurrency=concurrency,
-        responder=responder, grader=grader, only=only, completion_fn=completion_fn,
+    agent_completion_fn = _offline_completion_fn() if offline else default_completion_fn()
+    _run_eval(
+        models=roster, profile=prof, out_dir=out_dir, cache_dir=cache_dir,
+        budget_usd=budget_usd, concurrency=concurrency,
+        agent_completion_fn=agent_completion_fn, responder=responder, grader=grader, only=only,
     )
     typer.echo(f"wrote runs under {out_dir}/")
 
