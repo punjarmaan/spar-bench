@@ -162,3 +162,16 @@ def test_provenance_defaults_public_when_absent(single_runs_dir: Path) -> None:
     manifest_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     e = consolidate(single_runs_dir)[0]
     assert e.provenance == "public_self_run"
+
+
+def test_consolidate_returns_all_models(runs_dir: Path) -> None:
+    entries = consolidate(runs_dir)
+    assert {e.model for e in entries} == {"opus-frontier", "llama-open"}
+    # consolidate orders by directory name (deterministic input order), NOT by trust.
+    assert [e.model for e in entries] == ["llama-open", "opus-frontier"]
+
+
+def test_consolidate_ignores_dirs_without_main_results(runs_dir: Path) -> None:
+    (runs_dir / "trajectories-junk").mkdir()        # a stray dir with no main.results.json
+    entries = consolidate(runs_dir)
+    assert {e.model for e in entries} == {"opus-frontier", "llama-open"}
