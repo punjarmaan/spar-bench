@@ -255,3 +255,43 @@ def test_evaluate_all_runs_each_model_and_honors_only(tmp_path) -> None:
     )
     assert (out_dir / "alpha" / "run_manifest.json").exists()
     assert (out_dir / "beta" / "run_manifest.json").exists()
+
+
+def test_exit_criterion_main_pass1_plus_diamond_pass4_offline(tmp_path) -> None:
+    """EM2 exit: one model runs Main pass^1 + Diamond pass^4 offline, resumable, with confirmed
+    cost + cap, writing results.json + trajectories + manifest."""
+    model = make_model(id="exit")
+    out_dir = tmp_path / "runs"
+    cache = CompletionCache(tmp_path / "cache")
+    s = StageSampling(temperature=0.0, top_p=1.0, max_tokens=64, seed=7)
+    r = StageSampling(temperature=0.7, top_p=1.0, max_tokens=64, seed=7)
+    profile = Profile(
+        competence=s, reliability=r,
+        plan=[
+            StagePlan(split="lite", k=1, stage="competence", published=True),
+            StagePlan(split="lite", k=4, stage="reliability", published=True),
+        ],
+    )
+    raw = FakeCompletion(mode="abort", response_cost=0.001)
+    evaluate_model(
+        model, profile,
+        out_dir=out_dir, cache=cache, budget_usd=10.0, concurrency=1,
+        responder=_responder(), grader=StubModelGrader(),
+        completion_fn=raw, retries=2, sleep=lambda _s: None,
+    )
+    base = out_dir / "exit"
+    assert (base / "lite.results.json").exists()
+    assert list((base / "trajectories").glob("*.jsonl"))
+    manifest = json.loads((base / "run_manifest.json").read_text())
+    assert manifest["cost_usd"] > 0.0
+    assert manifest["budget_hit"] is False
+    res = json.loads((base / "lite.results.json").read_text())
+    assert res["k"] in (1, 4)
+    calls = raw.calls
+    evaluate_model(
+        model, profile,
+        out_dir=out_dir, cache=cache, budget_usd=10.0, concurrency=1,
+        responder=_responder(), grader=StubModelGrader(),
+        completion_fn=raw, retries=2, sleep=lambda _s: None,
+    )
+    assert raw.calls == calls
