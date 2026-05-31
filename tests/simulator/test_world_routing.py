@@ -4,16 +4,17 @@ from spar.simulator.contract import (
     Abort, Capture, Retry, SelectRoute, SubmitAuthorization,
 )
 from spar.simulator.enums import Axis, Difficulty, FsmState, IntentSpec, ToolStatus
-from spar.simulator.mandates import IntentMandate, ScopedAuthority
+from spar.simulator.mandates import IntentMandate
 from spar.simulator.schemas import Acquirer, Gold, Sample, WorldConfig
 from spar.simulator.world import World
 
 
-def _authority() -> ScopedAuthority:
-    return ScopedAuthority(
+def _authority() -> dict:
+    return dict(
         per_txn_max=Decimal("500"), daily_remaining=Decimal("500"),
-        merchant_allowlist=["acme"], mcc_allowlist=None,
+        merchant_constraint=["acme"], mcc_constraint=None,
         allowed_instruments=["visa", "mc"], session_ttl_steps=30,
+        single_use_or_recurring="single_use", time_window=None,
     )
 
 
@@ -25,8 +26,8 @@ def _sample(acquirers: list[Acquirer], *, oracle_route: str | None = None,
         seed=3, canary="spar:t",
         world_config=WorldConfig(acquirers=acquirers, settlement="sync", max_steps=20),
         mandate=IntentMandate(
-            goal="buy", price_ceiling=Decimal("100"), currency="USD",
-            human_present=True, conditions={"buyer_geo": buyer_geo}, authority=_authority(),
+            goal="buy", amount_limit=Decimal("100"), currency="USD",
+            human_present=True, conditions={"buyer_geo": buyer_geo}, **_authority(),
         ),
         policy_id="default_v1",
         gold=Gold(correct_outcome=FsmState.CLOSED, oracle_route=oracle_route),

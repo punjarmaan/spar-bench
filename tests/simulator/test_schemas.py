@@ -2,14 +2,15 @@ from decimal import Decimal
 
 from spar.simulator.enums import Axis, Difficulty, IntentSpec, FsmState
 from spar.simulator.schemas import Acquirer, WorldConfig, Gold, Sample
-from spar.simulator.mandates import IntentMandate, ScopedAuthority
+from spar.simulator.mandates import IntentMandate
 
 
-def _authority() -> ScopedAuthority:
-    return ScopedAuthority(
+def _authority() -> dict:
+    return dict(
         per_txn_max=Decimal("200"), daily_remaining=Decimal("350"),
-        merchant_allowlist=["acme"], mcc_allowlist=None,
+        merchant_constraint=["acme"], mcc_constraint=None,
         allowed_instruments=["visa"], session_ttl_steps=20,
+        single_use_or_recurring="single_use", time_window=None,
     )
 
 
@@ -31,8 +32,8 @@ def test_sample_round_trips_through_json():
         diamond=False, model_graded=False, seed=42, canary="spar:test-uuid",
         world_config=WorldConfig(acquirers=[], max_steps=30),
         mandate=IntentMandate(
-            goal="buy widget", price_ceiling=Decimal("100"), currency="USD",
-            human_present=True, conditions={}, authority=_authority(),
+            goal="buy widget", amount_limit=Decimal("100"), currency="USD",
+            human_present=True, conditions={}, **_authority(),
         ),
         policy_id="default_v1",
         gold=Gold(correct_outcome=FsmState.CLOSED, must=["compute_tax"], must_not=["retry_hard_decline"]),

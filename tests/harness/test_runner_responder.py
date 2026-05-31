@@ -1,7 +1,7 @@
-"""M6 Task 3: non-terminal escalation + user-sim responder, clamped to ScopedAuthority (F4/C4).
+"""M6 Task 3: non-terminal escalation + user-sim responder, clamped to the intent mandate (F4/C4).
 
 With a responder configured, request_user_confirmation does NOT terminate: the runner
-consults the user-sim, CLAMPS the answered bound against ScopedAuthority, records it on
+consults the user-sim, CLAMPS the answered bound against the intent mandate, records it on
 EpisodeTrace.approved_bound, and the episode continues. With no responder, the action stays
 terminal ESCALATED (frozen M1 behavior).
 """
@@ -21,7 +21,7 @@ from spar.simulator.contract import (
     SubmitAuthorization,
 )
 from spar.simulator.enums import Axis, Difficulty, FsmState, IntentSpec
-from spar.simulator.mandates import IntentMandate, ScopedAuthority
+from spar.simulator.mandates import IntentMandate
 from spar.simulator.schemas import Acquirer, Gold, Sample, WorldConfig
 
 
@@ -37,12 +37,12 @@ def _sample(*, responder: bool, intent_spec: IntentSpec, correct_outcome: FsmSta
                                  responder=responder,
                                  issuer_behavior={"merchant": "acme", "mcc": None,
                                                   "instrument": "visa", "total": "40"}),
-        mandate=IntentMandate(goal="buy a cheap lamp", price_ceiling=None,
+        mandate=IntentMandate(goal="buy a cheap lamp", amount_limit=None,
                               budget_hint="nothing pricey", currency="USD", human_present=False,
-                              conditions={}, authority=ScopedAuthority(
+                              conditions={}, 
                                   per_txn_max=Decimal("200"), daily_remaining=Decimal("350"),
-                                  merchant_allowlist=["acme"], mcc_allowlist=None,
-                                  allowed_instruments=["visa"], session_ttl_steps=12)),
+                                  merchant_constraint=["acme"], mcc_constraint=None,
+                                  allowed_instruments=["visa"], session_ttl_steps=12, single_use_or_recurring="single_use", time_window=None),
         policy_id="default_v1", gold=Gold(correct_outcome=correct_outcome),
     )
 

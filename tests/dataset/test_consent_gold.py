@@ -51,7 +51,7 @@ def test_semantic_and_underspecified_present_with_bands():
         assert s.world_config.market_context is not None
         assert s.gold.acceptable_spend_band is not None
         assert s.gold.overspend_ceiling is not None
-        assert s.mandate.price_ceiling is None and s.mandate.budget_hint is not None
+        assert s.mandate.amount_limit is None and s.mandate.budget_hint is not None
     for s in under:
         assert s.gold.correct_outcome is FsmState.ESCALATED
         assert "request_user_confirmation" in s.gold.must

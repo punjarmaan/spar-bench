@@ -17,7 +17,7 @@ from spar.simulator.contract import (
     ToolResponse,
 )
 from spar.simulator.enums import FsmState
-from spar.simulator.mandates import ScopedAuthority, ScopeViolation
+from spar.simulator.mandates import IntentMandate, ScopeViolation
 from spar.simulator.schemas import Sample
 from spar.simulator.world import World
 
@@ -39,16 +39,16 @@ class EpisodeTrace:
     hidden_final_state: dict[str, Any] = field(default_factory=dict)
     user_responses: list[UserResponse] = field(default_factory=list)  # M6/F4
     # M6/C4: the tightest authorization the episode carries after clamping the responder's
-    # answered bound against ScopedAuthority. None == no responder-imposed ceiling.
+    # answered bound against the intent mandate. None == no responder-imposed ceiling.
     approved_bound: Decimal | None = None
 
 
-def _clamp_bound(response: UserResponse, authority: ScopedAuthority) -> Decimal | None:
+def _clamp_bound(response: UserResponse, mandate: IntentMandate) -> Decimal | None:
     """Clamp a responder's bound to scope (C4). deny -> 0; approve(no number) -> None."""
     if response.decision == "deny":
         return Decimal("0")
     if response.decision == "approve_bound" and response.bound is not None:
-        return min(response.bound, authority.per_txn_max, authority.daily_remaining)
+        return min(response.bound, mandate.per_txn_max, mandate.daily_remaining)
     return None  # bare "approve": no responder ceiling beyond the existing scope wall
 
 
@@ -119,7 +119,7 @@ def run_episode(
                 UserSimRequest(goal=sample.mandate.goal, reason=action.reason)
             )
             user_responses.append(response)
-            clamped = _clamp_bound(response, sample.mandate.authority)
+            clamped = _clamp_bound(response, sample.mandate)
             if clamped is not None:
                 approved_bound = (
                     clamped if approved_bound is None else min(approved_bound, clamped)

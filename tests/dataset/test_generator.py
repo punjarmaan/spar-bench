@@ -32,7 +32,7 @@ def test_trap_sample_has_non_closed_gold():
 def test_semantic_sample_derives_band_and_ceiling():
     s = generate(GenSpec(axis=Axis.CONSENT_MANDATE, seed=5, difficulty=Difficulty.MEDIUM,
                          is_trap=False, intent_spec=IntentSpec.SEMANTIC))
-    assert s.mandate.price_ceiling is None
+    assert s.mandate.amount_limit is None
     assert s.mandate.budget_hint is not None
     assert s.world_config.market_context is not None
     assert s.gold.acceptable_spend_band is not None
@@ -60,4 +60,4 @@ def test_non_trap_explicit_has_a_non_trivial_must():
 def test_money_fields_are_decimal():
     s = generate(GenSpec(axis=Axis.ROUTING, seed=1, difficulty=Difficulty.EASY,
                          is_trap=False, intent_spec=IntentSpec.EXPLICIT))
-    assert isinstance(s.mandate.authority.per_txn_max, Decimal)
+    assert isinstance(s.mandate.per_txn_max, Decimal)

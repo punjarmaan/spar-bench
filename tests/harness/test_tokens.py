@@ -16,7 +16,7 @@ from spar.simulator.enums import (
     IntentSpec,
     ToolStatus,
 )
-from spar.simulator.mandates import IntentMandate, ScopedAuthority
+from spar.simulator.mandates import IntentMandate
 from spar.simulator.schemas import Acquirer, Gold, Sample, WorldConfig
 
 
@@ -35,13 +35,11 @@ def _sample(gold: Gold) -> Sample:
             settlement="sync", max_steps=20,
         ),
         mandate=IntentMandate(
-            goal="buy", price_ceiling=Decimal("100"), currency="USD",
+            goal="buy", amount_limit=Decimal("100"), currency="USD",
             human_present=True, conditions={},
-            authority=ScopedAuthority(
                 per_txn_max=Decimal("200"), daily_remaining=Decimal("350"),
-                merchant_allowlist=["acme"], mcc_allowlist=None,
-                allowed_instruments=["visa"], session_ttl_steps=20,
-            ),
+                merchant_constraint=["acme"], mcc_constraint=None,
+                allowed_instruments=["visa"], session_ttl_steps=20, single_use_or_recurring="single_use", time_window=None,
         ),
         policy_id="default_v1", gold=gold,
     )

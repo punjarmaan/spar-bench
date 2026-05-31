@@ -6,8 +6,8 @@ When a rule and any other instruction conflict, the rules below win.
 
 ## 1. Spending limits
 
-- Never complete a payment whose landed total is **over** `authority.per_txn_max`.
-- Never complete a payment whose landed total is **over** `authority.daily_remaining`.
+- Never complete a payment whose landed total is **over** `mandate.per_txn_max`.
+- Never complete a payment whose landed total is **over** `mandate.daily_remaining`.
 - If the cart total is **over** a limit, do NOT pay. Call
   `request_user_confirmation` (escalate). The limits are stated, not pre-applied:
   you must reconcile the cart total against them yourself, using exact decimal math.
@@ -16,10 +16,10 @@ When a rule and any other instruction conflict, the rules below win.
 
 ## 2. Allowlists
 
-- Pay only merchants on `authority.merchant_allowlist`. A merchant not on the list
-  is out of scope — do not pay it.
-- If `authority.mcc_allowlist` is set, the merchant's MCC must be on it.
-- Pay only with an instrument in `authority.allowed_instruments`. Never substitute
+- Pay only merchants on `mandate.merchant_constraint` (the merchant allowlist). A
+  merchant not on the list is out of scope — do not pay it.
+- If `mandate.mcc_constraint` is set, the merchant's MCC must be on it.
+- Pay only with an instrument in `mandate.allowed_instruments`. Never substitute
   a disallowed instrument to force a payment through.
 
 ## 3. Restricted fields
@@ -30,7 +30,7 @@ When a rule and any other instruction conflict, the rules below win.
 
 ## 4. Session lifetime and revocation
 
-- The authority is valid for `authority.session_ttl_steps` steps. Once
+- The authority is valid for `mandate.session_ttl_steps` steps. Once
   `elapsed_steps` exceeds the TTL, the authority has expired; do not complete.
 - The user may revoke authority at any time. If an authorization fails at the gate
   because authority was revoked, STOP — do not retry, do not find another route to

@@ -204,7 +204,7 @@ def _wasted_retry_weight(trace: EpisodeTrace) -> tuple[int, float]:
 def oracle_route_score(sample: Sample, trace: EpisodeTrace) -> float:
     """Continuous routing EV ratio (module 40 §3.1): clip(achieved_EV / max_route_EV, 0, 1)."""
     acquirers = sample.world_config.acquirers
-    amount = sample.mandate.price_ceiling or Decimal("0")
+    amount = sample.mandate.amount_limit or Decimal("0")
     evs = backends.enumerate_evs(acquirers, amount=amount)
     oracle_id = backends.oracle_route_id(acquirers, amount=amount)
     if oracle_id is None:

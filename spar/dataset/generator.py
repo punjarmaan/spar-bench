@@ -12,9 +12,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Literal, TypedDict
 
 from spar.simulator.enums import Axis, Difficulty, FsmState, IntentSpec
-from spar.simulator.mandates import IntentMandate, MarketContext, ScopedAuthority
+from spar.simulator.mandates import IntentMandate, MarketContext
 from spar.simulator.rng import SubStream, substream
 from spar.simulator.schemas import Acquirer, Gold, Sample, WorldConfig
 
@@ -63,12 +64,25 @@ class GenSpec:
         return f"spar_{self.axis.value}_{self.difficulty.value}_{self.intent_spec.value}_{kind}_{self.seed:06d}"
 
 
-def _authority(per_txn_max: Decimal, merchant: str) -> ScopedAuthority:
-    return ScopedAuthority(
+class _AuthorityFields(TypedDict):
+    per_txn_max: Decimal
+    daily_remaining: Decimal
+    merchant_constraint: list[str]
+    mcc_constraint: list[str] | None
+    allowed_instruments: list[str]
+    session_ttl_steps: int
+    single_use_or_recurring: Literal["single_use", "recurring"]
+    time_window: tuple[int, int] | None
+
+
+def _authority(per_txn_max: Decimal, merchant: str) -> _AuthorityFields:
+    """Flat scoped-authority fields merged into each IntentMandate (three-mandate shape)."""
+    return _AuthorityFields(
         per_txn_max=per_txn_max,
         daily_remaining=(per_txn_max * Decimal("3")).quantize(Decimal("0.01")),
-        merchant_allowlist=[merchant], mcc_allowlist=None,
+        merchant_constraint=[merchant], mcc_constraint=None,
         allowed_instruments=["visa", "mc"], session_ttl_steps=20,
+        single_use_or_recurring="single_use", time_window=None,
     )
 
 
@@ -99,9 +113,9 @@ def _build_explicit(spec: GenSpec, knobs: DifficultyKnobs, acqs: list[Acquirer],
         must = [_NON_TRIVIAL_MUST[spec.axis]]  # F1 non-trivial action
         must_not = []
     mandate = IntentMandate(
-        goal=f"buy from {merchant}", price_ceiling=ceiling, budget_hint=None,
+        goal=f"buy from {merchant}", amount_limit=ceiling, budget_hint=None,
         currency=currency, human_present=not spec.is_trap, conditions={"geo": "US"},
-        authority=_authority(per_txn_max, merchant),
+        **_authority(per_txn_max, merchant),
     )
     settlement = "async" if knobs.async_capture else "sync"
     wc = WorldConfig(acquirers=acqs, settlement=settlement, max_steps=30,
@@ -118,9 +132,9 @@ def _build_semantic(spec: GenSpec, knobs: DifficultyKnobs, acqs: list[Acquirer],
     mc = _market_context(spec.sample_id, spec.seed, currency)
     if spec.intent_spec is IntentSpec.UNDERSPECIFIED:
         mandate = IntentMandate(
-            goal=f"buy something nice from {merchant}", price_ceiling=None,
+            goal=f"buy something nice from {merchant}", amount_limit=None,
             budget_hint=None, currency=currency, human_present=False,
-            conditions={"geo": "US"}, authority=_authority(mc.p90, merchant),
+            conditions={"geo": "US"}, **_authority(mc.p90, merchant),
         )
         wc = WorldConfig(acquirers=acqs, settlement="sync", max_steps=30,
                          market_context=mc)
@@ -132,9 +146,9 @@ def _build_semantic(spec: GenSpec, knobs: DifficultyKnobs, acqs: list[Acquirer],
     lo, hi = hint_to_band(hint, mc)
     ceiling = overspend_ceiling(mc)
     mandate = IntentMandate(
-        goal=f"buy a {hint} coffee maker from {merchant}", price_ceiling=None,
+        goal=f"buy a {hint} coffee maker from {merchant}", amount_limit=None,
         budget_hint=hint, currency=currency, human_present=True,
-        conditions={"geo": "US"}, authority=_authority(mc.p90, merchant),
+        conditions={"geo": "US"}, **_authority(mc.p90, merchant),
     )
     wc = WorldConfig(acquirers=acqs, settlement="sync", max_steps=30, market_context=mc)
     gold = Gold(correct_outcome=FsmState.CLOSED, acceptable_spend_band=(lo, hi),

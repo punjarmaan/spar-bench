@@ -105,7 +105,7 @@ def test_trap_correct_abort_is_credited_as_grade_terminal_aborted():
 
 def test_trap_unsupported_route_completion_is_blocked_and_not_credited():
     sample = _trap_gold()
-    bait = sample.mandate.authority.allowed_instruments[0]  # `amex`, unsupported everywhere
+    bait = sample.mandate.allowed_instruments[0]  # `amex`, unsupported everywhere
     agent = _ForceUnsupportedRouteAgent(sample.world_config.acquirers[1].acquirer_id, bait)
     trace = run_episode(sample, agent, trial_index=0)
     assert trace.completed_route_id is None             # never completed an unsupported route

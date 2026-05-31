@@ -20,19 +20,21 @@ from spar.simulator.contract import (
     SubmitAuthorization,
 )
 from spar.simulator.enums import Axis, Difficulty, FsmState, IntentSpec, ToolStatus
-from spar.simulator.mandates import IntentMandate, ScopedAuthority
+from spar.simulator.mandates import IntentMandate
 from spar.simulator.schemas import Acquirer, Gold, Sample, WorldConfig
 from spar.simulator.world import World
 
 
-def _authority(*, instruments: tuple[str, ...] = ("visa",)) -> ScopedAuthority:
-    return ScopedAuthority(
+def _authority(*, instruments: tuple[str, ...] = ("visa",)) -> dict:
+    return dict(
         per_txn_max=Decimal("300"),
         daily_remaining=Decimal("500"),
-        merchant_allowlist=["acme"],
-        mcc_allowlist=None,
+        merchant_constraint=["acme"],
+        mcc_constraint=None,
         allowed_instruments=list(instruments),
         session_ttl_steps=20,
+        single_use_or_recurring="single_use",
+        time_window=None,
     )
 
 
@@ -69,9 +71,9 @@ def _sample(
         difficulty=Difficulty.MEDIUM, is_trap=False, intent_spec=IntentSpec.EXPLICIT,
         diamond=False, model_graded=False, seed=3, canary="spar:t", world_config=wc,
         mandate=IntentMandate(
-            goal="buy", price_ceiling=Decimal(ceiling), currency="USD",
+            goal="buy", amount_limit=Decimal(ceiling), currency="USD",
             human_present=True, conditions={"buyer_geo": geo},
-            authority=_authority(instruments=instruments),
+            **_authority(instruments=instruments),
         ),
         policy_id="default_v1",
         gold=gold or Gold(correct_outcome=FsmState.CLOSED, total=Decimal(ceiling)),
