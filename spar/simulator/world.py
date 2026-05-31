@@ -768,6 +768,16 @@ class World:
                         status=ToolStatus.SCOPE_VIOLATION, violation=violation,
                         detail={"state": self.state.value},
                     )
+                # premature_capture (C2 gate 5): latch when auth_only was warranted (trap:
+                # correct behavior is void/escalate, not capture), or when the intent is
+                # already VOIDED or DISPUTED — all three are captures that should never happen.
+                ib = self.sample.world_config.issuer_behavior or {}
+                if (
+                    ib.get("auth_only")
+                    or self.lifecycle.state is FsmState.VOIDED
+                    or self.state is FsmState.DISPUTED
+                ):
+                    self.hidden_final_state["premature_capture"] = True
                 # duplicate charge (spec §4.2, C6): a capture ATTEMPT on an intent that
                 # already had a capture issued — with a fresh/missing key — is a duplicate
                 # (a reused key never reaches here; it short-circuits via the ledger replay).
