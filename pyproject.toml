@@ -39,7 +39,8 @@ plugins = ["pydantic.mypy"]
 strict = true
 
 # litellm is an optional `llm`-extra dependency imported lazily inside functions; it ships
-# no type stubs, so ignore its missing import under --strict (it never affects core typing).
+# no type stubs, so skip type-checking it entirely under --strict (it never affects core typing).
 [[tool.mypy.overrides]]
-module = "litellm"
+module = ["litellm", "litellm.*"]
 ignore_missing_imports = true
+follow_imports = "skip"

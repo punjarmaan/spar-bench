@@ -43,25 +43,54 @@ class SampleStatus(str, Enum):
     REFUSED = "refused"                # model refused in-band; scored as its Abort/escalate
 
 
-# Substrings that mark a failure as OURS (infra), not the model's behaviour (design §5.5/§8).
+# Conservative untyped-fallback phrases: UNAMBIGUOUS phrases only; bare HTTP status codes
+# (e.g. "500", "429") are intentionally excluded — they false-match capability errors whose
+# messages happen to mention a number.  Real infra failures come through as typed litellm
+# exceptions or carry a `status_code` attribute (Task 4.3).
 # Context-overflow strings are intentionally excluded: a context-overflow is a deterministic
 # capability failure — retrying just re-pays with no different outcome (Task 4.2).
 _INFRA_SIGNATURES = (
-    "429", "rate limit", "rate_limit", "too many requests",
-    "500", "502", "503", "504", "service unavailable", "bad gateway",
+    "rate limit", "rate_limit", "too many requests",
+    "service unavailable", "bad gateway",
     "timeout", "timed out",
 )
 
 
 def _is_infra_error(exc: BaseException) -> bool:
     """True for timeout / 429 / 5xx (retryable infra failures, never a capability signal).
-    BudgetExceeded is explicitly NOT an infra error — it must halt, not retry.
+
+    Priority order (Task 4.3):
+    1. BudgetExceeded → False (must halt, never retry; Task 4.1).
+    2. TimeoutError   → True.
+    3. Typed litellm exceptions (lazy import) → True for rate-limit / service-unavailable /
+       timeout / API-connection / internal-server classes, or any exception with a numeric
+       status_code of 429 or 5xx.
+    4. Conservative untyped fallback: UNAMBIGUOUS phrases only (no bare numeric substrings).
+
     Context-overflow is also NOT an infra error — it is a deterministic capability outcome
     that must not be retried (Task 4.2)."""
     if isinstance(exc, BudgetExceeded):
         return False
     if isinstance(exc, TimeoutError):
         return True
+    # --- typed litellm exception check (lazy import — litellm is never imported at module load) ---
+    try:
+        import litellm  # noqa: PLC0415
+        if isinstance(exc, (
+            litellm.RateLimitError,
+            litellm.ServiceUnavailableError,
+            litellm.Timeout,
+            litellm.APIConnectionError,
+            litellm.InternalServerError,
+        )):
+            return True
+    except ImportError:
+        pass  # litellm not installed — fall through to the untyped fallback
+    # status_code attribute check (covers litellm subclasses and other HTTP-aware exceptions)
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int) and (status == 429 or 500 <= status <= 599):
+        return True
+    # --- conservative untyped substring fallback (no bare numeric strings) ---
     text = f"{type(exc).__name__} {exc}".lower()
     return any(sig in text for sig in _INFRA_SIGNATURES)
 

@@ -125,3 +125,10 @@ def test_context_overflow_evaluate_model_completes_run(tmp_path: Any) -> None:
     assert split["n_scored"] == split["n"]
     assert split["scored_fraction"] == 1.0
     assert split["tally"].get("malformed_action", 0) == split["n"]
+
+
+def test_capability_error_mentioning_a_number_is_not_infra() -> None:
+    # A capability/parse failure whose message merely contains "500" must NOT be retried as infra.
+    class BadOutput(ValueError):
+        pass
+    assert _is_infra_error(BadOutput("model returned 500 widgets, unparseable")) is False
