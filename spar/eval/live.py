@@ -18,6 +18,26 @@ from typing import Any
 CompletionFn = Callable[..., Any]
 
 
+def load_env() -> str | None:
+    """Load a repo-root `.env` into `os.environ` so a key placed there (e.g. OPENROUTER_API_KEY)
+    is visible to LiteLLM, which reads provider keys from the environment.
+
+    `python-dotenv` ships as a LiteLLM dependency, so the `llm` extra already provides it; if it
+    is somehow absent this is a no-op (the user can still export the key manually). `override=False`
+    means a variable already exported in the shell wins over `.env`. Returns the resolved `.env`
+    path (for logging), or None if none was found / python-dotenv is unavailable.
+    """
+    try:
+        from dotenv import find_dotenv, load_dotenv
+    except ImportError:  # pragma: no cover - only without python-dotenv
+        return None
+    path = find_dotenv(usecwd=True)
+    if path:
+        load_dotenv(path, override=False)
+        return path
+    return None
+
+
 def default_completion_fn() -> CompletionFn:
     """Return `litellm.completion`, importing litellm lazily on first call.
 

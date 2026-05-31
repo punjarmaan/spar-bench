@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import importlib
 import json
+import os
 from collections.abc import Callable
 from pathlib import Path
 
@@ -17,7 +18,7 @@ from spar.dataset.build_cli import build_cmd
 from spar.dataset.loader import load_graded_split, load_split
 from spar.eval.cache import CompletionCache
 from spar.eval.cost import estimate_cost
-from spar.eval.live import CompletionFn, default_completion_fn
+from spar.eval.live import CompletionFn, default_completion_fn, load_env
 from spar.eval.models import ModelConfig, load_models
 from spar.eval.orchestrator import evaluate_model
 from spar.eval.profile import Profile, load_profile
@@ -232,6 +233,19 @@ def eval_models(
 ) -> None:
     """Run one or all models for a profile (design §5.5/§7). Writes per-model results +
     trajectories + manifest. Resumable via the completion cache."""
+    # Auto-load a repo-root .env so OPENROUTER_API_KEY placed there reaches LiteLLM (which reads
+    # it from os.environ). A shell-exported key still wins (override=False). Fail fast with a
+    # clear message BEFORE any work if a live run has no key, rather than a mid-run auth error.
+    env_path = load_env()
+    if not offline and not os.environ.get("OPENROUTER_API_KEY"):
+        typer.echo(
+            "error: OPENROUTER_API_KEY is not set. Put it in a .env at the repo root "
+            "(auto-loaded) or export it, then re-run. Use --offline for a no-network run.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    if env_path and not offline:
+        typer.echo(f"loaded environment from {env_path}")
     roster = load_models(models)
     prof = load_profile(profile)
     grader = _make_grader(grader_model)

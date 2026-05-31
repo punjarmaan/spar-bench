@@ -11,7 +11,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "hypothesis>=6.100", "ruff>=0.4", "mypy>=1.10"]
-llm = ["litellm>=1.40"]
+llm = ["litellm>=1.40", "python-dotenv>=1.0"]
 
 [project.scripts]
 spar = "spar.harness.run_eval:app"
