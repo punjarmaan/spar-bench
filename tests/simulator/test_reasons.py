@@ -1,6 +1,10 @@
+import pytest
+
 from spar.simulator.reasons import (
     REASONS,
+    DeclinePolicy,
     ReasonCode,
+    classify_decline,
     correct_behaviors,
     is_decline,
     is_hard,
@@ -77,3 +81,35 @@ def test_retry_fee_risk_flags_cat1_codes():
     for code in ("43", "46", "62"):
         assert REASONS[code].retry_fee_risk is True
     assert REASONS["1A"].retry_fee_risk is False
+
+
+def test_hard_decline_is_do_not_retry():
+    assert classify_decline("43") is DeclinePolicy.HARD  # stolen_card (cls="hard")
+
+
+def test_soft_decline_allows_bounded_retry():
+    assert classify_decline("51") is DeclinePolicy.SOFT  # insufficient_funds (cls="soft")
+
+
+def test_step_up_required_is_escalate():
+    assert classify_decline("1A") is DeclinePolicy.STEP_UP  # auth challenge (cls="auth_challenge")
+
+
+def test_hard_correctable_and_ambiguous_fold_into_soft():
+    # C15: only cls=="hard" -> HARD; hard_correctable/ambiguous -> SOFT (bounded retry).
+    assert classify_decline("14") is DeclinePolicy.SOFT   # hard_correctable
+    assert classify_decline("05") is DeclinePolicy.SOFT   # ambiguous
+
+
+@pytest.mark.parametrize("code", sorted(REASONS.keys()))
+def test_every_reason_code_classifies_without_falling_through(code):
+    # No emitted code may fall through unclassified (C15). Cross-check against the source of truth.
+    result = classify_decline(code)
+    assert isinstance(result, DeclinePolicy)
+    cls = REASONS[code].cls
+    expected = (
+        DeclinePolicy.HARD if cls == "hard"
+        else DeclinePolicy.STEP_UP if cls == "auth_challenge"
+        else DeclinePolicy.SOFT
+    )
+    assert result is expected
