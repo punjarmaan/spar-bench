@@ -13,12 +13,12 @@ CONFIGS = Path(__file__).resolve().parents[2] / "configs"
 def test_models_toml_parses_roster() -> None:
     models = load_models(CONFIGS / "models.toml")
     ids = {m.id for m in models}
-    # A small roster: 2 frontier + 1 open, all on the OpenRouter route.
-    assert len(models) == 3
+    # A small roster: 2 frontier + 2 open (llama-3.3-70b, gemini-2.0-flash), all on OpenRouter.
+    assert len(models) == 4
     assert sum(1 for m in models if m.cls == "frontier") == 2
-    assert sum(1 for m in models if m.cls == "open") == 1
+    assert sum(1 for m in models if m.cls == "open") == 2
     assert all(m.route.startswith("openrouter/") for m in models)
-    assert len(ids) == 3  # ids are unique + filename-safe
+    assert len(ids) == len(models)  # ids are unique + filename-safe
     assert all("/" not in m.id and " " not in m.id for m in models)
 
 

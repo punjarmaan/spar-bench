@@ -28,3 +28,12 @@ supports_response_format = false
 price_in_per_mtok  = 0.12
 price_out_per_mtok = 0.30
 version_pin   = "meta-llama/llama-3.3-70b-instruct@2026-05"
+
+[[model]]
+id            = "gemini-2.0-flash"
+route         = "openrouter/google/gemini-2.0-flash-001"
+class         = "open"
+supports_response_format = true
+price_in_per_mtok  = 0.10
+price_out_per_mtok = 0.40
+version_pin   = "google/gemini-2.0-flash-001@2026-05"
