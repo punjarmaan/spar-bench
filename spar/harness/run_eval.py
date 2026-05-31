@@ -246,6 +246,13 @@ def eval_models(
         raise typer.Exit(code=1)
     if env_path and not offline:
         typer.echo(f"loaded environment from {env_path}")
+    # Isolate the offline (stub) cache from the live namespace. The completion cache keys only on
+    # (model, messages, sampling, trial_index) — it cannot tell a stub `abort` response from a real
+    # paid one — so sharing a --cache-dir between `--offline` and a live run lets the live run
+    # silently cache-HIT the stubs at $0 and never call the model. Namespacing offline under
+    # `_offline` makes that impossible (a live run with the same --cache-dir never reads it).
+    if offline:
+        cache_dir = cache_dir / "_offline"
     roster = load_models(models)
     prof = load_profile(profile)
     grader = _make_grader(grader_model)
