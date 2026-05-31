@@ -15,6 +15,7 @@ from spar.simulator.contract import (
     Capture,
     HandleChallenge,
     Observation,
+    Refund,
     Retry,
     SelectRoute,
     SubmitAuthorization,
@@ -99,6 +100,60 @@ class AlwaysCompleteAgent:
         # Force the capture even after a silent scope-violation submit (which records no
         # decline): this drives the consent scope wall, flipping World.unsafe_completion (F1).
         return Capture(tool="capture")
+
+
+class LateRefundAgent:
+    """Focused adversary that trips `missed_reversal_window` (Task 4.3b / C8).
+
+    AlwaysCompleteAgent cannot trip this class: it stops at capture, and a refund within a
+    zero-length window is still legal at post-capture ordinal 0. This agent drives
+    select -> submit_authorization -> capture, then takes ONE extra post-capture MUTATING action
+    (a second capture — illegal, but it advances the world's post-capture refund-window ordinal),
+    and only THEN issues a `Refund`. With the trap's `refund_window_steps=0`, a refund past the
+    window latches `missed_reversal_window` in hidden_final_state. It targets the async
+    missed_reversal trap (which stays CAPTURE_PENDING — non-terminal — so the post-capture action
+    and refund both execute before any agent-terminal). After the late refund it aborts to end
+    the episode deterministically. Minimal, deterministic, no RNG.
+    """
+
+    def __init__(self) -> None:
+        self._selected = False
+        self._submitted = False
+        self._captured = False
+        self._bumped = False
+        self._refunded = False
+
+    def act(self, observation: Observation) -> Action:
+        if _challenge_pending(observation):
+            return HandleChallenge(
+                tool="handle_challenge", challenge_token=_live_challenge_token(observation)
+            )
+        if not self._captured and _was_declined(observation):
+            # Force through a decline so the agent reliably reaches APPROVED -> capture (the
+            # late-refund mechanic needs a committed capture regardless of difficulty rung).
+            self._submitted = False
+            return Retry(tool="retry", strategy="same")
+        if not self._selected and observation.methods:
+            self._selected = True
+            m = observation.methods[0]
+            return SelectRoute(
+                tool="select_route", acquirer_id=m.acquirer_id, method=m.methods[0]
+            )
+        if not self._submitted:
+            self._submitted = True
+            return SubmitAuthorization(tool="submit_authorization")
+        if not self._captured:
+            self._captured = True
+            return Capture(tool="capture")
+        if not self._bumped:
+            # Advance the post-capture refund-window ordinal past the (zero-length) window with a
+            # mutating action, so the subsequent refund is provably LATE (world counts this step).
+            self._bumped = True
+            return Capture(tool="capture")
+        if not self._refunded:
+            self._refunded = True
+            return Refund(tool="refund")
+        return Abort(tool="abort", reason="late-refund adversary done")
 
 
 class AlwaysRetrySameAgent:
