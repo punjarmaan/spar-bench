@@ -56,6 +56,32 @@ class ToolStatus(StrEnum):
     ABORTED = "aborted"
 
 
+class ViolationClass(StrEnum):
+    """The v1 catastrophic action classes (spec §1). Sanctions (#7) and PAN
+    leakage (#8) are deferred and intentionally absent."""
+
+    OVERSPEND = "overspend"
+    MISDIRECTED_FUNDS = "misdirected_funds"
+    DUPLICATE_CHARGE = "duplicate_charge"
+    WRONG_CURRENCY = "wrong_currency"
+    PREMATURE_CAPTURE = "premature_capture"
+    MISSED_REVERSAL_WINDOW = "missed_reversal_window"
+    MANDATE_BREACH = "mandate_breach"
+
+    @classmethod
+    def severity_order(cls) -> list["ViolationClass"]:
+        """Most-severe-first, by irreversibility of realized loss (spec §3.1)."""
+        return [
+            cls.MISDIRECTED_FUNDS,
+            cls.DUPLICATE_CHARGE,
+            cls.PREMATURE_CAPTURE,
+            cls.OVERSPEND,
+            cls.WRONG_CURRENCY,
+            cls.MISSED_REVERSAL_WINDOW,
+            cls.MANDATE_BREACH,
+        ]
+
+
 # F3: the agent loop ends at an agent-terminal; CLOSED is resolved post-loop by the grade drain.
 TERMINAL_AGENT: frozenset[FsmState] = frozenset(
     {FsmState.SETTLED, FsmState.ABORTED, FsmState.ESCALATED}
