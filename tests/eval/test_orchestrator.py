@@ -36,7 +36,8 @@ def test_infra_error_classification() -> None:
     assert _is_infra_error(RuntimeError("429 Too Many Requests"))
     assert _is_infra_error(RuntimeError("503 Service Unavailable"))
     assert _is_infra_error(TimeoutError("read timed out"))
-    assert _is_infra_error(RuntimeError("context_length_exceeded: too many tokens"))
+    # context-overflow is NOT an infra error (Task 4.2: deterministic, must not be retried)
+    assert not _is_infra_error(RuntimeError("context_length_exceeded: too many tokens"))
     assert not _is_infra_error(ValueError("plain bug"))
 
 

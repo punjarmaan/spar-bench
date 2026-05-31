@@ -27,7 +27,7 @@ from spar.harness.runner import EpisodeTrace, run_episode
 from spar.harness.user_sim import UserSim
 from spar.harness.weights import DEFAULT_WEIGHTS
 from spar.policies.loader import load_policy
-from spar.simulator.contract import Abort
+from spar.simulator.contract import Abort, Action, Observation
 from spar.simulator.enums import Axis
 from spar.simulator.schemas import Sample
 
@@ -38,23 +38,26 @@ PUBLISHABILITY_FLOOR = 0.98   # design §5.5: scored_fraction >= floor -> "verif
 
 class SampleStatus(str, Enum):
     SCORED = "scored"                  # reached a terminal and graded normally; in denominator
-    ERRORED_INFRA = "errored_infra"    # timeout/429/5xx/context-overflow after retries; excluded
+    ERRORED_INFRA = "errored_infra"    # timeout/429/5xx after retries; excluded but counted
     MALFORMED_ACTION = "malformed_action"  # no valid JSON after reformat retry; scored as Abort
     REFUSED = "refused"                # model refused in-band; scored as its Abort/escalate
 
 
 # Substrings that mark a failure as OURS (infra), not the model's behaviour (design §5.5/§8).
+# Context-overflow strings are intentionally excluded: a context-overflow is a deterministic
+# capability failure — retrying just re-pays with no different outcome (Task 4.2).
 _INFRA_SIGNATURES = (
     "429", "rate limit", "rate_limit", "too many requests",
     "500", "502", "503", "504", "service unavailable", "bad gateway",
     "timeout", "timed out",
-    "context_length_exceeded", "context length", "maximum context", "context-overflow",
 )
 
 
 def _is_infra_error(exc: BaseException) -> bool:
-    """True for timeout / 429 / 5xx / context-overflow (retryable, never a capability fail).
-    BudgetExceeded is explicitly NOT an infra error — it must halt, not retry."""
+    """True for timeout / 429 / 5xx (retryable infra failures, never a capability signal).
+    BudgetExceeded is explicitly NOT an infra error — it must halt, not retry.
+    Context-overflow is also NOT an infra error — it is a deterministic capability outcome
+    that must not be retried (Task 4.2)."""
     if isinstance(exc, BudgetExceeded):
         return False
     if isinstance(exc, TimeoutError):
@@ -178,6 +181,35 @@ def _classify(score_obj: SampleScore, trace: EpisodeTrace) -> SampleStatus:
     return SampleStatus.SCORED
 
 
+class _OverflowAbortAgent:
+    """An immediate-abort agent used to SCORE a non-infra failure (e.g. context-overflow) as a
+    capability/abort outcome (audit S1). It NEVER calls the model — `act` returns an Abort on the
+    first turn — so the abort-scoring run adds no spend. The Abort reason is recorded in the audit
+    trajectory; it is graded exactly like the malformed-action path (the agent produced no valid
+    progress this turn) and scores 0 with catastrophic_class None (no forbidden completion)."""
+
+    def act(self, observation: Observation) -> Action:
+        return Abort(tool="abort", reason="context_overflow")
+
+
+def _abort_scored(
+    sample: Sample,
+    *,
+    responder: UserSim,
+    grader: ModelGrader,
+    k: int,
+) -> SampleScore:
+    """Grade `sample` AS IF the agent immediately aborted (audit S1): a non-infra error escaping
+    run_episode (context-overflow) means the agent could not produce a valid action — semantically
+    the malformed-action path, which already scores as an Abort. Reuses run_episode + score (no new
+    model calls — the abort agent never invokes completion_fn) and marks it solved 0 of k."""
+    trace = run_episode(sample, _OverflowAbortAgent(), trial_index=0, user_sim=responder)
+    final = score(sample, trace, model_grader=grader)
+    final.trials_n = k
+    final.trials_c = 0  # solved 0 of k -> a capability failure that counts in the denominator
+    return final
+
+
 def _run_sample(
     sample: Sample,
     model: ModelConfig,
@@ -193,8 +225,11 @@ def _run_sample(
     sleep: Callable[[float], None],
 ) -> tuple[SampleStatus, SampleScore | None]:
     """Run one sample's pass^k offline. Infra errors that survive retries -> ERRORED_INFRA (no
-    score, excluded from the denominator but counted). Otherwise grade + classify the status and
-    accrue confirmed agent cost."""
+    score, excluded from the denominator but counted — they are OURS). Non-infra, non-budget
+    errors (e.g. context-overflow) are deterministic capability failures: NOT retried (Task 4.2)
+    and SCORED as an abort-equivalent capability failure that LANDS IN the scored population
+    (status MALFORMED_ACTION, trials_c=0, audit S1) — never silently excluded. The run continues.
+    Otherwise grade + classify the status and accrue confirmed agent cost."""
     binary = sample.axis is not Axis.ROUTING
     policy_text = load_policy(sample.policy_id)
     solved = 0
@@ -220,12 +255,21 @@ def _run_sample(
                 meter.record(u, model)
             raise
         except BaseException as exc:  # noqa: BLE001
+            # Cost of any calls that DID return before the error is still real.
+            for u in getattr(agent, "usage", []):
+                meter.record(u, model)
             if _is_infra_error(exc):
-                # Cost of any calls that DID return before the fatal infra error is still real.
-                for u in getattr(agent, "usage", []):
-                    meter.record(u, model)
+                # Infra is OURS (timeout/429/5xx, already retried): excluded but counted.
                 return SampleStatus.ERRORED_INFRA, None
-            raise
+            # Non-infra, non-budget errors (e.g. context-overflow) are deterministic capability
+            # failures — NOT retried (Task 4.2) and must not crash the run. Per audit S1 they are
+            # SCORED as a capability/abort outcome that LANDS IN the scored population (a counted
+            # failure), not silently excluded: grade an immediate abort (no new model call) and
+            # return MALFORMED_ACTION (a SCORED-population status), trials_c=0, catastrophic None.
+            return (
+                SampleStatus.MALFORMED_ACTION,
+                _abort_scored(sample, responder=responder, grader=grader, k=k),
+            )
         for u in getattr(agent, "usage", []):
             meter.record(u, model)
         if is_solved(score(sample, trace, model_grader=grader).score, binary=binary):
@@ -340,7 +384,20 @@ def evaluate_model(
                     model, policy_text=load_policy(sample.policy_id), sampling=tsamp,
                     completion_fn=cached_fn, mandate_text=sample.mandate.goal,
                 )
-                trace = run_episode(sample, factory(), trial_index=last_idx, user_sim=responder)
+                try:
+                    trace = run_episode(
+                        sample, factory(), trial_index=last_idx, user_sim=responder
+                    )
+                except BaseException as exc:  # noqa: BLE001
+                    # A non-infra failure (e.g. context-overflow) never cached a trial, so the
+                    # replay re-raises. The sample was abort-SCORED (audit S1); re-derive the
+                    # matching audit trajectory from the same immediate-abort agent (no model
+                    # call, no spend). Infra errors are excluded upstream and never reach here.
+                    if _is_infra_error(exc):
+                        raise
+                    trace = run_episode(
+                        sample, _OverflowAbortAgent(), trial_index=last_idx, user_sim=responder
+                    )
                 _write_trajectory(
                     model_dir / "trajectories" / f"{sample.sample_id}.jsonl",
                     sample, trace, status,
