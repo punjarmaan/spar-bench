@@ -5,6 +5,7 @@ from spar.agents.reference_agents import (
     AlwaysAbortAgent,
     AlwaysCompleteAgent,
     AlwaysRetrySameAgent,
+    DiligentAgent,
     GoldReplayAgent,
     RandomAgent,
 )
@@ -40,6 +41,7 @@ def _obs(
 def test_all_baselines_satisfy_agent_protocol():
     for agent in (
         AlwaysCompleteAgent(), AlwaysAbortAgent(), AlwaysRetrySameAgent(),
+        DiligentAgent(),
         RandomAgent(seed=1),
         GoldReplayAgent(trajectory=[{"tool": "abort", "reason": "x"}]),
     ):
