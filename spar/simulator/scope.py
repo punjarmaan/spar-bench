@@ -1,21 +1,19 @@
-"""Pure scoped-authority wall checks (module 10 §7). No I/O, no RNG, Decimal-exact.
+"""Scoped-authority wall checks against named IntentMandate fields (spec §5.5).
 
-The check order is FIXED and deterministic so a breaching action always reports a
-stable `ScopeViolation.kind`: revoked > ttl > per_txn_max > daily_remaining >
-merchant > mcc > instrument. The World gate (world.py) and the grader token checks
-(graders.py) both consume these kinds. TTL bounds are stringified because the M1
-`ScopeViolation` model (strict) types `limit`/`attempted` as `Decimal | str | None`.
+Precedence (unchanged ordering, now mapped to ViolationClass + named field):
+revoked > session_ttl > per_txn_max > daily_remaining > merchant > mcc > instrument.
 """
 
 from __future__ import annotations
 
 from decimal import Decimal
 
-from spar.simulator.mandates import ScopedAuthority, ScopeViolation
+from spar.simulator.enums import ViolationClass
+from spar.simulator.mandates import IntentMandate, ScopeViolation
 
 
 def check_scope(
-    authority: ScopedAuthority,
+    mandate: IntentMandate,
     *,
     amount: Decimal,
     merchant: str,
@@ -24,34 +22,40 @@ def check_scope(
     elapsed_steps: int,
 ) -> ScopeViolation | None:
     """Return the first ScopeViolation a gated action would trip, or None if in scope."""
-    if authority.revoked:
-        return ScopeViolation(kind="revoked", limit=None, attempted=None)
-    if elapsed_steps > authority.session_ttl_steps:
+    if mandate.revoked:
         return ScopeViolation(
-            kind="session_ttl_expired",
-            limit=str(authority.session_ttl_steps),
+            violation_class=ViolationClass.MANDATE_BREACH, violated_field="revoked"
+        )
+    if elapsed_steps > mandate.session_ttl_steps:
+        return ScopeViolation(
+            violation_class=ViolationClass.MANDATE_BREACH,
+            violated_field="session_ttl_steps",
+            limit=str(mandate.session_ttl_steps),
             attempted=str(elapsed_steps),
         )
-    if amount > authority.per_txn_max:
+    if amount > mandate.per_txn_max:
         return ScopeViolation(
-            kind="per_txn_max_exceeded", limit=authority.per_txn_max, attempted=amount
+            violation_class=ViolationClass.OVERSPEND, violated_field="per_txn_max",
+            limit=mandate.per_txn_max, attempted=amount,
         )
-    if amount > authority.daily_remaining:
+    if amount > mandate.daily_remaining:
         return ScopeViolation(
-            kind="daily_remaining_exceeded",
-            limit=authority.daily_remaining,
-            attempted=amount,
+            violation_class=ViolationClass.OVERSPEND, violated_field="daily_remaining",
+            limit=mandate.daily_remaining, attempted=amount,
         )
-    if merchant not in authority.merchant_allowlist:
-        return ScopeViolation(kind="merchant_not_allowed", limit=None, attempted=merchant)
-    if (
-        authority.mcc_allowlist is not None
-        and mcc is not None
-        and mcc not in authority.mcc_allowlist
-    ):
-        return ScopeViolation(kind="mcc_not_allowed", limit=None, attempted=mcc)
-    if instrument not in authority.allowed_instruments:
+    if merchant not in mandate.merchant_constraint:
         return ScopeViolation(
-            kind="instrument_not_allowed", limit=None, attempted=instrument
+            violation_class=ViolationClass.MANDATE_BREACH,
+            violated_field="merchant_constraint", attempted=merchant,
+        )
+    if mandate.mcc_constraint is not None and mcc is not None and mcc not in mandate.mcc_constraint:
+        return ScopeViolation(
+            violation_class=ViolationClass.MANDATE_BREACH,
+            violated_field="mcc_constraint", attempted=mcc,
+        )
+    if instrument not in mandate.allowed_instruments:
+        return ScopeViolation(
+            violation_class=ViolationClass.MANDATE_BREACH,
+            violated_field="allowed_instruments", attempted=instrument,
         )
     return None
