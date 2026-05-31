@@ -1,4 +1,5 @@
 from spar.simulator.enums import Axis, Difficulty, IntentSpec, FsmState, ToolStatus, TERMINAL_AGENT, TERMINAL_GRADE, ViolationClass  # noqa: F401
+from spar.simulator.rng import SubStream
 
 
 def test_axes_are_the_seven_capability_axes():
@@ -47,3 +48,13 @@ def test_violation_class_severity_order_is_irreversibility():
         ViolationClass.MISSED_REVERSAL_WINDOW,
         ViolationClass.MANDATE_BREACH,
     ]
+
+
+def test_lifecycle_states_added():
+    assert {FsmState.VOIDED, FsmState.REFUNDED, FsmState.CHARGED_BACK} <= set(FsmState)
+
+
+def test_substream_appends_are_stable():
+    # Existing keys MUST keep their integer values (append-only contract).
+    assert SubStream.DECLINE == 0 and SubStream.APPROVAL_BAND == 6
+    assert SubStream.VOID == 7 and SubStream.REFUND == 8 and SubStream.CHARGEBACK == 9
