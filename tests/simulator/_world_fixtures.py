@@ -10,11 +10,11 @@ from spar.simulator.world import World
 from tests.conftest import make_intent
 
 
-def build_world(**wc_over: Any) -> World:
+def build_world(approval_prob: float = 1.0, **wc_over: Any) -> World:
     acq = Acquirer(
         acquirer_id="a1", methods=["card_visa"], supported_geos=["US"],
         advertised_fee_bps=200, observed_approval_band="high",
-        true_fee_bps=200, approval_prob=1.0, reliability=1.0,
+        true_fee_bps=200, approval_prob=approval_prob, reliability=1.0,
     )
     wc_kwargs: dict[str, Any] = dict(acquirers=[acq], settlement="sync", max_steps=20)
     wc_kwargs.update(wc_over)
