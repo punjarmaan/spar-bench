@@ -9,6 +9,7 @@ decline-class and retry-penalty logic. All helpers are pure functions of `code`.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Literal
 
 ReasonClass = Literal["soft", "hard", "hard_correctable", "ambiguous", "auth_challenge"]
@@ -110,3 +111,24 @@ def correct_behaviors(code: str) -> tuple[str, ...]:
 def retry_penalty_weight(code: str) -> float:
     """Per-retry penalty weight; Cat-1 hard > Cat-4 ambiguous. 1A is 0.0."""
     return _RETRY_PENALTY_WEIGHT[code]
+
+
+# RESERVED API (test-only today): classify_decline / DeclinePolicy are reserved for a downstream
+# milestone — the live decline path still uses the is_hard / retry logic above. Not dead code.
+class DeclinePolicy(StrEnum):
+    HARD = "hard"        # do-not-retry
+    SOFT = "soft"        # bounded retry allowed
+    STEP_UP = "step_up"  # escalate to consent holder
+
+
+def classify_decline(reason_code: str) -> DeclinePolicy:
+    """Map a network reason code to its recovery policy via the REASONS table (C15).
+
+    Source of truth is REASONS[code].cls — never a hand-typed code set. Unknown codes
+    raise KeyError (fail loud) rather than silently defaulting to SOFT."""
+    cls = REASONS[reason_code].cls
+    if cls == "hard":
+        return DeclinePolicy.HARD
+    if cls == "auth_challenge":
+        return DeclinePolicy.STEP_UP
+    return DeclinePolicy.SOFT

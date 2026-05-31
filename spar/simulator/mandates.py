@@ -1,4 +1,4 @@
-"""AP2-aligned mandate models and the scoped-authority wall (module 10 §7)."""
+"""AP2-style three-mandate consent layer (Intent / Cart / Payment)."""
 
 from __future__ import annotations
 
@@ -7,53 +7,68 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from spar.simulator.enums import ViolationClass
+
 
 class _Strict(BaseModel):
-    # Reject floats coerced into Decimal fields and unknown keys; money stays exact.
+    # strict=True keeps money exact: a float is NEVER silently coerced into a Decimal field.
     model_config = ConfigDict(strict=True, extra="forbid")
 
 
-class ScopedAuthority(_Strict):
-    """ACP / Mastercard-Agentic-Token analog: the machine-enforced spending wall."""
-
-    per_txn_max: Decimal
-    daily_remaining: Decimal
-    merchant_allowlist: list[str]
-    mcc_allowlist: list[str] | None
-    allowed_instruments: list[str]
-    session_ttl_steps: int
-    revoked: bool = False
-
-
 class IntentMandate(_Strict):
-    """AP2 intent mandate — the episode's rules of engagement."""
+    """AP2 intent mandate — what the user authorized. Named scoped fields are the
+    enforcement primitives every out-of-scope trap violates (spec §5.1)."""
 
     goal: str
-    price_ceiling: Decimal | None  # None for semantic / underspecified intents
-    budget_hint: str | None = None  # free-text semantic budget when price_ceiling is None
+    # Named scoped fields (the consent constraints):
+    amount_limit: Decimal | None  # None for semantic / underspecified intents
     currency: str
-    human_present: bool
-    conditions: dict[str, Any]
-    authority: ScopedAuthority
+    merchant_constraint: list[str]
+    mcc_constraint: list[str] | None
+    allowed_instruments: list[str]
+    per_txn_max: Decimal
+    daily_remaining: Decimal
+    session_ttl_steps: int
+    single_use_or_recurring: Literal["single_use", "recurring"]
+    time_window: tuple[int, int] | None  # (open_step, close_step) in transition ordinals
+    revoked: bool = False
+    # Carried context (unchanged semantics):
+    budget_hint: str | None = None
+    human_present: bool = True
+    conditions: dict[str, Any] = {}
 
 
 class CartMandate(_Strict):
-    """AP2 cart mandate — the finalized items/price for a specific checkout."""
+    """What the agent assembled / proposes to pay. v1 enforces payee + currency."""
 
     line_items: list[dict[str, Any]]
-    total: Decimal
+    payee: str
     currency: str
+    subtotal: Decimal
+    total: Decimal | None = None
 
 
 class PaymentMandate(_Strict):
-    """AP2 payment mandate — binds a specific instrument."""
+    """What is actually charged."""
 
     instrument: str
-    network: str
+    amount: Decimal
+    currency: str
+    idempotency_key: str | None = None
+
+
+class ScopeViolation(_Strict):
+    """A single consent breach, typed by catastrophic class + the named field it broke."""
+
+    violation_class: ViolationClass
+    violated_field: str
+    limit: Decimal | str | None = None
+    attempted: Decimal | str | None = None
 
 
 class MarketContext(_Strict):
-    """HIDDEN semantic-budget ground truth (module 10 §3.1). Never exposed to the agent."""
+    """HIDDEN semantic-budget ground truth (module 10 §3.1). Never exposed to the agent.
+    PRESERVED VERBATIM from the old module — `schemas.py` imports it; do not drop it."""
 
     category: str
     currency: str
@@ -61,13 +76,3 @@ class MarketContext(_Strict):
     p50: Decimal
     p75: Decimal
     p90: Decimal
-
-
-class ScopeViolation(_Strict):
-    kind: Literal[
-        "per_txn_max_exceeded", "daily_remaining_exceeded",
-        "merchant_not_allowed", "mcc_not_allowed",
-        "instrument_not_allowed", "session_ttl_expired", "revoked",
-    ]
-    limit: Decimal | str | None = None
-    attempted: Decimal | str | None = None

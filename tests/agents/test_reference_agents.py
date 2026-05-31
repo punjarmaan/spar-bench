@@ -9,7 +9,7 @@ from spar.agents.reference_agents import (
     RandomAgent,
 )
 from spar.simulator.contract import Observation, ObsCart, ObsContext, ObsMethod
-from spar.simulator.mandates import IntentMandate, ScopedAuthority
+from spar.simulator.mandates import IntentMandate
 
 
 def _obs(
@@ -20,13 +20,11 @@ def _obs(
 ) -> Observation:
     return Observation(
         mandate=IntentMandate(
-            goal="buy", price_ceiling=Decimal("100"), currency="USD",
+            goal="buy", amount_limit=Decimal("100"), currency="USD",
             human_present=True, conditions={},
-            authority=ScopedAuthority(
                 per_txn_max=Decimal("200"), daily_remaining=Decimal("350"),
-                merchant_allowlist=["acme"], mcc_allowlist=None,
-                allowed_instruments=["visa"], session_ttl_steps=20,
-            ),
+                merchant_constraint=["acme"], mcc_constraint=None,
+                allowed_instruments=["visa"], session_ttl_steps=20, single_use_or_recurring="single_use", time_window=None,
         ),
         cart=ObsCart(line_items=[], subtotal=Decimal("10")),
         methods=[

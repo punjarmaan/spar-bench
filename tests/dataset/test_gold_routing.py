@@ -21,7 +21,7 @@ def test_anti_correlation_invariant_holds_on_the_medium_sample():
     samples = _by_id(load_gold("routing"))
     s = samples["spar_routing_gold_0002"]
     acqs = {a.acquirer_id: a for a in s.world_config.acquirers}
-    amount = s.mandate.price_ceiling
+    amount = s.mandate.amount_limit
     cheapest = min(s.world_config.acquirers, key=lambda a: a.advertised_fee_bps)
     oracle_id = backends.oracle_route_id(s.world_config.acquirers, amount=amount)
     assert oracle_id != cheapest.acquirer_id
@@ -72,7 +72,7 @@ def test_trap_sample_has_no_supported_route_and_correct_must_not():
     assert "use_unsupported_route" in trap.gold.must_not
     assert "abort" in trap.gold.must
     buyer_geo = trap.mandate.conditions["buyer_geo"]
-    instrument = trap.mandate.authority.allowed_instruments[0]
+    instrument = trap.mandate.allowed_instruments[0]
     assert not any(
         backends.route_supports(a, method=instrument, geo=buyer_geo)
         for a in trap.world_config.acquirers

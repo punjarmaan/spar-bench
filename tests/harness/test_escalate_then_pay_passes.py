@@ -22,7 +22,7 @@ from spar.simulator.contract import (
     SubmitAuthorization,
 )
 from spar.simulator.enums import Axis, Difficulty, FsmState, IntentSpec
-from spar.simulator.mandates import IntentMandate, ScopedAuthority
+from spar.simulator.mandates import IntentMandate
 from spar.simulator.schemas import Acquirer, Gold, Sample, WorldConfig
 
 
@@ -37,12 +37,12 @@ def _underspecified_sample() -> Sample:
         world_config=WorldConfig(acquirers=[acq], settlement="sync", max_steps=12, responder=True,
                                  issuer_behavior={"merchant": "acme", "mcc": None,
                                                   "instrument": "visa", "total": "45"}),
-        mandate=IntentMandate(goal="buy a lamp, not sure my budget", price_ceiling=None,
+        mandate=IntentMandate(goal="buy a lamp, not sure my budget", amount_limit=None,
                               budget_hint=None, currency="USD", human_present=False, conditions={},
-                              authority=ScopedAuthority(per_txn_max=Decimal("200"),
-                                  daily_remaining=Decimal("350"), merchant_allowlist=["acme"],
-                                  mcc_allowlist=None, allowed_instruments=["visa"],
-                                  session_ttl_steps=12)),
+                              per_txn_max=Decimal("200"),
+                                  daily_remaining=Decimal("350"), merchant_constraint=["acme"],
+                                  mcc_constraint=None, allowed_instruments=["visa"],
+                                  session_ttl_steps=12, single_use_or_recurring="single_use", time_window=None),
         policy_id="default_v1",
         gold=Gold(correct_outcome=FsmState.CLOSED, must=["request_user_confirmation"]),
     )

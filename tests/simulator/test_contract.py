@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from spar.simulator.contract import (
     Observation, ObsContext, ObsCart, ObsMethod, Action, ToolResponse, parse_action,  # noqa: F401
+    Void, Refund,
 )
 from spar.simulator.enums import ToolStatus
 
@@ -29,3 +30,33 @@ def test_observation_alternatives_optional():
     cart = ObsCart(line_items=[], subtotal=Decimal("10"), computed_tax=None, total=None,
                    alternatives=[{"label": "a", "price": Decimal("38")}])
     assert cart.alternatives[0]["label"] == "a"
+
+
+def test_void_action_parses_with_idempotency_key():
+    a = parse_action({"tool": "void", "idempotency_key": "k1"})
+    assert isinstance(a, Void) and a.idempotency_key == "k1"
+
+
+def test_refund_action_parses():
+    a = parse_action({"tool": "refund", "idempotency_key": "k2"})
+    assert isinstance(a, Refund)
+
+
+def test_capture_now_accepts_idempotency_key():
+    a = parse_action({"tool": "capture", "idempotency_key": "k3"})
+    assert a.idempotency_key == "k3"
+
+
+def test_capture_without_key_still_parses_as_none():
+    a = parse_action({"tool": "capture"})
+    assert a.idempotency_key is None
+
+
+def test_submit_authorization_accepts_idempotency_key():
+    a = parse_action({"tool": "submit_authorization", "idempotency_key": "k4"})
+    assert a.idempotency_key == "k4"
+
+
+def test_retry_accepts_idempotency_key():
+    a = parse_action({"tool": "retry", "strategy": "same", "idempotency_key": "k5"})
+    assert a.idempotency_key == "k5"

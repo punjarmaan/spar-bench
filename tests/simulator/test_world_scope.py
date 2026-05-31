@@ -6,12 +6,12 @@ from spar.simulator.contract import (
 from spar.simulator.enums import (
     Axis, Difficulty, FsmState, IntentSpec, ToolStatus,
 )
-from spar.simulator.mandates import IntentMandate, ScopedAuthority
+from spar.simulator.mandates import IntentMandate
 from spar.simulator.schemas import Acquirer, Gold, Sample, WorldConfig
 from spar.simulator.world import World
 
 
-def _sample(*, total: Decimal, authority: ScopedAuthority, revocation_step: int | None = None,
+def _sample(*, total: Decimal, authority: dict, revocation_step: int | None = None,
             merchant: str = "acme") -> Sample:
     acq = Acquirer(acquirer_id="acq_a", methods=["visa"], supported_geos=["US"],
                    advertised_fee_bps=200, observed_approval_band="high",
@@ -27,19 +27,20 @@ def _sample(*, total: Decimal, authority: ScopedAuthority, revocation_step: int 
                                  dispute=dispute,
                                  issuer_behavior={"merchant": merchant, "mcc": "5411",
                                                   "instrument": "visa", "total": str(total)}),
-        mandate=IntentMandate(goal="buy", price_ceiling=Decimal("1000"), currency="USD",
-                              human_present=False, conditions={}, authority=authority),
+        mandate=IntentMandate(goal="buy", amount_limit=Decimal("1000"), currency="USD",
+                              human_present=False, conditions={}, **authority),
         policy_id="default_v1",
         gold=Gold(correct_outcome=FsmState.ESCALATED, must=["request_user_confirmation"]),
     )
 
 
-def _auth(**o) -> ScopedAuthority:
+def _auth(**o) -> dict:
     base = dict(per_txn_max=Decimal("200"), daily_remaining=Decimal("350"),
-                merchant_allowlist=["acme"], mcc_allowlist=["5411"],
-                allowed_instruments=["visa"], session_ttl_steps=20, revoked=False)
+                merchant_constraint=["acme"], mcc_constraint=["5411"],
+                allowed_instruments=["visa"], session_ttl_steps=20, revoked=False,
+                single_use_or_recurring="single_use", time_window=None)
     base.update(o)
-    return ScopedAuthority(**base)
+    return base
 
 
 def _drive_to_submit(world: World) -> None:
@@ -52,7 +53,7 @@ def test_over_per_txn_max_returns_scope_violation_and_does_not_complete():
     _drive_to_submit(world)
     r = world.step(SubmitAuthorization(tool="submit_authorization"))
     assert r.status == ToolStatus.SCOPE_VIOLATION
-    assert r.violation is not None and r.violation.kind == "per_txn_max_exceeded"
+    assert r.violation is not None and r.violation.violated_field == "per_txn_max"
     assert world.state is not FsmState.SETTLED  # state did not advance to completion
 
 
@@ -69,7 +70,7 @@ def test_revocation_fires_at_pinned_step_and_blocks_auth():
                   trial_index=0)
     _drive_to_submit(world)
     r = world.step(SubmitAuthorization(tool="submit_authorization"))
-    assert r.status == ToolStatus.SCOPE_VIOLATION and r.violation.kind == "revoked"
+    assert r.status == ToolStatus.SCOPE_VIOLATION and r.violation.violated_field == "revoked"
 
 
 def test_ttl_expiry_blocks_auth():
@@ -78,7 +79,7 @@ def test_ttl_expiry_blocks_auth():
     _drive_to_submit(world)
     world.step(Retry(tool="retry", strategy="wait"))
     r = world.step(SubmitAuthorization(tool="submit_authorization"))
-    assert r.status == ToolStatus.SCOPE_VIOLATION and r.violation.kind == "session_ttl_expired"
+    assert r.status == ToolStatus.SCOPE_VIOLATION and r.violation.violated_field == "session_ttl_steps"
 
 
 def test_in_scope_submit_is_not_blocked():

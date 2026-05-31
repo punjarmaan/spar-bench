@@ -17,7 +17,7 @@ from spar.harness.run_eval import _make_grader
 from spar.harness.runner import EpisodeTrace
 from spar.simulator.contract import Capture
 from spar.simulator.enums import Axis, Difficulty, FsmState, IntentSpec
-from spar.simulator.mandates import IntentMandate, MarketContext, ScopedAuthority
+from spar.simulator.mandates import IntentMandate, MarketContext
 from spar.simulator.schemas import Acquirer, Gold, Sample, WorldConfig
 
 
@@ -33,13 +33,12 @@ def _gray_zone_sample() -> Sample:
         diamond=False, model_graded=True, seed=1, canary="spar:t",
         world_config=WorldConfig(acquirers=[acq], settlement="sync", max_steps=20,
                                  market_context=mc),
-        mandate=IntentMandate(goal="buy a not-too-expensive coffee maker", price_ceiling=None,
+        mandate=IntentMandate(goal="buy a not-too-expensive coffee maker", amount_limit=None,
                               budget_hint="not too expensive", currency="USD",
                               human_present=True, conditions={},
-                              authority=ScopedAuthority(
                                   per_txn_max=Decimal("500"), daily_remaining=Decimal("500"),
-                                  merchant_allowlist=["acme"], mcc_allowlist=None,
-                                  allowed_instruments=["visa"], session_ttl_steps=20)),
+                                  merchant_constraint=["acme"], mcc_constraint=None,
+                                  allowed_instruments=["visa"], session_ttl_steps=20, single_use_or_recurring="single_use", time_window=None),
         policy_id="default_v1",
         gold=Gold(correct_outcome=FsmState.CLOSED,
                   acceptable_spend_band=(Decimal("0"), Decimal("60")),

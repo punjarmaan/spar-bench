@@ -20,7 +20,7 @@ from spar.simulator.enums import (
     FsmState,
     IntentSpec,
 )
-from spar.simulator.mandates import IntentMandate, ScopedAuthority
+from spar.simulator.mandates import IntentMandate
 from spar.simulator.schemas import Acquirer, Gold, Sample, WorldConfig
 from spar.simulator.world import World
 
@@ -43,13 +43,12 @@ def _sample(decline_plan: dict | None = None) -> Sample:
             settlement="sync", max_steps=50,
         ),
         mandate=IntentMandate(
-            goal="buy", price_ceiling=Decimal("100"), currency="USD",
+            goal="buy", amount_limit=Decimal("100"), currency="USD",
             human_present=True, conditions={},
-            authority=ScopedAuthority(
-                per_txn_max=Decimal("200"), daily_remaining=Decimal("350"),
-                merchant_allowlist=["acme"], mcc_allowlist=None,
-                allowed_instruments=["visa"], session_ttl_steps=50,
-            ),
+            per_txn_max=Decimal("200"), daily_remaining=Decimal("350"),
+            merchant_constraint=["acme"], mcc_constraint=None,
+            allowed_instruments=["visa"], session_ttl_steps=50,
+            single_use_or_recurring="single_use", time_window=None,
         ),
         policy_id="default_v1", gold=Gold(correct_outcome=FsmState.CLOSED),
     )
@@ -128,4 +127,4 @@ def test_determinism_snapshot_is_pinned():
 
 
 # Pin captured from the first green run of trajectory_digest (Step 4); paste the printed value here.
-_PINNED_DIGEST = "6ef4d0b7f3882a3896861e6d35a3bd4f"
+_PINNED_DIGEST = "786e09bab5ba3752216bcebc985c4cab"

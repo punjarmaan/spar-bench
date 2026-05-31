@@ -20,7 +20,7 @@ from spar.simulator.contract import (
     ObsMethod,
     SelectRoute,
 )
-from spar.simulator.mandates import IntentMandate, ScopedAuthority
+from spar.simulator.mandates import IntentMandate
 
 
 def test_scaffold_version_is_pinned():
@@ -53,12 +53,12 @@ def test_tool_catalog_is_deterministic():
 def _obs() -> Observation:
     return Observation(
         mandate=IntentMandate(
-            goal="buy a widget", price_ceiling=Decimal("100"), currency="USD",
+            goal="buy a widget", amount_limit=Decimal("100"), currency="USD",
             human_present=True, conditions={},
-            authority=ScopedAuthority(
-                per_txn_max=Decimal("200"), daily_remaining=Decimal("350"),
-                merchant_allowlist=["acme"], mcc_allowlist=None,
-                allowed_instruments=["visa"], session_ttl_steps=10),
+            per_txn_max=Decimal("200"), daily_remaining=Decimal("350"),
+            merchant_constraint=["acme"], mcc_constraint=None,
+            allowed_instruments=["visa"], session_ttl_steps=10,
+            single_use_or_recurring="single_use", time_window=None,
         ),
         cart=ObsCart(line_items=[{"sku": "w1", "qty": 1}], subtotal=Decimal("90")),
         methods=[ObsMethod(acquirer_id="acq_a", methods=["visa"], geos=["US"],

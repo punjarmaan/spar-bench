@@ -5,7 +5,7 @@ from spar.simulator.contract import SelectRoute, SubmitAuthorization, Capture, A
 from spar.simulator.world import World
 from spar.simulator.schemas import Sample, WorldConfig, Gold, Acquirer
 from spar.simulator.enums import Axis, Difficulty, IntentSpec
-from spar.simulator.mandates import IntentMandate, ScopedAuthority
+from spar.simulator.mandates import IntentMandate
 
 
 def _sample() -> Sample:
@@ -16,11 +16,12 @@ def _sample() -> Sample:
         sample_id="spar_routing_0001", axis=Axis.ROUTING, difficulty=Difficulty.EASY,
         is_trap=False, intent_spec=IntentSpec.EXPLICIT, diamond=False, model_graded=False,
         seed=1, canary="spar:t", world_config=WorldConfig(acquirers=[acq], settlement="sync", max_steps=10),
-        mandate=IntentMandate(goal="buy", price_ceiling=Decimal("100"), currency="USD",
+        mandate=IntentMandate(goal="buy", amount_limit=Decimal("100"), currency="USD",
                               human_present=True, conditions={},
-                              authority=ScopedAuthority(per_txn_max=Decimal("200"),
-                                  daily_remaining=Decimal("350"), merchant_allowlist=["acme"],
-                                  mcc_allowlist=None, allowed_instruments=["visa"], session_ttl_steps=10)),
+                              per_txn_max=Decimal("200"), daily_remaining=Decimal("350"),
+                              merchant_constraint=["acme"], mcc_constraint=None,
+                              allowed_instruments=["visa"], session_ttl_steps=10,
+                              single_use_or_recurring="single_use", time_window=None),
         policy_id="default_v1", gold=Gold(correct_outcome=FsmState.CLOSED),
     )
 

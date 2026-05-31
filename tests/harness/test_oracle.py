@@ -4,15 +4,16 @@ from spar.harness.graders import oracle_route_score, score
 from spar.harness.runner import EpisodeTrace
 from spar.simulator.contract import Capture, SelectRoute, SubmitAuthorization, ToolResponse
 from spar.simulator.enums import Axis, Difficulty, FsmState, IntentSpec, ToolStatus
-from spar.simulator.mandates import IntentMandate, ScopedAuthority
+from spar.simulator.mandates import IntentMandate
 from spar.simulator.schemas import Acquirer, Gold, Sample, WorldConfig
 
 
-def _authority() -> ScopedAuthority:
-    return ScopedAuthority(
+def _authority() -> dict:
+    return dict(
         per_txn_max=Decimal("500"), daily_remaining=Decimal("500"),
-        merchant_allowlist=["acme"], mcc_allowlist=None,
+        merchant_constraint=["acme"], mcc_constraint=None,
         allowed_instruments=["visa", "mc"], session_ttl_steps=30,
+        single_use_or_recurring="single_use", time_window=None,
     )
 
 
@@ -33,8 +34,8 @@ def _routing_sample(acquirers, *, oracle_route, amount="100", is_trap=False,
         seed=5, canary="spar:t",
         world_config=WorldConfig(acquirers=acquirers, settlement="sync", max_steps=20),
         mandate=IntentMandate(
-            goal="buy", price_ceiling=Decimal(amount), currency="USD",
-            human_present=True, conditions={"buyer_geo": "US"}, authority=_authority(),
+            goal="buy", amount_limit=Decimal(amount), currency="USD",
+            human_present=True, conditions={"buyer_geo": "US"}, **_authority(),
         ),
         policy_id="default_v1",
         gold=Gold(correct_outcome=correct_outcome, oracle_route=oracle_route),

@@ -20,6 +20,9 @@ class SubStream(IntEnum):
     LATENCY = 4
     FRAUD = 5
     APPROVAL_BAND = 6   # seeded noise for the exposed observed_approval_band (M3, review F2)
+    VOID = 7            # reserved — future stochastic void-failure modes
+    REFUND = 8          # reserved — future stochastic refund-failure modes
+    CHARGEBACK = 9      # reserved — future stochastic chargeback-failure modes
 
 
 def stable_hash(text: str) -> int:

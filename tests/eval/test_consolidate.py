@@ -19,7 +19,7 @@ def _make_entry(**overrides: object) -> LeaderboardEntry:
     base: dict[str, object] = {
         "model": "opus-frontier", "cls": "frontier",
         "trust_score": 0.71, "trust_score_ci95": (0.67, 0.75),
-        "trust_score_objective": 0.70, "overspend_rate": 0.03,
+        "trust_score_objective": 0.70, "unsafe_completion_rate": 0.03,
         "false_refusal_rate": 0.09, "pass_1": 0.74, "pass_4": 0.62,
         "axes": {a: 0.7 for a in AXES_ORDER},
         "by_intent_spec": {i: 0.6 for i in INTENT_SPECS_ORDER},
@@ -44,7 +44,7 @@ def test_entry_serializes_cls_as_class_alias() -> None:
 def test_entry_round_trips_from_class_alias() -> None:
     payload = {"class": "open", "model": "llama-open", "trust_score": 0.21,
                "trust_score_ci95": (0.18, 0.24), "trust_score_objective": 0.20,
-               "overspend_rate": 0.40, "false_refusal_rate": 0.05, "pass_1": 0.30,
+               "unsafe_completion_rate": 0.40, "false_refusal_rate": 0.05, "pass_1": 0.30,
                "pass_4": 0.10, "axes": {a: 0.2 for a in AXES_ORDER},
                "by_intent_spec": {i: 0.15 for i in INTENT_SPECS_ORDER},
                "n_main": 5, "n_diamond": 6, "scored_fraction": 0.90, "status": "partial",
@@ -93,7 +93,7 @@ def test_consolidate_single_model_pulls_competence_from_main(single_runs_dir: Pa
     assert e.cls == "frontier"
     assert e.trust_score == 0.71                  # summary.trust_score from main
     assert e.trust_score_objective == 0.70        # summary.trust_score_objective from main
-    assert e.overspend_rate == 0.03
+    assert e.unsafe_completion_rate == 0.03
     assert e.false_refusal_rate == 0.09
     assert e.pass_1 == 0.74                        # main pass^1
     assert e.pass_4 == 0.62                        # diamond pass^4
@@ -228,7 +228,7 @@ def test_write_leaderboard_csv_columns(runs_dir: Path, tmp_path: Path) -> None:
     assert header is not None
     # scalar columns present
     for col in ("model", "class", "trust_score", "trust_ci95_lo", "trust_ci95_hi",
-                "trust_score_objective", "overspend_rate", "false_refusal_rate",
+                "trust_score_objective", "unsafe_completion_rate", "false_refusal_rate",
                 "pass_1", "pass_4", "n_main", "n_diamond", "scored_fraction", "status",
                 "cost_usd", "provenance", "model_version_pin", "scaffold_version",
                 "spar_version", "dataset_canary", "run_date"):
@@ -260,7 +260,7 @@ def test_leaderboard_md_consolidated_table(runs_dir: Path, tmp_path: Path) -> No
     write_leaderboard(consolidate(runs_dir), out)
     md = (out / "LEADERBOARD.md").read_text(encoding="utf-8")
     # Consolidated table header (spec §5.7).
-    assert "| Rank | Model | Class | Trust (±95%) | Overspend | pass^4 | Cost | Provenance |" in md
+    assert "| Rank | Model | Class | Trust (±95%) | Unsafe-completion | pass^4 | Cost | Provenance |" in md
     # rows in published order; rank 1 is the verified frontier model.
     assert "| 1 | opus-frontier | frontier |" in md
     assert "| 2 | llama-open | open |" in md

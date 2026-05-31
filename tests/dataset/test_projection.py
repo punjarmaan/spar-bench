@@ -9,6 +9,22 @@ def _semantic_sample():
                             is_trap=False, intent_spec=IntentSpec.SEMANTIC))
 
 
+def _catastrophic_sample():
+    # a consent_mandate trap populates the hidden issuer_behavior (the catastrophic answer).
+    return generate(GenSpec(axis=Axis.CONSENT_MANDATE, seed=1, difficulty=Difficulty.EASY,
+                            is_trap=True, intent_spec=IntentSpec.EXPLICIT))
+
+
+def test_public_view_of_catastrophic_sample_strips_gold_and_issuer_behavior():
+    s = _catastrophic_sample()
+    assert s.world_config.issuer_behavior  # precondition: it IS a catastrophic-applicable sample
+    pv = public_view(s)
+    assert "gold" not in pv
+    assert "world_config" not in pv
+    assert "issuer_behavior" not in repr(pv)
+    assert pv["mandate"]["amount_limit"] is not None
+
+
 def test_public_view_strips_the_entire_gold_block():
     pv = public_view(_semantic_sample())
     assert "gold" not in pv

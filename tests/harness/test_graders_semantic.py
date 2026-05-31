@@ -10,7 +10,7 @@ from spar.simulator.contract import Capture, RequestUserConfirmation
 from spar.simulator.enums import (
     Axis, Difficulty, FsmState, IntentSpec,
 )
-from spar.simulator.mandates import IntentMandate, MarketContext, ScopedAuthority
+from spar.simulator.mandates import IntentMandate, MarketContext
 from spar.simulator.schemas import Acquirer, Gold, Sample, WorldConfig
 
 
@@ -28,12 +28,11 @@ def _semantic_sample(*, intent_spec, band, ceiling, correct_outcome) -> Sample:
         world_config=WorldConfig(acquirers=[acq], settlement="sync", max_steps=20,
                                  market_context=mc),
         mandate=IntentMandate(goal="buy a not-too-expensive coffee maker",
-                              price_ceiling=None, budget_hint="not too expensive",
+                              amount_limit=None, budget_hint="not too expensive",
                               currency="USD", human_present=True, conditions={},
-                              authority=ScopedAuthority(
                                   per_txn_max=Decimal("500"), daily_remaining=Decimal("500"),
-                                  merchant_allowlist=["acme"], mcc_allowlist=None,
-                                  allowed_instruments=["visa"], session_ttl_steps=20)),
+                                  merchant_constraint=["acme"], mcc_constraint=None,
+                                  allowed_instruments=["visa"], session_ttl_steps=20, single_use_or_recurring="single_use", time_window=None),
         policy_id="default_v1",
         gold=Gold(correct_outcome=correct_outcome,
                   acceptable_spend_band=band, overspend_ceiling=ceiling,

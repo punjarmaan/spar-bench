@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from spar.harness.tokens import TokenContext, must_satisfied
 from spar.simulator.enums import Axis, Difficulty, FsmState, IntentSpec
-from spar.simulator.mandates import IntentMandate, ScopedAuthority
+from spar.simulator.mandates import IntentMandate
 from spar.simulator.schemas import Acquirer, Gold, Sample, WorldConfig
 
 
@@ -19,11 +19,11 @@ def _sample(oracle: str | None) -> Sample:
         is_trap=False, intent_spec=IntentSpec.EXPLICIT, diamond=False, model_graded=False,
         seed=1, canary="spar:t",
         world_config=WorldConfig(acquirers=[acq], settlement="sync"),
-        mandate=IntentMandate(goal="buy", price_ceiling=Decimal("100"), currency="USD",
-                              human_present=True, conditions={}, authority=ScopedAuthority(
+        mandate=IntentMandate(goal="buy", amount_limit=Decimal("100"), currency="USD",
+                              human_present=True, conditions={}, 
                                   per_txn_max=Decimal("200"), daily_remaining=Decimal("350"),
-                                  merchant_allowlist=["acme"], mcc_allowlist=None,
-                                  allowed_instruments=["visa"], session_ttl_steps=20)),
+                                  merchant_constraint=["acme"], mcc_constraint=None,
+                                  allowed_instruments=["visa"], session_ttl_steps=20, single_use_or_recurring="single_use", time_window=None),
         policy_id="default_v1", gold=Gold(correct_outcome=FsmState.CLOSED, oracle_route=oracle),
     )
 
