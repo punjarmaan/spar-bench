@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 
 from spar.agents.naive_complete import NaiveCompleteAgent
+from spar.dataset.applicability import applicability_from_world_config
 from spar.dataset.generator import generate
 from spar.dataset.gold_backbone import diamond_backbone
 from spar.dataset.manifest import build_manifest
@@ -27,6 +28,18 @@ from spar.simulator.schemas import Sample
 PUBLIC_SPLITS: tuple[str, ...] = ("lite", "main", "diamond")
 DIAMOND_CAP = 198
 F1_FLOOR = 0.9   # H2: >=90% of each shipped split's non-traps must defeat naive completion
+
+
+def _stamp_applicability(sample: Sample) -> Sample:
+    """Stamp gold.expected_violations from pure world_config inspection (Task 4.3).
+
+    Sample/Gold are frozen pydantic; copy through model_copy. The class set is sorted by
+    its string value so the stamped order is deterministic (byte-identical builds).
+    """
+    applicable = sorted(applicability_from_world_config(sample), key=lambda v: v.value)
+    return sample.model_copy(
+        update={"gold": sample.gold.model_copy(update={"expected_violations": applicable})}
+    )
 
 
 def _write_public(base: Path, split: str, samples: list[Sample], *,
@@ -69,7 +82,7 @@ def build(*, public_dir: Path, private_dir: Path, build_seed: int,
     by_split: dict[str, list[Sample]] = {"lite": [], "main": []}
     private: list[Sample] = []
     for planned in plan_all(build_seed=build_seed):
-        sample = apply_canary(generate(planned.spec), canary)
+        sample = _stamp_applicability(apply_canary(generate(planned.spec), canary))
         by_split[planned.split].append(sample)
         # Private holds the full graded copy of every procedural sample too, so the
         # leaderboard can grade public submissions server-side against hidden gold.
@@ -79,7 +92,7 @@ def build(*, public_dir: Path, private_dir: Path, build_seed: int,
 
     # Diamond: hand-authored backbone only (F14), capped at 198.
     diamond = sorted(diamond_backbone(), key=lambda s: s.sample_id)[:DIAMOND_CAP]
-    diamond = [apply_canary(s, canary) for s in diamond]
+    diamond = [_stamp_applicability(apply_canary(s, canary)) for s in diamond]
     by_split["diamond"] = diamond
     private.extend(d.model_copy(update={"split": "diamond"}) for d in diamond)
 

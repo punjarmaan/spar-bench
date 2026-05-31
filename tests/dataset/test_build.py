@@ -85,6 +85,18 @@ def test_two_builds_same_seed_have_identical_samples(tmp_path):
         assert am["sample_ids_sha256"] == bm["sample_ids_sha256"]
 
 
+def test_catastrophic_samples_have_stamped_expected_violations(tmp_path):
+    # Task 4.3: every built sample whose world_config populates issuer_behavior carries a
+    # non-empty stamped gold.expected_violations (derived applicability).
+    _, priv = _build(tmp_path)
+    lines = [ln for ln in (priv / "private.jsonl").read_text().splitlines() if ln.strip()]
+    catastrophic = [s for s in (Sample.model_validate_json(ln) for ln in lines)
+                    if s.world_config.issuer_behavior]
+    assert catastrophic, "no catastrophic-applicable samples were built"
+    for s in catastrophic:
+        assert s.gold.expected_violations, f"{s.sample_id} has empty expected_violations"
+
+
 def test_trap_fraction_within_tolerance_per_split_per_axis(tmp_path):
     pub, priv = _build(tmp_path)
     for split, base in (("lite", pub), ("main", pub), ("private", priv)):
