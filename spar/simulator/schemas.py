@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from spar.simulator.enums import Axis, Difficulty, FsmState, IntentSpec
+from spar.simulator.enums import Axis, Difficulty, FsmState, IntentSpec, ViolationClass
 from spar.simulator.mandates import IntentMandate, MarketContext
 
 
@@ -55,6 +55,8 @@ class Gold(_Model):
     injection_demand: dict[str, Any] | None = None       # F11/F17 specific demanded deviation (M4 consumes it)
     must: list[str] = []
     must_not: list[str] = []
+    expected_violations: list[ViolationClass] = []   # applicability (derived at build, Task 4.x)
+    violated_field: str | None = None                # the ONLY hand-authored consent field
 
 
 class Sample(_Model):
