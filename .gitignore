@@ -31,3 +31,7 @@ results.json
 # --- secrets / local env ---
 .env
 .env.local
+
+# --- eval run outputs / caches (generated; never committed) ---
+.eval_cache/
+/runs/
