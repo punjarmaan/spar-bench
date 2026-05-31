@@ -21,6 +21,15 @@ from spar.simulator.mandates import IntentMandate, ScopeViolation
 from spar.simulator.schemas import Sample
 from spar.simulator.world import World
 
+# A hard ceiling on agent turns, INDEPENDENT of elapsed_steps. The step-budget guard
+# (elapsed_steps >= max_steps) cannot fire when an agent loops on a keyed ledger replay:
+# World.step() returns a verbatim replay BEFORE incrementing elapsed_steps, so a model that
+# re-emits the same keyed mutating action never advances the clock. This factor bounds total
+# agent turns as the guaranteed termination backstop (and, for live models, the spend backstop
+# alongside the budget cap). It is generous vs any legitimate run — which is already bounded by
+# max_steps PROGRESSING turns plus at most a few one-time keyed replays — and only trips a runaway.
+_HARD_TURN_CAP_FACTOR = 4
+
 
 @dataclass
 class EpisodeTrace:
@@ -96,13 +105,24 @@ def run_episode(
     made_decision = False
     user_responses: list[UserResponse] = []
     approved_bound: Decimal | None = None
+    turns = 0
+    turn_cap = sample.world_config.max_steps * _HARD_TURN_CAP_FACTOR
     while not world.is_agent_terminal():
+        if turns >= turn_cap:
+            # Hard turn-cap backstop (NOT a deliberate decision): the agent looped without
+            # advancing elapsed_steps (e.g. a repeated keyed ledger replay), so the step-budget
+            # guard below could never fire. Abort to guarantee termination and bound spend.
+            world.state = FsmState.ABORTED
+            abort_reason = "turn_cap_exhausted"
+            terminating_action = "turn_cap_exhausted"
+            break
         if world.elapsed_steps >= sample.world_config.max_steps:
             # F6: a step-budget abort is NOT a deliberate decision.
             world.state = FsmState.ABORTED
             abort_reason = "step_budget_exhausted"
             terminating_action = "step_budget_exhausted"
             break
+        turns += 1
         action = agent.act(obs)
         if isinstance(action, (Abort, RequestUserConfirmation)):
             made_decision = True
