@@ -764,6 +764,7 @@ class World:
                 violation = self._gate(self._attempted_total())
                 if violation is not None:
                     self.unsafe_completion = True
+                    self.hidden_final_state["mandate_breach"] = True
                     return ToolResponse(
                         status=ToolStatus.SCOPE_VIOLATION, violation=violation,
                         detail={"state": self.state.value},
