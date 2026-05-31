@@ -17,7 +17,7 @@ from typing import Any, TypeVar
 
 from spar.eval.agent import SCAFFOLD_VERSION, agent_factory
 from spar.eval.cache import CompletionCache, cache_key
-from spar.eval.cost import CostMeter
+from spar.eval.cost import BudgetExceeded, CostMeter
 from spar.eval.models import ModelConfig
 from spar.eval.profile import Profile, StageSampling
 from spar.harness.graders import ModelGrader, SampleScore, score
@@ -53,7 +53,10 @@ _INFRA_SIGNATURES = (
 
 
 def _is_infra_error(exc: BaseException) -> bool:
-    """True for timeout / 429 / 5xx / context-overflow (retryable, never a capability fail)."""
+    """True for timeout / 429 / 5xx / context-overflow (retryable, never a capability fail).
+    BudgetExceeded is explicitly NOT an infra error — it must halt, not retry."""
+    if isinstance(exc, BudgetExceeded):
+        return False
     if isinstance(exc, TimeoutError):
         return True
     text = f"{type(exc).__name__} {exc}".lower()
@@ -124,16 +127,23 @@ def _cached_completion_fn(
     retries: int,
     sleep: Callable[[float], None],
     trial_index: int = 0,
+    meter: CostMeter | None = None,
 ) -> Callable[..., _CachedResponse]:
     """Wrap a completion_fn with the content-addressed cache + infra retries. A cache hit replays
     the stored response and makes NO underlying call (resume idempotency, design §5.5/§5.6).
-    `trial_index` partitions the cache so each pass^k trial samples & resumes independently (B1)."""
+    `trial_index` partitions the cache so each pass^k trial samples & resumes independently (B1).
+    `meter` enforces the per-completion budget cap: raises BudgetExceeded on a cache MISS when
+    over budget so no paid call is made. Cache HITS are always free and never raise."""
 
     def fn(*, model: str, messages: list[dict[str, Any]], **sampling: Any) -> _CachedResponse:
         key = cache_key(model, messages, sampling, trial_index=trial_index)
         cached = cache.get(key)
         if cached is not None:
+            # Cache hit: replay stored response, zero paid calls — never raise BudgetExceeded.
             return _CachedResponse(cached)
+        # Cache miss: about to make a paid call — check budget BEFORE proceeding.
+        if meter is not None and meter.over_budget():
+            raise BudgetExceeded(f"budget exhausted (spent ${meter.spent():.4f})")
         resp = _with_retries(
             lambda: raw_fn(model=model, messages=messages, **sampling),
             retries=retries, sleep=sleep,
@@ -193,7 +203,8 @@ def _run_sample(
     for trial_index in range(k):
         tsamp = _trial_sampling(sampling, trial_index)
         cached_fn = _cached_completion_fn(
-            completion_fn, cache, retries=retries, sleep=sleep, trial_index=trial_index
+            completion_fn, cache, retries=retries, sleep=sleep, trial_index=trial_index,
+            meter=meter,
         )
         factory = agent_factory(
             model, policy_text=policy_text, sampling=tsamp,
@@ -202,6 +213,12 @@ def _run_sample(
         agent = factory()
         try:
             trace = run_episode(sample, agent, trial_index=trial_index, user_sim=responder)
+        except BudgetExceeded:
+            # Record any usage that accrued before the cap was hit, then propagate to evaluate_model
+            # so it can record budget_hit=True and stop the split loop cleanly.
+            for u in getattr(agent, "usage", []):
+                meter.record(u, model)
+            raise
         except BaseException as exc:  # noqa: BLE001
             if _is_infra_error(exc):
                 # Cost of any calls that DID return before the fatal infra error is still real.
@@ -298,12 +315,16 @@ def evaluate_model(
             if budget_hit or meter.over_budget():
                 break
             attempted += 1
-            status, sscore = _run_sample(
-                sample, model,
-                sampling=sampling, completion_fn=completion_fn,
-                cache=cache, meter=meter, responder=responder, grader=grader,
-                k=plan.k, retries=retries, sleep=sleep,
-            )
+            try:
+                status, sscore = _run_sample(
+                    sample, model,
+                    sampling=sampling, completion_fn=completion_fn,
+                    cache=cache, meter=meter, responder=responder, grader=grader,
+                    k=plan.k, retries=retries, sleep=sleep,
+                )
+            except BudgetExceeded:
+                budget_hit = True
+                break
             tally[status.value] += 1
             if sscore is not None:
                 scores.append(sscore)
@@ -312,7 +333,8 @@ def evaluate_model(
                 last_idx = plan.k - 1
                 tsamp = _trial_sampling(sampling, last_idx)
                 cached_fn = _cached_completion_fn(
-                    completion_fn, cache, retries=retries, sleep=sleep, trial_index=last_idx
+                    completion_fn, cache, retries=retries, sleep=sleep, trial_index=last_idx,
+                    meter=meter,
                 )
                 factory = agent_factory(
                     model, policy_text=load_policy(sample.policy_id), sampling=tsamp,

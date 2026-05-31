@@ -14,6 +14,11 @@ from spar.eval.profile import Profile
 from spar.simulator.schemas import Sample
 
 
+class BudgetExceeded(RuntimeError):
+    """Raised by _cached_completion_fn before a paid completion when the cost meter is over budget.
+    Must NOT be caught as an infra error (it halts the run, not retried)."""
+
+
 def _confirmed_cost(usage: CallUsage, model: ModelConfig) -> float:
     """Prefer the provider-reported cost; else price tokens off models.toml; else 0.0."""
     if usage.response_cost is not None:
