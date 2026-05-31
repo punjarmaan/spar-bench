@@ -8,14 +8,14 @@ from typing import Annotated, Any, Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from spar.simulator.enums import ToolStatus
-from spar.simulator.mandates import IntentMandate, ScopeViolation
+from spar.simulator.mandates import CartMandate, IntentMandate, ScopeViolation
 
 
 class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-# ---- Observation (redacted; honors module 10 §3.1) ----
+# ---- Observation (redacted) ----
 
 class ObsMethod(_Model):
     acquirer_id: str
@@ -49,9 +49,10 @@ class Observation(_Model):
     cart: ObsCart
     methods: list[ObsMethod]
     context: ObsContext
+    cart_mandate: CartMandate | None = None  # agent-visible assembled cart (payee + currency)
 
 
-# ---- Action (tagged union over the 9 tools; module 20 §4) ----
+# ---- Action (tagged union over the 11 tools; module 20 §4) ----
 
 class SelectRoute(_Model):
     tool: Literal["select_route"]
@@ -65,6 +66,7 @@ class ComputeTax(_Model):
 
 class SubmitAuthorization(_Model):
     tool: Literal["submit_authorization"]
+    idempotency_key: str | None = None
 
 
 class HandleChallenge(_Model):
@@ -75,6 +77,7 @@ class HandleChallenge(_Model):
 class Retry(_Model):
     tool: Literal["retry"]
     strategy: Literal["same", "different_method", "different_acquirer", "wait"]
+    idempotency_key: str | None = None
 
 
 class ModifyCart(_Model):
@@ -90,6 +93,17 @@ class RequestUserConfirmation(_Model):
 
 class Capture(_Model):
     tool: Literal["capture"]
+    idempotency_key: str | None = None
+
+
+class Void(_Model):
+    tool: Literal["void"]
+    idempotency_key: str | None = None
+
+
+class Refund(_Model):
+    tool: Literal["refund"]
+    idempotency_key: str | None = None
 
 
 class Abort(_Model):
@@ -99,8 +113,8 @@ class Abort(_Model):
 
 Action = Annotated[
     Union[
-        SelectRoute, ComputeTax, SubmitAuthorization, HandleChallenge, Retry,
-        ModifyCart, RequestUserConfirmation, Capture, Abort,
+        SelectRoute, ComputeTax, SubmitAuthorization, HandleChallenge,
+        Retry, ModifyCart, RequestUserConfirmation, Capture, Void, Refund, Abort,
     ],
     Field(discriminator="tool"),
 ]

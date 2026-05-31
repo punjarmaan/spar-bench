@@ -127,4 +127,4 @@ def test_determinism_snapshot_is_pinned():
 
 
 # Pin captured from the first green run of trajectory_digest (Step 4); paste the printed value here.
-_PINNED_DIGEST = "6ef4d0b7f3882a3896861e6d35a3bd4f"
+_PINNED_DIGEST = "786e09bab5ba3752216bcebc985c4cab"
