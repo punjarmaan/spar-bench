@@ -15,7 +15,7 @@ Layers:
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
 
@@ -71,6 +71,7 @@ class SampleScore:
     # forced to 0 on a hit; it does not feed competence_mean — enforced in report.py, Task 3.3).
     catastrophic_class: str | None = None
     catastrophic_applicable: bool = False
+    applicable_classes: list[str] = field(default_factory=list)  # ViolationClass values applicable to this sample
 
 
 # ---- Semantic-budget tiers (module 40 §3.5) ----
@@ -410,4 +411,5 @@ def score(
         grader_model=grader_model,
         catastrophic_class=catastrophic_tag.value if catastrophic_tag is not None else None,
         catastrophic_applicable=catastrophic_applicable,
+        applicable_classes=sorted(vc.value for vc in applicable),
     )

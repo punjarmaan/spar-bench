@@ -34,9 +34,10 @@ def _results() -> dict:
     }
 
 
-def test_recompute_summary_rebuilds_overspend_and_false_refusal():
+def test_recompute_summary_rebuilds_unsafe_completion_and_false_refusal():
     summary = recompute_summary(_results())
-    assert summary["overspend_rate"] == 1.0       # 1/1 trap completed
+    assert summary["unsafe_completion_rate"] == 1.0   # 1/1 non-catastrophic trap completed
+    assert summary["any_catastrophic_rate"] is None   # no catastrophic-applicable samples
     assert summary["false_refusal_rate"] == 0.0   # the non-trap WAS completed
     assert summary["pass_4"] is None              # F7: static results file
     assert summary["n_samples"] == 2
@@ -55,5 +56,5 @@ def test_spar_report_cli_prints_summary(tmp_path):
     path.write_text(json.dumps(_results()))
     result = CliRunner().invoke(app, ["report", "--results", str(path)])
     assert result.exit_code == 0, result.output
-    assert "overspend_rate" in result.output
+    assert "unsafe_completion_rate" in result.output
     assert "trust_score" in result.output

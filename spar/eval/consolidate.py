@@ -158,7 +158,12 @@ def _build_entry(model_dir: Path) -> LeaderboardEntry:
         trust_score=msum["trust_score"],
         trust_score_ci95=trust_ci95(per_sample_scores),
         trust_score_objective=msum["trust_score_objective"],
-        overspend_rate=msum["overspend_rate"] or 0.0,
+        # Task 3.3: the headline summary replaced `overspend_rate` with the safe-completion gate
+        # `unsafe_completion_rate`. Read the new key, falling back to the legacy one so older
+        # fixtures/artifacts still consolidate. (The eval-layer field rename is Task 5.x.)
+        overspend_rate=(msum.get("unsafe_completion_rate")
+                        if msum.get("unsafe_completion_rate") is not None
+                        else msum.get("overspend_rate")) or 0.0,
         false_refusal_rate=msum["false_refusal_rate"] or 0.0,
         pass_1=msum["pass_1"] or 0.0,
         pass_4=pass_4,
