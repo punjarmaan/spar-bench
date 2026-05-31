@@ -48,7 +48,7 @@ class LeaderboardEntry(BaseModel):
     trust_score: float
     trust_score_ci95: tuple[float, float]
     trust_score_objective: float
-    overspend_rate: float
+    unsafe_completion_rate: float
     false_refusal_rate: float
     pass_1: float
     pass_4: float
@@ -158,12 +158,7 @@ def _build_entry(model_dir: Path) -> LeaderboardEntry:
         trust_score=msum["trust_score"],
         trust_score_ci95=trust_ci95(per_sample_scores),
         trust_score_objective=msum["trust_score_objective"],
-        # Task 3.3: the headline summary replaced `overspend_rate` with the safe-completion gate
-        # `unsafe_completion_rate`. Read the new key, falling back to the legacy one so older
-        # fixtures/artifacts still consolidate. (The eval-layer field rename is Task 5.x.)
-        overspend_rate=(msum.get("unsafe_completion_rate")
-                        if msum.get("unsafe_completion_rate") is not None
-                        else msum.get("overspend_rate")) or 0.0,
+        unsafe_completion_rate=msum.get("unsafe_completion_rate") or 0.0,
         false_refusal_rate=msum["false_refusal_rate"] or 0.0,
         pass_1=msum["pass_1"] or 0.0,
         pass_4=pass_4,
@@ -214,7 +209,7 @@ def _sorted_entries(entries: list[LeaderboardEntry]) -> list[LeaderboardEntry]:
 
 CSV_SCALAR_COLUMNS: list[str] = [
     "model", "class", "trust_score", "trust_ci95_lo", "trust_ci95_hi",
-    "trust_score_objective", "overspend_rate", "false_refusal_rate", "pass_1", "pass_4",
+    "trust_score_objective", "unsafe_completion_rate", "false_refusal_rate", "pass_1", "pass_4",
     "n_main", "n_diamond", "scored_fraction", "status", "cost_usd", "provenance",
     "model_version_pin", "scaffold_version", "spar_version", "dataset_canary", "run_date",
 ]
@@ -232,7 +227,7 @@ def _csv_row(e: LeaderboardEntry) -> dict[str, object]:
         "model": e.model, "class": e.cls, "trust_score": e.trust_score,
         "trust_ci95_lo": lo, "trust_ci95_hi": hi,
         "trust_score_objective": e.trust_score_objective,
-        "overspend_rate": e.overspend_rate, "false_refusal_rate": e.false_refusal_rate,
+        "unsafe_completion_rate": e.unsafe_completion_rate, "false_refusal_rate": e.false_refusal_rate,
         "pass_1": e.pass_1, "pass_4": e.pass_4, "n_main": e.n_main, "n_diamond": e.n_diamond,
         "scored_fraction": e.scored_fraction, "status": e.status, "cost_usd": e.cost_usd,
         "provenance": e.provenance, "model_version_pin": e.model_version_pin,
@@ -263,14 +258,14 @@ def _md_consolidated_table(ordered: list[LeaderboardEntry]) -> str:
     lines = [
         "## Consolidated leaderboard",
         "",
-        "| Rank | Model | Class | Trust (±95%) | Overspend | pass^4 | Cost | Provenance |",
+        "| Rank | Model | Class | Trust (±95%) | Unsafe-completion | pass^4 | Cost | Provenance |",
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for rank, e in enumerate(ordered, start=1):
         lo, hi = e.trust_score_ci95
         trust = f"{e.trust_score:.2f} ({lo:.2f}–{hi:.2f})"
         lines.append(
-            f"| {rank} | {e.model} | {e.cls} | {trust} | {e.overspend_rate:.2f} | "
+            f"| {rank} | {e.model} | {e.cls} | {trust} | {e.unsafe_completion_rate:.2f} | "
             f"{e.pass_4:.2f} | ${e.cost_usd:.2f} | {e.provenance} |"
         )
     return "\n".join(lines)

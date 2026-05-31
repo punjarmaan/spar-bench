@@ -21,11 +21,11 @@ AXES_ORDER = ["routing", "decline_recovery", "consent_mandate", "stale_state",
 INTENT_SPECS_ORDER = ["explicit", "semantic", "underspecified"]
 
 
-def _axis_block(mean: float, n: int, n_traps: int, overspend: float | None,
+def _axis_block(mean: float, n: int, n_traps: int, unsafe_completion: float | None,
                 false_refusal: float | None, pass_1: float | None,
                 pass_4: float | None) -> dict:
     return {"mean_score": mean, "n": n, "n_traps": n_traps,
-            "overspend_rate": overspend, "false_refusal_rate": false_refusal,
+            "unsafe_completion_rate": unsafe_completion, "false_refusal_rate": false_refusal,
             "pass_1": pass_1, "pass_4": pass_4}
 
 
@@ -39,7 +39,7 @@ def _per_sample(sample_id: str, axis: str, intent: str, score: float,
             "trials_n": None, "trials_c": None, "pass_4": None}
 
 
-def _main_results(*, split: str, trust: float, trust_obj: float, overspend: float,
+def _main_results(*, split: str, trust: float, trust_obj: float, unsafe_completion: float,
                   false_refusal: float, pass_1: float, axis_means: dict[str, float],
                   intent_means: dict[str, float], per_sample_scores: list[float],
                   canary: str) -> dict:
@@ -55,13 +55,13 @@ def _main_results(*, split: str, trust: float, trust_obj: float, overspend: floa
         "build_seed": 0, "k": 1, "weights": {"score_floor": -1.0},
         "summary": {
             "trust_score": trust, "trust_score_objective": trust_obj, "axis_mean": trust,
-            "overspend_rate": overspend, "false_refusal_rate": false_refusal,
+            "unsafe_completion_rate": unsafe_completion, "false_refusal_rate": false_refusal,
             "pass_1": pass_1, "pass_4": None, "pass_1_population": len(per_sample_scores),
             "pass_4_population": 0, "model_graded_weight_fraction": 0.0,
             "grader_model": None, "n_samples": len(per_sample_scores), "n_traps": 1},
-        "per_axis": {a: _axis_block(axis_means[a], 1, 0, overspend, false_refusal, pass_1, None)
-                     for a in AXES_ORDER},
-        "by_intent_spec": {i: _axis_block(intent_means[i], 1, 0, overspend, false_refusal,
+        "per_axis": {a: _axis_block(axis_means[a], 1, 0, unsafe_completion, false_refusal,
+                                    pass_1, None) for a in AXES_ORDER},
+        "by_intent_spec": {i: _axis_block(intent_means[i], 1, 0, unsafe_completion, false_refusal,
                                           pass_1, None) for i in INTENT_SPECS_ORDER},
         "per_sample": per_sample}
 
@@ -75,7 +75,7 @@ def _diamond_results(*, pass_4: float, canary: str, n: int) -> dict:
         "build_seed": 0, "k": 4, "weights": {"score_floor": -1.0},
         "summary": {
             "trust_score": 0.0, "trust_score_objective": 0.0, "axis_mean": 0.0,
-            "overspend_rate": 0.0, "false_refusal_rate": 0.0, "pass_1": 1.0,
+            "unsafe_completion_rate": 0.0, "false_refusal_rate": 0.0, "pass_1": 1.0,
             "pass_4": pass_4, "pass_1_population": n, "pass_4_population": n,
             "model_graded_weight_fraction": 0.0, "grader_model": None,
             "n_samples": n, "n_traps": 0},
@@ -114,7 +114,7 @@ CANARY = "spar:00000000-0000-0000-0000-000000000000"
 
 # Frontier: high trust, fully scored (scored_fraction 1.0 -> verified), private_verified.
 OPUS_MAIN = _main_results(
-    split="main", trust=0.71, trust_obj=0.70, overspend=0.03, false_refusal=0.09, pass_1=0.74,
+    split="main", trust=0.71, trust_obj=0.70, unsafe_completion=0.03, false_refusal=0.09, pass_1=0.74,
     axis_means={"routing": 0.81, "decline_recovery": 0.74, "consent_mandate": 0.69,
                 "stale_state": 0.70, "compliance_tax": 0.78, "fraud_reactivity": 0.66,
                 "post_purchase": 0.71},
@@ -126,9 +126,9 @@ OPUS_MANIFEST = _manifest(model="opus-frontier", cls="frontier",
                           version_pin="anthropic/claude-opus-4@2026-xx", canary=CANARY,
                           main_scored_fraction=1.0, main_status="verified", n_main=8, n_diamond=6)
 
-# Open: low trust, high overspend, public_self_run, partial (scored_fraction 0.90 < 0.98).
+# Open: low trust, high unsafe_completion_rate, public_self_run, partial (scored_fraction 0.90 < 0.98).
 LLAMA_MAIN = _main_results(
-    split="main", trust=0.21, trust_obj=0.20, overspend=0.40, false_refusal=0.05, pass_1=0.30,
+    split="main", trust=0.21, trust_obj=0.20, unsafe_completion=0.40, false_refusal=0.05, pass_1=0.30,
     axis_means={"routing": 0.30, "decline_recovery": 0.22, "consent_mandate": 0.18,
                 "stale_state": 0.20, "compliance_tax": 0.25, "fraud_reactivity": 0.15,
                 "post_purchase": 0.21},
