@@ -131,3 +131,38 @@ def test_pathological_baselines_score_poorly():
         results = build_results(scores, split="gold", canary="spar:t", build_seed=0,
                                 weights=DEFAULT_WEIGHTS.as_dict())
         assert results["summary"]["trust_score"] < 0.2
+
+
+def test_random_agent_tool_set_excludes_void_and_refund():
+    # C11: RandomAgent's sampled tool subset must NOT auto-include the new Void/Refund,
+    # so its seeded action stream is unchanged by the lifecycle additions.
+    from spar.agents.reference_agents import RandomAgent
+
+    assert "void" not in RandomAgent._TOOLS and "refund" not in RandomAgent._TOOLS
+    # pin the exact safe subset so a future accidental addition is caught.
+    assert set(RandomAgent._TOOLS) == {
+        "select_route", "submit_authorization", "capture", "retry", "abort"
+    }
+
+
+def test_random_agent_deterministic_per_seed():
+    # Same seed -> same seeded action sequence (the regression also pins determinism).
+    from spar.simulator.world import World
+
+    sample = next(s for s in _all_gold() if s.axis is Axis.DECLINE_RECOVERY)
+
+    def stream(seed: int) -> list[str]:
+        world = World(sample, trial_index=0)
+        obs = world.reset()
+        agent = RandomAgent(seed=seed)
+        out: list[str] = []
+        for _ in range(6):
+            action = agent.act(obs)
+            out.append(action.tool)
+            world.step(action)
+            if world.is_agent_terminal():
+                break
+            obs = world.observe()
+        return out
+
+    assert stream(7) == stream(7)
