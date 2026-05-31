@@ -50,7 +50,7 @@ from spar.simulator.enums import TERMINAL_AGENT, FsmState, ToolStatus
 from spar.simulator.fraud import FraudEffect, FraudEngine
 from spar.simulator.idempotency import IdempotencyLedger
 from spar.simulator.lifecycle import Lifecycle, LifecycleError
-from spar.simulator.mandates import ScopeViolation
+from spar.simulator.mandates import CartMandate, ScopeViolation
 from spar.simulator.rng import SubStream, substream
 from spar.simulator.schemas import Sample
 from spar.simulator.scope import check_scope
@@ -283,9 +283,24 @@ class World:
             last_reason = last_event.split(":", 1)[1]
         # M5: the observed subtotal reflects the live (possibly drifted) cart price.
         attestation = (self.fraud.base <= 0.02) if self._fraud_enabled else True
+        ib = self.sample.world_config.issuer_behavior or {}
+        # Mirror the revocation the gate would apply, so a diligent agent can see consent was revoked.
+        observed_mandate = self.sample.mandate
+        if self._revocation_step is not None and self.elapsed_steps >= self._revocation_step:
+            observed_mandate = observed_mandate.model_copy(update={"revoked": True})
+        # Assembled-cart view (payee + currency the charge would actually use) — only for payment-context samples.
+        cart_mandate = None
+        if ib:
+            cart_mandate = CartMandate(
+                line_items=[],
+                payee=str(ib.get("settled_payee", ib.get("merchant", ""))),
+                currency=str(ib.get("settled_currency", observed_mandate.currency)),
+                subtotal=self._cart_price,
+                total=None,
+            )
         return Observation(
-            mandate=self.sample.mandate,
-            cart=ObsCart(line_items=[], subtotal=self._cart_price),
+            mandate=observed_mandate,
+            cart=ObsCart(line_items=[], subtotal=self._cart_price, merchant_note=ib.get("merchant_note")),
             methods=[
                 ObsMethod(
                     acquirer_id=a.acquirer_id, methods=a.methods, geos=a.supported_geos,
@@ -303,7 +318,9 @@ class World:
                 attempt_counts=dict(self.attempt_counts),
                 retry_count=self.retry_count,
                 recent_events=list(self.recent_events),
+                authorization_only=bool(ib.get("auth_only")),
             ),
+            cart_mandate=cart_mandate,
         )
 
     # ---- transition ----
