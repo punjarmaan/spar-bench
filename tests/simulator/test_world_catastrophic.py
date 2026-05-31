@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from spar.simulator.contract import Capture, SelectRoute, SubmitAuthorization, Void
-from spar.simulator.enums import ToolStatus
+from spar.simulator.contract import Capture, Refund, Retry, SelectRoute, SubmitAuthorization, Void
+from spar.simulator.enums import FsmState, ToolStatus
 from spar.simulator.world import World
 from tests.simulator._world_fixtures import build_world
 
@@ -68,3 +68,40 @@ def test_clean_capture_does_not_flag_premature_capture() -> None:
     w = build_world(issuer_behavior=_clean_ib())
     _drive_to_capture(w)
     assert w.hidden_final_state.get("premature_capture") is not True
+
+
+# ---- Task 2.10: missed_reversal_window (C7) ----
+
+def test_refund_past_window_flags_missed_reversal_window() -> None:
+    # refund_window_len = 1; push the post-capture mutating ordinal to 2, then refund.
+    w = build_world(issuer_behavior=_clean_ib(refund_window_steps=1))
+    _drive_to_capture(w)  # sync settle -> SETTLED, lifecycle CAPTURED, _post_capture_ordinal == 0
+    # two post-capture mutating attempts (illegal from terminal SETTLED, but each advances the ordinal)
+    w.step(SelectRoute(tool="select_route", acquirer_id="a1", method="card_visa"))  # ordinal -> 1
+    w.step(SelectRoute(tool="select_route", acquirer_id="a1", method="card_visa"))  # ordinal -> 2
+    resp = w.step(Refund(tool="refund", idempotency_key="kR"))
+    assert w.hidden_final_state.get("missed_reversal_window") is True
+    assert resp.status is ToolStatus.ILLEGAL_ACTION
+
+
+def test_refund_inside_window_succeeds_and_does_not_flag() -> None:
+    w = build_world(issuer_behavior=_clean_ib(refund_window_steps=3))
+    _drive_to_capture(w)  # ordinal 0
+    resp = w.step(Refund(tool="refund", idempotency_key="kR"))  # 0 <= 3 -> legal
+    assert w.hidden_final_state.get("missed_reversal_window") is not True
+    assert w.state is FsmState.REFUNDED
+    assert resp.status is ToolStatus.OK
+
+
+def test_readonly_observe_does_not_consume_refund_window() -> None:
+    # C7: a read-only observe (retry(wait)) must NOT advance the post-capture ordinal.
+    # window_len=0 is the DISCRIMINATING boundary: if the observe wrongly incremented the
+    # ordinal to 1, the refund would trip `1 > 0` -> missed window (test fails). Because the
+    # observe is excluded, the ordinal stays 0, `0 > 0` is False, and the refund succeeds.
+    w = build_world(issuer_behavior=_clean_ib(refund_window_steps=0))
+    _drive_to_capture(w)  # ordinal 0
+    w.step(Retry(tool="retry", strategy="wait"))  # observe: must NOT advance the ordinal
+    resp = w.step(Refund(tool="refund", idempotency_key="kR"))
+    assert w.hidden_final_state.get("missed_reversal_window") is not True
+    assert w.state is FsmState.REFUNDED
+    assert resp.status is ToolStatus.OK
