@@ -28,20 +28,22 @@ from spar.simulator.contract import (
     HandleChallenge,
     ModifyCart,
     Observation,
+    Refund,
     RequestUserConfirmation,
     Retry,
     SelectRoute,
     SubmitAuthorization,
+    Void,
     parse_action,
 )
 
 # Bump on ANY change to the prompt template, tool catalog, or parser (spec standard 1).
-SCAFFOLD_VERSION = "1.0.0"
+SCAFFOLD_VERSION = "2.0.0"
 
-# The 9 tool models, keyed by their `tool` Literal — the real action space (contract.py).
+# The 11 tool models, keyed by their `tool` Literal — the real action space (contract.py).
 _TOOL_MODELS = (
     SelectRoute, ComputeTax, SubmitAuthorization, HandleChallenge, Retry,
-    ModifyCart, RequestUserConfirmation, Capture, Abort,
+    ModifyCart, RequestUserConfirmation, Capture, Void, Refund, Abort,
 )
 
 

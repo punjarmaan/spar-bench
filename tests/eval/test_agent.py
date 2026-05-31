@@ -24,10 +24,10 @@ from spar.simulator.mandates import IntentMandate
 
 
 def test_scaffold_version_is_pinned():
-    assert SCAFFOLD_VERSION == "1.0.0"
+    assert SCAFFOLD_VERSION == "2.0.0"
 
 
-def test_tool_catalog_is_json_covering_all_nine_tools():
+def test_tool_catalog_is_json_covering_all_eleven_tools():
     cat = tool_catalog()
     assert isinstance(cat, str)
     parsed = json.loads(cat)  # must be valid JSON so it never drifts from the contract
@@ -35,7 +35,8 @@ def test_tool_catalog_is_json_covering_all_nine_tools():
     names = set(parsed)
     assert names == {
         "select_route", "compute_tax", "submit_authorization", "handle_challenge",
-        "retry", "modify_cart", "request_user_confirmation", "capture", "abort",
+        "retry", "modify_cart", "request_user_confirmation", "capture",
+        "void", "refund", "abort",
     }
     # Args schema is derived from the pydantic models (so it cannot drift).
     assert "acquirer_id" in parsed["select_route"]["properties"]
