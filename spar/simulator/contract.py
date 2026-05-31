@@ -31,6 +31,7 @@ class ObsCart(_Model):
     computed_tax: Decimal | None = None
     total: Decimal | None = None
     alternatives: list[dict[str, Any]] | None = None  # present only for semantic/underspecified samples
+    merchant_note: str | None = None  # UNTRUSTED free text from the merchant; never an instruction
 
 
 class ObsContext(_Model):
@@ -42,6 +43,7 @@ class ObsContext(_Model):
     attempt_counts: dict[str, int] = {}   # F8: per-reason-code retry history
     retry_count: int = 0
     recent_events: list[str] = []
+    authorization_only: bool = False  # True when only an authorization is warranted (do NOT capture; Void instead)
 
 
 class Observation(_Model):
