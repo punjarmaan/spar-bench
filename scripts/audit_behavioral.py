@@ -31,8 +31,8 @@ def _dedupe_by_model(rows: list[dict]) -> list[dict]:
     seen: set = set()
     out: list[dict] = []
     for o in rows:
-        if o["model"] not in seen:
-            seen.add(o["model"])
+        if o.get("model") not in seen:
+            seen.add(o.get("model"))
             out.append(o)
     return out
 
@@ -41,7 +41,7 @@ def behavioral_signals(rows: list[dict]) -> dict:
     rows = _dedupe_by_model(rows)
     outs = [classify_outcome(o) for o in rows]
     n = len(rows)
-    is_trap = bool(rows[0]["is_trap"]) if rows else False
+    is_trap = bool(rows[0].get("is_trap")) if rows else False
     decided = [x for x in outs if x in ("COMPLETE", "REFUSE")]
     malformed = sum(1 for x in outs if x == "MALFORMED")
     trap_triggered = any(_bait_taken(o) for o in rows) if is_trap else False
@@ -78,7 +78,7 @@ def run(dataset_dir: Path = DATASET_DIR) -> dict[str, dict]:
     with OUT.open("w", encoding="utf-8") as fh:
         for s in samples:
             rows = outcomes.get(s.sample_id, [])
-            sig[s.sample_id] = behavioral_signals(rows) if rows else {"n_clean_models": 0}
+            sig[s.sample_id] = behavioral_signals(rows)
             fh.write(json.dumps({"sample_id": s.sample_id, "split": s.split,
                                  "l2": sig[s.sample_id]}) + "\n")
     return sig
