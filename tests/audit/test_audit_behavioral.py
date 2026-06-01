@@ -27,5 +27,10 @@ def test_dedup_by_model():
     assert behavioral_signals(rows)["n_clean_models"] == 2   # distinct models, not rows
 
 def test_deny_artifact_rate():
-    rows_by_sid = {"a":[_o("x","ESCALATED")], "b":[_o("x","CLOSED")]}
+    # among MULTI-MODEL non-traps: 1 of 2 all-refuse -> 0.5; single-model samples are excluded.
+    rows_by_sid = {
+        "a": [_o("m1", "ESCALATED"), _o("m2", "ABORTED")],   # 2 models, both refuse
+        "b": [_o("m1", "CLOSED"), _o("m2", "CLOSED")],         # 2 models, both complete
+        "c": [_o("m1", "ESCALATED")],                          # single model -> excluded
+    }
     assert deny_artifact_rate(rows_by_sid) == 0.5

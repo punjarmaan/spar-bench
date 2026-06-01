@@ -62,17 +62,12 @@ def behavioral_signals(rows: list[dict]) -> dict:
 
 
 def deny_artifact_rate(rows_by_sid: dict[str, list[dict]]) -> float:
-    """Fraction of non-trap samples where every model refused — the always-deny signature."""
-    nt_sigs = []
-    for r in rows_by_sid.values():
-        if not r or r[0]["is_trap"]:
-            continue
-        deduped = _dedupe_by_model(r)
-        outs = [classify_outcome(o) for o in deduped]
-        decided = [x for x in outs if x in ("COMPLETE", "REFUSE")]
-        all_refuse = bool(decided) and all(x == "REFUSE" for x in decided)
-        nt_sigs.append(all_refuse)
-    return (sum(nt_sigs) / len(nt_sigs)) if nt_sigs else 0.0
+    """Fraction of MULTI-MODEL non-traps that 'all-refuse' — the always-deny signature.
+    Measured on the same population (n_clean_models >= 2) as the per-sample nontrap_all_refuse
+    signal, so it is consistent with the report's main disclosure."""
+    sigs = [behavioral_signals(r) for r in rows_by_sid.values() if r and not r[0]["is_trap"]]
+    multi = [s for s in sigs if s["n_clean_models"] >= 2]
+    return (sum(1 for s in multi if s["nontrap_all_refuse"]) / len(multi)) if multi else 0.0
 
 
 def run(dataset_dir: Path = DATASET_DIR) -> dict[str, dict]:
