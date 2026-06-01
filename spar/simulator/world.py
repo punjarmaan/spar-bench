@@ -129,7 +129,13 @@ class World:
         # Intra-episode CAPTURE_RESULTs fire in `step`; DISPUTE_FILED resolves in drain_deferred.
         self.deferred = DeferredQueue()
         # M5 stale_state: the LIVE cart price; the drift mutates this in place when it fires.
-        self._cart_price: Decimal = self.sample.mandate.amount_limit or Decimal("0")
+        # Prefer the explicit cart_total (the honest cart the agent is shown, kept under
+        # per_txn_max for in-scope samples); fall back to amount_limit for legacy/hand-authored
+        # samples that predate cart_total.
+        _wc = self.sample.world_config
+        self._cart_price: Decimal = (
+            _wc.cart_total if _wc.cart_total is not None else self.sample.mandate.amount_limit
+        ) or Decimal("0")
         self._drift_fired = False
         # G2: a STABLE per-submission ordinal keys the fraud noise draw, NEVER elapsed_steps —
         # so an extra illegal/observe action never shifts the pinned noise. Bumped once per

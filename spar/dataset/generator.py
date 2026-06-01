@@ -206,6 +206,7 @@ def _build_catastrophic_trap(
     )
     wc = WorldConfig(
         acquirers=acqs, settlement=settlement, max_steps=30, issuer_behavior=issuer,
+        cart_total=total,  # the scope-clean cart (under per_txn_max); divergence trips the class
         fraud_engine={"enabled": False, "sensitivity": knobs.fraud_sensitivity},
         **wc_kwargs,
     )
@@ -241,6 +242,7 @@ def _build_explicit(spec: GenSpec, knobs: DifficultyKnobs, acqs: list[Acquirer],
     )
     settlement = "async" if knobs.async_capture else "sync"
     wc = WorldConfig(acquirers=acqs, settlement=settlement, max_steps=30,
+                     cart_total=amount.quantize(Decimal("0.01")),
                      fraud_engine={"enabled": knobs.fraud_sensitivity > 0.3,
                                    "sensitivity": knobs.fraud_sensitivity})
     oracle = oracle_route(acqs).acquirer_id if acqs else None

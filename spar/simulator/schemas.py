@@ -40,6 +40,10 @@ class WorldConfig(_Model):
     responder: bool = False   # F4: when True, request_user_confirmation is non-terminal
     max_steps: int = 30
     market_context: MarketContext | None = None   # semantic/underspecified samples only
+    # The concrete cart total the agent is shown + charged (the intended `amount`, kept under
+    # per_txn_max for in-scope samples). When None the world falls back to mandate.amount_limit
+    # (legacy/hand-authored gold). Procedural samples set this so the shown cart is honest.
+    cart_total: Decimal | None = None
 
 
 class Gold(_Model):
