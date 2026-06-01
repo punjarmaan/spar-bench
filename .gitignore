@@ -33,5 +33,8 @@ results.json
 .env.local
 
 # --- eval run outputs / caches (generated; never committed) ---
-.eval_cache/
+.eval_cache*/
 /runs/
+/runs_*/
+build/ds/
+build/offline-smoke/
