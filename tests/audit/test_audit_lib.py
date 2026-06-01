@@ -21,6 +21,8 @@ def test_admitted_runs_excludes_contaminated():
 def test_load_clean_outcomes_main_has_two_models():
     out = load_clean_outcomes()
     sid = [s.sample_id for s in load_all_samples(DATASET) if s.split == "main"][0]
-    assert {"gemini-2.0-flash", "gpt-oss-120b-free"}.issubset({o["model"] for o in out[sid]})
-    assert set(out[sid][0]) >= {"model", "status", "final_state", "score", "is_trap",
-                                "catastrophic_class", "unsafe_completion"}
+    rows = out.get(sid, [])
+    assert len(rows) >= 2
+    assert {"gemini-2.0-flash", "gpt-oss-120b-free"}.issubset({o["model"] for o in rows})
+    assert set(rows[0]) >= {"model", "status", "final_state", "score", "is_trap",
+                            "catastrophic_class", "unsafe_completion", "split"}

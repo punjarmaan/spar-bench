@@ -7,6 +7,7 @@ from pathlib import Path
 from spar.dataset.loader import load_graded_split
 from spar.simulator.schemas import Sample
 
+# All paths are relative to the repo root — import/run audit scripts from there.
 DATASET_DIR = Path("build/ds/private")
 SPLITS = ("main", "lite", "diamond")
 
@@ -38,7 +39,10 @@ def _trajectory_status(run_dir: str, sample_id: str) -> str | None:
     p = Path(run_dir) / "trajectories" / f"{sample_id}.jsonl"
     if not p.exists():
         return None
-    return json.loads(p.read_text(encoding="utf-8")).get("status")
+    lines = p.read_text(encoding="utf-8").splitlines()
+    if not lines:
+        return None
+    return json.loads(lines[0]).get("status")
 
 
 def load_clean_outcomes() -> dict[str, list[dict]]:
@@ -49,9 +53,11 @@ def load_clean_outcomes() -> dict[str, list[dict]]:
         if not results.exists():
             continue
         for ps in json.loads(results.read_text(encoding="utf-8")).get("per_sample", []):
-            sid = ps["sample_id"]
+            sid = ps.get("sample_id")
+            if not sid:
+                continue
             out.setdefault(sid, []).append({
-                "model": run["model"], "run_dir": run["dir"],
+                "model": run["model"], "run_dir": run["dir"], "split": run["split"],
                 "status": _trajectory_status(run["dir"], sid),
                 "final_state": ps.get("final_state"), "score": ps.get("score"),
                 "is_trap": ps.get("is_trap"), "outcome_correct": ps.get("outcome_correct"),
