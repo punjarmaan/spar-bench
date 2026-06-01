@@ -92,6 +92,7 @@ class LiteLLMUserSim:
         self.model = model
         self._completion_fn = completion_fn or _default_completion_fn()
         self._cache: MutableMapping[int, UserResponse] = {} if cache is None else cache
+        self.cost_usd = 0.0  # cumulative responder spend (real money; metered as overhead)
 
     def _cache_key(self, request: UserSimRequest) -> int:
         return stable_hash(
@@ -118,6 +119,8 @@ class LiteLLMUserSim:
             temperature=0,
             response_format={"type": "json_object"},
         )
+        hidden = getattr(resp, "_hidden_params", {}) or {}
+        self.cost_usd = round(self.cost_usd + float(hidden.get("response_cost") or 0.0), 10)
         raw = json.loads(resp.choices[0].message.content)
         bound = Decimal(raw["bound"]) if raw.get("bound") is not None else None
         answer = UserResponse(decision=raw["decision"], bound=bound, message=raw.get("message"))

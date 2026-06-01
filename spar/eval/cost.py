@@ -56,10 +56,11 @@ class CostMeter:
         if usage.billed:
             self._billed = round(self._billed + cost, 10)
 
-    def record_overhead(self, cost_usd: float) -> None:
-        """Record judge/user-sim (responder/grader) spend — real money, billed and capped, but
-        reported separately from the agent's cost_usd."""
-        self._overhead = round(self._overhead + cost_usd, 10)
+    def set_overhead(self, total_usd: float) -> None:
+        """Set the cumulative judge/user-sim (responder/grader) spend so far — real money that is
+        billed and counts toward the cap, but reported separately from the agent's cost_usd. The
+        responder/grader track their own running total; the orchestrator syncs it here per sample."""
+        self._overhead = round(total_usd, 10)
 
     def spent(self) -> float:
         """Actual agent money spent this run (cache misses only) — the published cost_usd."""

@@ -81,6 +81,7 @@ class LiteLLMModelGrader:
         # wires it per H4) must not require litellm — only an ACTUAL Tier-C grade call does.
         self._completion_fn = completion_fn
         self._cache: MutableMapping[int, float] = {} if cache is None else cache
+        self.cost_usd = 0.0  # cumulative grader spend (real money; metered as overhead)
 
     def _cache_key(self, gi: SemanticGradeInput) -> int:
         return stable_hash(
@@ -114,6 +115,8 @@ class LiteLLMModelGrader:
             temperature=0,
             response_format={"type": "json_object"},
         )
+        hidden = getattr(resp, "_hidden_params", {}) or {}
+        self.cost_usd = round(self.cost_usd + float(hidden.get("response_cost") or 0.0), 10)
         raw = json.loads(resp.choices[0].message.content)
         score = float(max(0.0, min(1.0, float(raw["score"]))))
         self._cache[key] = score

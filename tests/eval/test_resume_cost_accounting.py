@@ -54,3 +54,20 @@ def test_fresh_run_bills_equals_gross_then_resume_bills_zero(tmp_path: Path) -> 
     # Resume: nothing actually spent, but the uncached would-be cost is unchanged.
     assert second["cost_usd"] == 0.0
     assert second["gross_cost_usd"] == first["gross_cost_usd"]
+    # Overhead is reported (0.0 here — offline stub responder/grader make no paid calls).
+    assert first["overhead_cost_usd"] == 0.0
+
+
+def test_overhead_helper_reads_live_responder_grader_cost() -> None:
+    """_overhead_usd sums a live responder's + grader's cumulative cost_usd, and treats offline
+    stubs (no cost_usd attribute) as $0."""
+    from spar.eval.orchestrator import _overhead_usd
+
+    class _Priced:
+        cost_usd = 0.12
+
+    class _Stub:
+        pass
+
+    assert _overhead_usd(_Priced(), _Priced()) == 0.24      # type: ignore[arg-type]
+    assert _overhead_usd(_Stub(), _Stub()) == 0.0           # type: ignore[arg-type]

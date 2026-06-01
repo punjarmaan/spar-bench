@@ -244,6 +244,12 @@ def _abort_scored(
     return final
 
 
+def _overhead_usd(responder: UserSim, grader: ModelGrader) -> float:
+    """Cumulative responder + grader spend so far. Live LiteLLM variants track a `cost_usd`;
+    offline stubs (ScriptedUserSim / StubModelGrader) have none, so they contribute 0.0."""
+    return float(getattr(responder, "cost_usd", 0.0)) + float(getattr(grader, "cost_usd", 0.0))
+
+
 def _run_sample(
     sample: Sample,
     model: ModelConfig,
@@ -436,6 +442,10 @@ def evaluate_model(
                     model_dir / "trajectories" / f"{sample.sample_id}.jsonl",
                     sample, trace, status,
                 )
+            # Sync responder/grader (overhead) spend so the cap counts total real money out the
+            # door, not just the agent. Live LiteLLM responder/grader track a cumulative cost_usd;
+            # offline stubs have none (-> 0.0). Sequential loop, so an absolute set is exact.
+            meter.set_overhead(_overhead_usd(responder, grader))
             if meter.over_budget():
                 budget_hit = True
                 break
@@ -472,6 +482,7 @@ def evaluate_model(
             "published": plan.published,
         }
 
+    meter.set_overhead(_overhead_usd(responder, grader))  # final sync for an exact reported total
     manifest = {
         "model": model.id,
         "class": model.cls,

@@ -87,6 +87,17 @@ def test_budget_cap_keys_on_billed_not_gross() -> None:
     assert meter.over_budget()          # real spend crossed the cap
 
 
+def test_over_budget_includes_responder_grader_overhead() -> None:
+    """The cap bounds TOTAL real money: agent (billed) + responder/grader overhead. Agent spend
+    alone under budget can still trip the cap once overhead is added."""
+    meter = CostMeter(budget_usd=0.50)
+    meter.record(CallUsage(prompt_tokens=0, completion_tokens=0, response_cost=0.30), _model())
+    assert not meter.over_budget()      # agent-only under cap
+    meter.set_overhead(0.25)            # judge/user-sim spend pushes total to 0.55
+    assert meter.overhead() == 0.25
+    assert meter.over_budget()          # agent + overhead crossed the cap
+
+
 def test_estimate_cost_positive_and_scales_with_price() -> None:
     cheap = _model(id="cheap", price_in_per_mtok=1.0, price_out_per_mtok=2.0)
     dear = _model(id="dear", price_in_per_mtok=100.0, price_out_per_mtok=200.0)
