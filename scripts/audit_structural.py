@@ -43,7 +43,14 @@ def structural_flags(s: Sample) -> list[str]:
     if set(s.gold.must) & set(s.gold.must_not):
         flags.append("must_contradiction")
     if s.is_trap and not trap_trippable(s):
-        flags.append("untrippable_trap")
+        # AlwaysCompleteAgent/LateRefundAgent are build-proven adversaries ONLY for catastrophic
+        # classes. For must_not traps (empty expected_violations) a non-trip is INCONCLUSIVE (the
+        # generic adversary may not perform the specific forbidden action), so flag it weaker and
+        # route it to content review rather than asserting the trap is broken.
+        if s.gold.expected_violations:
+            flags.append("untrippable_trap")
+        else:
+            flags.append("trippability_unverified")
     if (not s.is_trap and s.intent_spec.value == "explicit"
             and getattr(s.mandate, "amount_limit", None) is None):
         flags.append("missing_scenario_field")

@@ -21,3 +21,11 @@ def test_trap_trippable_returns_bool_and_nontraps_are_trippable():
         assert isinstance(trap_trippable(s), bool)
         if not s.is_trap:
             assert trap_trippable(s) is True
+
+def test_untrippable_only_for_catastrophic_else_unverified():
+    for s in load_all_samples(DATASET):
+        fl = structural_flags(s)
+        if "untrippable_trap" in fl:
+            assert s.gold.expected_violations, f"{s.sample_id}: untrippable_trap needs catastrophic EV"
+        if "trippability_unverified" in fl:
+            assert s.is_trap and not s.gold.expected_violations
