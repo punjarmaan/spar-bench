@@ -386,8 +386,16 @@ def evaluate_model(
     budget_hit = False
     canary: str | None = None
     splits_block: dict[str, dict[str, Any]] = {}
+    # Disambiguate output keys when a split appears in the plan more than once (e.g. lite run at
+    # both competence k=1 and reliability k=4): a bare `<split>.results.json` would have the later
+    # stage silently overwrite the earlier. A unique split keeps `<split>` (consolidate.py reads
+    # `main.results.json`/`diamond.results.json`); a repeated split becomes `<split>.<stage>`.
+    _split_counts = Counter(p.split for p in profile.plan)
 
     for plan in profile.plan:
+        result_key = (
+            plan.split if _split_counts[plan.split] == 1 else f"{plan.split}.{plan.stage}"
+        )
         sampling = profile.competence if plan.stage == "competence" else profile.reliability
         samples = samples_for(plan.split)
         if samples:
@@ -467,11 +475,11 @@ def evaluate_model(
         results["scored_fraction"] = scored_fraction
         results["status_tally"] = dict(tally)
         model_dir.mkdir(parents=True, exist_ok=True)
-        (model_dir / f"{plan.split}.results.json").write_text(
+        (model_dir / f"{result_key}.results.json").write_text(
             json.dumps(results, indent=2, sort_keys=True, default=str), encoding="utf-8"
         )
 
-        splits_block[plan.split] = {
+        splits_block[result_key] = {
             "status": status_label,
             "scored_fraction": scored_fraction,
             "n": attempted,

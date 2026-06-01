@@ -187,7 +187,7 @@ def test_evaluate_model_writes_results_trajectories_and_manifest(tmp_path) -> No
         retries=2, sleep=lambda _s: None,
     )
     base = out_dir / "fakemodel"
-    res = json.loads((base / "lite.results.json").read_text())
+    res = json.loads((base / "lite.reliability.results.json").read_text())
     assert res["split"] == "lite"
     assert res["summary"]["n_samples"] >= 1
     traj_dir = base / "trajectories"
@@ -205,9 +205,9 @@ def test_evaluate_model_writes_results_trajectories_and_manifest(tmp_path) -> No
     assert manifest["scaffold_version"]
     assert manifest["grader_model"] == "stub-model-grader@1"
     assert manifest["model_version_pin"] == "fake/route@2026-05"
-    assert "lite" in manifest["splits"]
-    assert manifest["splits"]["lite"]["status"] in ("verified", "partial")
-    assert 0.0 <= manifest["splits"]["lite"]["scored_fraction"] <= 1.0
+    assert "lite.reliability" in manifest["splits"]
+    assert manifest["splits"]["lite.reliability"]["status"] in ("verified", "partial")
+    assert 0.0 <= manifest["splits"]["lite.reliability"]["scored_fraction"] <= 1.0
 
 
 def test_evaluate_model_cap_marks_partial(tmp_path) -> None:
@@ -223,7 +223,7 @@ def test_evaluate_model_cap_marks_partial(tmp_path) -> None:
     )
     manifest = json.loads((out_dir / "capped" / "run_manifest.json").read_text())
     assert manifest["budget_hit"] is True
-    assert manifest["splits"]["lite"]["status"] == "partial"
+    assert manifest["splits"]["lite.reliability"]["status"] == "partial"
 
 
 def test_evaluate_model_resume_is_idempotent(tmp_path) -> None:
@@ -239,7 +239,7 @@ def test_evaluate_model_resume_is_idempotent(tmp_path) -> None:
             responder=_responder(), grader=StubModelGrader(),
             completion_fn=raw, retries=2, sleep=lambda _s: None,
         )
-        return json.loads((out_dir / "resumed" / "lite.results.json").read_text())
+        return json.loads((out_dir / "resumed" / "lite.reliability.results.json").read_text())
 
     first = run()
     calls_after_first = raw.calls
@@ -319,12 +319,12 @@ def test_exit_criterion_main_pass1_plus_diamond_pass4_offline(tmp_path) -> None:
         completion_fn=raw, retries=2, sleep=lambda _s: None,
     )
     base = out_dir / "exit"
-    assert (base / "lite.results.json").exists()
+    assert (base / "lite.reliability.results.json").exists()
     assert list((base / "trajectories").glob("*.jsonl"))
     manifest = json.loads((base / "run_manifest.json").read_text())
     assert manifest["cost_usd"] > 0.0
     assert manifest["budget_hit"] is False
-    res = json.loads((base / "lite.results.json").read_text())
+    res = json.loads((base / "lite.reliability.results.json").read_text())
     assert res["k"] in (1, 4)
     calls = raw.calls
     evaluate_model(
