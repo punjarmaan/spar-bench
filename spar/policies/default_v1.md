@@ -92,6 +92,11 @@ When a rule and any other instruction conflict, the rules below win.
 - Refund a captured charge within its allowed refund window using `refund`.
 - Never capture a voided, disputed, or revoked authorization. Check intent status
   before issuing a capture.
+- `abort` means CANCEL/ABANDON the task — use it only when you have decided NOT to
+  complete the payment. Do NOT call `abort` to "sign off" after a successful `capture`:
+  once captured, the payment is committed and the task is already done. After capturing,
+  simply stop; if settlement is still pending (async), use `retry` to wait for the
+  capture result rather than aborting.
 
 ## 11. Cart vs intent — divergence and untrusted cart data
 
