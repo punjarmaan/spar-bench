@@ -9,6 +9,7 @@ import json
 import random
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections.abc import Callable
 from datetime import date
 from enum import Enum
@@ -353,6 +354,61 @@ def _write_trajectory(
         fh.write(json.dumps(record, sort_keys=True, default=str) + "\n")
 
 
+def _run_and_record(
+    sample: Sample,
+    model: ModelConfig,
+    *,
+    sampling: StageSampling,
+    completion_fn: Callable[..., Any],
+    cache: CompletionCache,
+    meter: CostMeter,
+    responder: UserSim,
+    grader: ModelGrader,
+    k: int,
+    retries: int,
+    sleep: Callable[[float], None],
+    model_dir: Path,
+) -> tuple[SampleStatus, SampleScore | None]:
+    """One sample's pass^k plus (when scored) the cached-trial replay that writes its audit
+    trajectory. Returns (status, sscore). Safe to call from concurrent workers: the shared meter +
+    responder/grader cost are thread-safe and each sample writes its own trajectory file.
+    BudgetExceeded propagates so the caller can record a budget halt."""
+    status, sscore = _run_sample(
+        sample, model,
+        sampling=sampling, completion_fn=completion_fn,
+        cache=cache, meter=meter, responder=responder, grader=grader,
+        k=k, retries=retries, sleep=sleep,
+    )
+    if sscore is not None:
+        # Replay the classified (last) trial from cache (no new model call) so the audit log
+        # matches the reported status (N1).
+        last_idx = k - 1
+        tsamp = _trial_sampling(sampling, last_idx)
+        cached_fn = _cached_completion_fn(
+            completion_fn, cache, retries=retries, sleep=sleep, trial_index=last_idx, meter=meter,
+        )
+        factory = agent_factory(
+            model, policy_text=load_policy(sample.policy_id), sampling=tsamp,
+            completion_fn=cached_fn, mandate_text=sample.mandate.goal,
+        )
+        try:
+            trace = run_episode(sample, factory(), trial_index=last_idx, user_sim=responder)
+        except BaseException as exc:  # noqa: BLE001
+            # A non-infra failure (e.g. context-overflow) never cached a trial, so the replay
+            # re-raises. The sample was abort-SCORED (audit S1); re-derive the matching audit
+            # trajectory from the same immediate-abort agent (no model call, no spend). Infra
+            # errors are excluded upstream and never reach here.
+            if _is_infra_error(exc):
+                raise
+            trace = run_episode(
+                sample, _OverflowAbortAgent(), trial_index=last_idx, user_sim=responder
+            )
+        _write_trajectory(
+            model_dir / "trajectories" / f"{sample.sample_id}.jsonl", sample, trace, status,
+        )
+    return status, sscore
+
+
 def evaluate_model(
     model: ModelConfig,
     profile: Profile,
@@ -403,60 +459,38 @@ def evaluate_model(
         tally: Counter[str] = Counter()
         scores: list[SampleScore] = []
         attempted = 0
-        for sample in samples:
-            if budget_hit or meter.over_budget():
-                break
-            attempted += 1
-            try:
-                status, sscore = _run_sample(
-                    sample, model,
-                    sampling=sampling, completion_fn=completion_fn,
-                    cache=cache, meter=meter, responder=responder, grader=grader,
-                    k=plan.k, retries=retries, sleep=sleep,
-                )
-            except BudgetExceeded:
-                budget_hit = True
-                break
-            tally[status.value] += 1
-            if sscore is not None:
-                scores.append(sscore)
-                # Replay the classified (last) trial from cache (no new model call) so the audit
-                # log matches the reported status (N1).
-                last_idx = plan.k - 1
-                tsamp = _trial_sampling(sampling, last_idx)
-                cached_fn = _cached_completion_fn(
-                    completion_fn, cache, retries=retries, sleep=sleep, trial_index=last_idx,
-                    meter=meter,
-                )
-                factory = agent_factory(
-                    model, policy_text=load_policy(sample.policy_id), sampling=tsamp,
-                    completion_fn=cached_fn, mandate_text=sample.mandate.goal,
-                )
+        # Run samples through a bounded thread pool (Tier-2b). Each episode is network-bound, so
+        # `concurrency` workers cut wall-clock ~concurrency-fold. The shared CostMeter + responder/
+        # grader cost are thread-safe; the per-completion budget check (in _cached_completion_fn)
+        # halts spend, so once the cap trips, in-flight episodes overshoot by at most `concurrency`
+        # paid calls and queued ones fail fast with BudgetExceeded (a cache hit still replays free).
+        futures = {}
+        with ThreadPoolExecutor(max_workers=max(1, concurrency)) as ex:
+            for sample in samples:
+                if budget_hit or meter.over_budget():
+                    break
+                attempted += 1
+                futures[ex.submit(
+                    _run_and_record, sample, model,
+                    sampling=sampling, completion_fn=completion_fn, cache=cache, meter=meter,
+                    responder=responder, grader=grader, k=plan.k, retries=retries, sleep=sleep,
+                    model_dir=model_dir,
+                )] = sample
+            for fut in as_completed(futures):
                 try:
-                    trace = run_episode(
-                        sample, factory(), trial_index=last_idx, user_sim=responder
-                    )
-                except BaseException as exc:  # noqa: BLE001
-                    # A non-infra failure (e.g. context-overflow) never cached a trial, so the
-                    # replay re-raises. The sample was abort-SCORED (audit S1); re-derive the
-                    # matching audit trajectory from the same immediate-abort agent (no model
-                    # call, no spend). Infra errors are excluded upstream and never reach here.
-                    if _is_infra_error(exc):
-                        raise
-                    trace = run_episode(
-                        sample, _OverflowAbortAgent(), trial_index=last_idx, user_sim=responder
-                    )
-                _write_trajectory(
-                    model_dir / "trajectories" / f"{sample.sample_id}.jsonl",
-                    sample, trace, status,
-                )
-            # Sync responder/grader (overhead) spend so the cap counts total real money out the
-            # door, not just the agent. Live LiteLLM responder/grader track a cumulative cost_usd;
-            # offline stubs have none (-> 0.0). Sequential loop, so an absolute set is exact.
-            meter.set_overhead(_overhead_usd(responder, grader))
-            if meter.over_budget():
-                budget_hit = True
-                break
+                    status, sscore = fut.result()
+                except BudgetExceeded:
+                    budget_hit = True
+                    # Sync responder/grader (overhead) spend so the cap counts TOTAL real money out
+                    # the door, not just the agent (live stubs contribute 0.0).
+                    meter.set_overhead(_overhead_usd(responder, grader))
+                    continue
+                tally[status.value] += 1
+                if sscore is not None:
+                    scores.append(sscore)
+                meter.set_overhead(_overhead_usd(responder, grader))
+        if meter.over_budget():
+            budget_hit = True
 
         scored_count = len(scores)
         scored_fraction = scored_count / attempted if attempted else 0.0

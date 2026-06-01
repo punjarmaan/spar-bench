@@ -5,6 +5,7 @@ per-call accrual via `CostMeter` (which enforces the hard budget cap)."""
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 
 from spar.dataset.loader import load_split
@@ -47,41 +48,51 @@ class CostMeter:
         self._billed = 0.0          # actually spent this run (cache misses) — drives the cap
         self._gross = 0.0           # uncached would-be cost (hits + misses)
         self._overhead = 0.0        # judge/user-sim spend (real money, also capped)
+        # Guards every read/write so the meter stays exact under concurrent sample workers
+        # (Tier-2b). Without it, two threads doing `_billed += cost` can lose an update and
+        # under-count spend, silently weakening the budget cap.
+        self._lock = threading.Lock()
 
     def record(self, usage: CallUsage, model: ModelConfig) -> None:
         # Round each running total to sub-cent precision so accumulated float USD stays clean
         # (avoids IEEE-754 drift like 0.40 + 0.20 == 0.6000000000000001).
         cost = _confirmed_cost(usage, model)
-        self._gross = round(self._gross + cost, 10)
-        if usage.billed:
-            self._billed = round(self._billed + cost, 10)
+        with self._lock:
+            self._gross = round(self._gross + cost, 10)
+            if usage.billed:
+                self._billed = round(self._billed + cost, 10)
 
     def set_overhead(self, total_usd: float) -> None:
         """Set the cumulative judge/user-sim (responder/grader) spend so far — real money that is
         billed and counts toward the cap, but reported separately from the agent's cost_usd. The
         responder/grader track their own running total; the orchestrator syncs it here per sample."""
-        self._overhead = round(total_usd, 10)
+        with self._lock:
+            self._overhead = round(total_usd, 10)
 
     def spent(self) -> float:
         """Actual agent money spent this run (cache misses only) — the published cost_usd."""
-        return self._billed
+        with self._lock:
+            return self._billed
 
     def billed(self) -> float:
         """Alias of spent(): agent money actually spent this run."""
-        return self._billed
+        return self.spent()
 
     def gross(self) -> float:
         """What the run would cost with no cache (every completion, hits included)."""
-        return self._gross
+        with self._lock:
+            return self._gross
 
     def overhead(self) -> float:
         """Judge/user-sim (responder/grader) money spent this run."""
-        return self._overhead
+        with self._lock:
+            return self._overhead
 
     def over_budget(self) -> bool:
         # Cap on ACTUAL money out the door: agent (billed) + responder/grader overhead. Cache
         # replays (gross-only) never count, so a resume stays free even when over budget.
-        return self._budget is not None and (self._billed + self._overhead) >= self._budget
+        with self._lock:
+            return self._budget is not None and (self._billed + self._overhead) >= self._budget
 
 
 # Heuristic per-request token sizes for the pre-flight estimate (deliberately coarse, §5.6):

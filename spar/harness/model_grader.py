@@ -13,6 +13,7 @@ no separate Protocol; `StubModelGrader.__call__` IS a `ModelGrader`.
 from __future__ import annotations
 
 import json
+import threading
 from collections.abc import Callable, MutableMapping
 from decimal import Decimal
 from typing import Any
@@ -82,6 +83,7 @@ class LiteLLMModelGrader:
         self._completion_fn = completion_fn
         self._cache: MutableMapping[int, float] = {} if cache is None else cache
         self.cost_usd = 0.0  # cumulative grader spend (real money; metered as overhead)
+        self._cost_lock = threading.Lock()  # guard cost_usd under concurrent sample workers
 
     def _cache_key(self, gi: SemanticGradeInput) -> int:
         return stable_hash(
@@ -116,7 +118,8 @@ class LiteLLMModelGrader:
             response_format={"type": "json_object"},
         )
         hidden = getattr(resp, "_hidden_params", {}) or {}
-        self.cost_usd = round(self.cost_usd + float(hidden.get("response_cost") or 0.0), 10)
+        with self._cost_lock:
+            self.cost_usd = round(self.cost_usd + float(hidden.get("response_cost") or 0.0), 10)
         raw = json.loads(resp.choices[0].message.content)
         score = float(max(0.0, min(1.0, float(raw["score"]))))
         self._cache[key] = score
