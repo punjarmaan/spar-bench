@@ -115,7 +115,7 @@ def _run_eval(
 
 @app.command()
 def run(
-    split: str = typer.Option(..., help="lite | main | diamond  (private is server-only, C5)"),
+    split: str = typer.Option(..., help="lite | main | diamond | probe  (private is server-only, C5)"),
     agent: str = typer.Option(..., help="module:Class implementing the Agent protocol "
                                         "(TRUSTED LOCAL import only)"),
     out: Path = typer.Option(Path("results.json")),
@@ -164,7 +164,7 @@ class _ReplayAgent:
 @app.command()
 def grade(
     predictions: Path = typer.Option(..., help="predictions.jsonl: {sample_id, trajectory}"),
-    split: str = typer.Option(..., help="lite | main | diamond | private"),
+    split: str = typer.Option(..., help="lite | main | diamond | probe | private"),
     out: Path = typer.Option(Path("results.json")),
     grader_model: str = typer.Option(
         None, help="Tier-C grader: omit for the offline StubModelGrader; pass a LiteLLM "

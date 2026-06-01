@@ -19,8 +19,8 @@ from typing import Any
 from spar.simulator.enums import Axis
 from spar.simulator.schemas import Sample
 
-_PUBLIC_SPLITS = {"lite", "main", "diamond"}
-_ALL_SPLITS = {"lite", "main", "diamond", "private"}
+_PUBLIC_SPLITS = {"lite", "main", "diamond", "probe"}
+_ALL_SPLITS = {"lite", "main", "diamond", "private", "probe"}
 
 # Keys a projected public row is allowed to carry (mirrors projection.public_view).
 _PUBLIC_KEYS = frozenset(

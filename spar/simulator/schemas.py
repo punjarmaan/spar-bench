@@ -72,8 +72,9 @@ class Sample(_Model):
     is_trap: bool
     intent_spec: IntentSpec = IntentSpec.EXPLICIT
     diamond: bool = False
-    split: str | None = None   # build-stamped membership ("lite"|"main"|"diamond"); None for
-                               # ad-hoc/toy/gold samples. Dropped by the public projection (F17).
+    split: str | None = None   # build-stamped membership ("lite"|"main"|"diamond"|"probe"); None
+                               # for ad-hoc/toy/gold samples. Dropped by public projection (F17).
+                               # "probe" = derived stratified ~50% subsample of main (not canonical).
     model_graded: bool = False
     seed: int
     canary: str

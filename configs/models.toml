@@ -46,3 +46,48 @@ supports_response_format = false
 price_in_per_mtok  = 3.0
 price_out_per_mtok = 15.0
 version_pin   = "anthropic/claude-sonnet-4@2026-05"
+
+[[model]]
+id            = "deepseek-v3.2"
+route         = "openrouter/deepseek/deepseek-v3.2"
+class         = "frontier"
+supports_response_format = false
+price_in_per_mtok  = 0.25
+price_out_per_mtok = 0.38
+version_pin   = "deepseek/deepseek-v3.2@2026-05"
+
+[[model]]
+id            = "qwen3-235b-a22b"
+route         = "openrouter/qwen/qwen3-235b-a22b-2507"
+class         = "frontier"
+supports_response_format = false
+price_in_per_mtok  = 0.07
+price_out_per_mtok = 0.10
+version_pin   = "qwen/qwen3-235b-a22b-2507@2026-05"
+
+# --- Free OpenRouter models (:free) for the cheap-first probe rollout. $0 spend; heavily
+# rate-limited (low RPM + daily caps) so a full probe run may be slow / hit 429 retries.
+# prompt-format path (supports_response_format=false) to minimize malformed_action on capable models.
+[[model]]
+id            = "gpt-oss-120b-free"
+route         = "openrouter/openai/gpt-oss-120b:free"
+class         = "open"
+supports_response_format = false
+price_in_per_mtok  = 0.0
+price_out_per_mtok = 0.0
+
+[[model]]
+id            = "qwen3-next-80b-free"
+route         = "openrouter/qwen/qwen3-next-80b-a3b-instruct:free"
+class         = "open"
+supports_response_format = false
+price_in_per_mtok  = 0.0
+price_out_per_mtok = 0.0
+
+[[model]]
+id            = "glm-4.5-air-free"
+route         = "openrouter/z-ai/glm-4.5-air:free"
+class         = "open"
+supports_response_format = false
+price_in_per_mtok  = 0.0
+price_out_per_mtok = 0.0
