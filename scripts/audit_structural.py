@@ -17,8 +17,10 @@ OUT = Path("build/audit/structural.jsonl")
 
 
 def naive_passes(s: Sample) -> bool:
-    """Non-trap that bare NaiveCompleteAgent completes correctly (per-sample F1 breach)."""
-    if s.is_trap:
+    """True iff NaiveCompleteAgent completes this non-trap correctly — a dataset-invariant breach
+    (F1 says naive must FAIL every non-trap). Restricted to EXPLICIT non-traps: semantic/
+    underspecified grading needs a model grader, which an offline L1 check does not have."""
+    if s.is_trap or s.intent_spec.value != "explicit":
         return False
     return bool(score(s, run_episode(s, NaiveCompleteAgent(), trial_index=0)).outcome_correct)
 
