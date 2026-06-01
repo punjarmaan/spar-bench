@@ -226,7 +226,7 @@ class World:
 
     # ---- M5 deferred firing (intra-episode capture results arrive on later steps) ----
 
-    def _fire_due_capture_results(self, *, is_observe: bool) -> bool:
+    def _fire_due_capture_results(self, *, is_observe: bool, force: bool = False) -> bool:
         """Fire any due CAPTURE_RESULT events; leave DISPUTE_FILED for drain_deferred.
 
         Returns True iff a capture result fired this step. The async result arrives on its own
@@ -237,10 +237,15 @@ class World:
         still reaches SETTLED but is marked `relied_on_capture_success`, so it FAILS the
         `verify_capture_result` must (closing the F1 hole where naive capture-spam verified for
         free — review CODE-REVIEW H2/G1). A DISPUTE_FILED popped here is re-pushed for the drain.
+
+        `force` fires a pending capture result regardless of its latency timing — used when an
+        agent ends the episode (abort) after a committed capture: the async result was going to
+        fire on its own timeline (reality), so the committed capture is honored rather than lost.
         """
         fired = False
         requeue: list[DeferredEvent] = []
-        for event in self.deferred.drain_through(final_step=self.elapsed_steps):
+        final_step = 2**62 if force else self.elapsed_steps
+        for event in self.deferred.drain_through(final_step=final_step):
             if event.kind is DeferredKind.CAPTURE_RESULT:
                 fired = True
                 if event.payload.get("ok"):
@@ -255,7 +260,14 @@ class World:
                     self._maybe_schedule_dispute()
                 else:
                     self.state = FsmState.DECLINED
-                    self.hidden_final_state["capture_failed"] = True
+                    if is_observe:
+                        # observed the async failure -> verify_capture_result is earned (G1).
+                        self.hidden_final_state["capture_failed"] = True
+                    else:
+                        # crossed the latency by hammering/force, not by observing: the agent
+                        # relied on the capture being resolved without seeing the result, so it
+                        # does NOT earn verify credit (mirrors the ok-branch; G1).
+                        self.hidden_final_state["relied_on_capture_success"] = True
                     self._record_event("capture_failed")
             else:
                 requeue.append(event)
@@ -666,6 +678,20 @@ class World:
             return self._illegal()
         match action:
             case Abort():
+                # An abort cannot cancel a payment that has already been CAPTURED — a capture is
+                # committed (you void/refund it, you don't "abort" it). Models commonly emit a
+                # benign abort("payment complete") sign-off after capturing; treating it as a
+                # cancellation wrongly flipped a correct CLOSED to ABORTED. So an abort after a
+                # committed capture honors the capture: force the pending async result to settle
+                # (it was going to fire regardless) and end SETTLED. The agent relied on success
+                # without observing, so verify_capture_result stays unearned (G1, is_observe=False).
+                # Only a pre-capture abort (or a capture that did not settle) is a real cancel.
+                capture_pending = self._captured and self.state is FsmState.CAPTURE_PENDING
+                if capture_pending:
+                    self._fire_due_capture_results(is_observe=False, force=True)
+                if capture_pending and self.state is FsmState.SETTLED:
+                    self._record_event("abort_after_capture_settled")
+                    return ToolResponse(status=ToolStatus.OK, detail={"state": self.state.value})
                 self.state = FsmState.ABORTED
                 self._record_event("aborted")
                 return ToolResponse(status=ToolStatus.ABORTED)
