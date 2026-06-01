@@ -58,6 +58,35 @@ def test_no_budget_never_over() -> None:
     assert not meter.over_budget()
 
 
+# --- dual accounting: gross (uncached would-be) vs billed (actually spent this run) ---------
+
+
+def test_cache_hit_counts_toward_gross_not_billed() -> None:
+    """A cache HIT (billed=False) is what the run WOULD have cost uncached, but no money was
+    spent this run: it accrues to gross() and leaves spent()/billed() unchanged (no double-count)."""
+    meter = CostMeter(budget_usd=None)
+    meter.record(CallUsage(prompt_tokens=0, completion_tokens=0, response_cost=0.40), _model())
+    meter.record(
+        CallUsage(prompt_tokens=0, completion_tokens=0, response_cost=0.20, billed=False), _model()
+    )
+    assert meter.spent() == 0.40   # actually spent this run (billed): only the live call
+    assert meter.gross() == 0.60   # uncached would-be: both calls
+
+
+def test_budget_cap_keys_on_billed_not_gross() -> None:
+    """Free cache-replay must NEVER trip the cap: a fully-cached resume (all billed=False) stays
+    under budget even when its gross exceeds the cap (audit: free resume even when over budget)."""
+    meter = CostMeter(budget_usd=0.50)
+    meter.record(
+        CallUsage(prompt_tokens=0, completion_tokens=0, response_cost=5.0, billed=False), _model()
+    )
+    assert meter.gross() == 5.0
+    assert not meter.over_budget()      # nothing was actually spent -> cap not tripped
+    meter.record(CallUsage(prompt_tokens=0, completion_tokens=0, response_cost=0.60), _model())
+    assert meter.spent() == 0.60
+    assert meter.over_budget()          # real spend crossed the cap
+
+
 def test_estimate_cost_positive_and_scales_with_price() -> None:
     cheap = _model(id="cheap", price_in_per_mtok=1.0, price_out_per_mtok=2.0)
     dear = _model(id="dear", price_in_per_mtok=100.0, price_out_per_mtok=200.0)

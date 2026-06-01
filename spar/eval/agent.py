@@ -88,11 +88,17 @@ def render_observation(obs: Observation) -> str:
 
 
 class CallUsage(BaseModel):
-    """Per-response token + cost record, read by EM2's cost meter. Cost is float USD."""
+    """Per-response token + cost record, read by EM2's cost meter. Cost is float USD.
+
+    `billed` is False for a cache HIT (the completion was already paid for on the run that
+    populated the cache): it counts toward the GROSS (uncached) cost but NOT the BILLED cost
+    actually spent this run, and never trips the budget cap. A live (cache-miss) call is billed.
+    """
 
     prompt_tokens: int
     completion_tokens: int
     response_cost: float | None
+    billed: bool = True
 
 
 _OUTPUT_CONTRACT = (
@@ -161,11 +167,14 @@ class ModelAgent:
         hidden = getattr(resp, "_hidden_params", {}) or {}
         cost = hidden.get("response_cost")
         usage = resp.usage
+        # A cache replay was already paid for on a prior run: count it as gross-only, not billed.
+        billed = not getattr(resp, "cache_hit", False)
         self.usage.append(
             CallUsage(
                 prompt_tokens=usage.prompt_tokens,
                 completion_tokens=usage.completion_tokens,
                 response_cost=float(cost) if cost is not None else None,
+                billed=billed,
             )
         )
         return str(resp.choices[0].message.content)

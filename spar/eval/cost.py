@@ -31,24 +31,56 @@ def _confirmed_cost(usage: CallUsage, model: ModelConfig) -> float:
 
 
 class CostMeter:
-    """Accrues CONFIRMED agent inference spend (the published cost_usd) and enforces the hard
-    budget cap (design §5.6). Only ModelAgent.usage is recorded — the pinned judge/user-sim are
-    shared overhead and are not metered in v1."""
+    """Accrues agent inference cost and enforces the hard budget cap (design §5.6). Tracks TWO
+    numbers (a cache HIT is `billed=False`):
+
+    - `gross()`  — what the run WOULD cost with no cache: every completion (hits + misses). This is
+      the true compute cost of the work, independent of resume state.
+    - `spent()` / `billed()` — what was ACTUALLY spent this run: cache MISSES only (real paid calls).
+      The budget cap keys on THIS, so a fully-cached resume is free and never trips the cap.
+
+    On a fresh run (empty cache) gross == spent; on a resume spent < gross. Only ModelAgent.usage is
+    recorded here; the pinned judge/user-sim are metered separately as overhead (see record_overhead)."""
 
     def __init__(self, *, budget_usd: float | None) -> None:
         self._budget = budget_usd
-        self._spent = 0.0
+        self._billed = 0.0          # actually spent this run (cache misses) — drives the cap
+        self._gross = 0.0           # uncached would-be cost (hits + misses)
+        self._overhead = 0.0        # judge/user-sim spend (real money, also capped)
 
     def record(self, usage: CallUsage, model: ModelConfig) -> None:
-        # Round the running total to sub-cent precision so accumulated float USD stays clean
+        # Round each running total to sub-cent precision so accumulated float USD stays clean
         # (avoids IEEE-754 drift like 0.40 + 0.20 == 0.6000000000000001).
-        self._spent = round(self._spent + _confirmed_cost(usage, model), 10)
+        cost = _confirmed_cost(usage, model)
+        self._gross = round(self._gross + cost, 10)
+        if usage.billed:
+            self._billed = round(self._billed + cost, 10)
+
+    def record_overhead(self, cost_usd: float) -> None:
+        """Record judge/user-sim (responder/grader) spend — real money, billed and capped, but
+        reported separately from the agent's cost_usd."""
+        self._overhead = round(self._overhead + cost_usd, 10)
 
     def spent(self) -> float:
-        return self._spent
+        """Actual agent money spent this run (cache misses only) — the published cost_usd."""
+        return self._billed
+
+    def billed(self) -> float:
+        """Alias of spent(): agent money actually spent this run."""
+        return self._billed
+
+    def gross(self) -> float:
+        """What the run would cost with no cache (every completion, hits included)."""
+        return self._gross
+
+    def overhead(self) -> float:
+        """Judge/user-sim (responder/grader) money spent this run."""
+        return self._overhead
 
     def over_budget(self) -> bool:
-        return self._budget is not None and self._spent >= self._budget
+        # Cap on ACTUAL money out the door: agent (billed) + responder/grader overhead. Cache
+        # replays (gross-only) never count, so a resume stays free even when over budget.
+        return self._budget is not None and (self._billed + self._overhead) >= self._budget
 
 
 # Heuristic per-request token sizes for the pre-flight estimate (deliberately coarse, §5.6):

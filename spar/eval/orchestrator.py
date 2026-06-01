@@ -129,15 +129,19 @@ class _CachedChoice:
 
 
 class _CachedResponse:
-    """Replays a cached completion in the litellm response shape the agent reads."""
+    """Replays a cached completion in the litellm response shape the agent reads.
 
-    def __init__(self, payload: dict[str, Any]) -> None:
+    `cache_hit` tells the agent whether this completion was a replay (already paid for on a prior
+    run → counts toward gross cost but not billed) or a fresh paid call (`cache_hit=False`)."""
+
+    def __init__(self, payload: dict[str, Any], *, cache_hit: bool) -> None:
         self.choices = [_CachedChoice(payload["content"])]
         self.usage = type("U", (), {
             "prompt_tokens": payload.get("prompt_tokens", 0),
             "completion_tokens": payload.get("completion_tokens", 0),
         })()
         self._hidden_params = {"response_cost": payload.get("response_cost")}
+        self.cache_hit = cache_hit
 
 
 def _extract(resp: Any) -> dict[str, Any]:
@@ -172,7 +176,8 @@ def _cached_completion_fn(
         cached = cache.get(key)
         if cached is not None:
             # Cache hit: replay stored response, zero paid calls — never raise BudgetExceeded.
-            return _CachedResponse(cached)
+            # Marked cache_hit=True so the agent records it as gross-only (not billed this run).
+            return _CachedResponse(cached, cache_hit=True)
         # Cache miss: about to make a paid call — check budget BEFORE proceeding.
         if meter is not None and meter.over_budget():
             raise BudgetExceeded(f"budget exhausted (spent ${meter.spent():.4f})")
@@ -182,7 +187,7 @@ def _cached_completion_fn(
         )
         payload = _extract(resp)
         cache.put(key, payload)
-        return _CachedResponse(payload)
+        return _CachedResponse(payload, cache_hit=False)
 
     return fn
 
@@ -484,7 +489,9 @@ def evaluate_model(
             "competence": profile.competence.model_dump(),
             "reliability": profile.reliability.model_dump(),
         },
-        "cost_usd": meter.spent(),
+        "cost_usd": meter.spent(),               # agent money ACTUALLY spent this run (cache misses)
+        "gross_cost_usd": meter.gross(),         # what the run would cost uncached (hits + misses)
+        "overhead_cost_usd": meter.overhead(),   # judge/user-sim (responder/grader) money spent
         "run_date": date.today().isoformat(),
         "cache_digest": cache.digest(),
         "concurrency": concurrency,
