@@ -61,6 +61,28 @@ def _make_grader(grader_model: str | None) -> ModelGrader:
     return LiteLLMModelGrader(grader_model)
 
 
+def _unpriced_warnings(
+    models: list[ModelConfig], *, only: str | None, budget_usd: float | None
+) -> list[str]:
+    """One warning per to-be-run model that is UNPRICED while a budget cap is set. An unpriced
+    model meters at $0 whenever the provider omits response_cost, so the cap silently can't fire.
+    Returns [] when no budget is set (the cap is moot) or every selected model is priced."""
+    if budget_usd is None:
+        return []
+    out: list[str] = []
+    for m in models:
+        if only is not None and m.id != only:
+            continue
+        if m.price_in_per_mtok is None or m.price_out_per_mtok is None:
+            out.append(
+                f"WARNING: model '{m.id}' has no price_in/out_per_mtok in the roster. The "
+                f"${budget_usd:g} budget cap then relies ENTIRELY on provider-reported cost; if "
+                "the provider omits it, spend meters at $0 and the cap will NOT fire. Add prices "
+                "to models.toml to guarantee the cap."
+            )
+    return out
+
+
 def _run_eval(
     *,
     models: list[ModelConfig],
@@ -254,6 +276,10 @@ def eval_models(
     if offline:
         cache_dir = cache_dir / "_offline"
     roster = load_models(models)
+    # Guard (audit S?/B-cost): an unpriced model meters at $0 if the provider omits response_cost,
+    # silently defeating the budget cap. Warn loudly before any spend.
+    for warning in _unpriced_warnings(roster, only=only, budget_usd=budget_usd):
+        typer.echo(warning, err=True)
     prof = load_profile(profile)
     grader = _make_grader(grader_model)
     responder: UserSim = (
