@@ -39,7 +39,7 @@ from spar.simulator.contract import (
 )
 
 # Bump on ANY change to the prompt template, tool catalog, or parser (spec standard 1).
-SCAFFOLD_VERSION = "2.1.0"
+SCAFFOLD_VERSION = "2.2.0"
 
 # Native reasoning effort level passed to the provider for reasoning-capable models.
 # litellm-standard level ("low"/"medium"/"high"); pinned to "high" for maximum reasoning on this
@@ -56,7 +56,6 @@ _TOOL_MODELS = (
     SelectRoute, ComputeTax, SubmitAuthorization, HandleChallenge, Retry,
     ModifyCart, RequestUserConfirmation, Capture, Void, Refund, Abort,
 )
-
 
 def _tool_name(tool_schema: dict[str, object]) -> str:
     """Extract the `tool` Literal value from its JSON-schema fragment.
@@ -87,6 +86,14 @@ def tool_catalog() -> str:
         required = [r for r in schema.get("required", []) if r != "tool"]
         catalog[name] = {"properties": props, "required": required}
     return json.dumps(catalog, sort_keys=True)
+
+
+# Frozenset of valid tool names derived from _TOOL_MODELS — used by the lenient fallback parser
+# so it never drifts from the real action space.
+_VALID_TOOLS: frozenset[str] = frozenset(
+    _tool_name(model.model_json_schema()["properties"]["tool"])
+    for model in _TOOL_MODELS
+)
 
 
 def render_observation(obs: Observation) -> str:
@@ -132,10 +139,56 @@ def _build_system_prompt(policy_text: str, mandate_text: str) -> str:
 
 
 def _to_action(content: str) -> Action:
-    """Parse a model reply ({"tool","args"}) into an Action. Raises on malformed/unknown/bad-args."""
-    raw = json.loads(content)
-    data = {"tool": raw["tool"], **raw.get("args", {})}
-    return parse_action(data)
+    """Parse a model reply into an Action. Raises on malformed/unknown/bad-args.
+
+    Primary path: {"tool": "<name>", "args": {...}} — unchanged from 2.1.0.
+    Lenient fallbacks (tried in order when primary fails):
+      a. Strip markdown fences (```[json]...```) and retry primary path.
+      b. Alternate envelope: a dict with exactly ONE key that is a valid tool name,
+         e.g. {"compute_tax": {}} or {"request_user_confirmation": {"reason": "x"}}.
+    Genuinely garbage input (prose, empty, unknown single key) still raises.
+    """
+    # --- Primary path ---
+    def _parse_standard(raw_obj: dict) -> Action:  # type: ignore[return]
+        data = {"tool": raw_obj["tool"], **raw_obj.get("args", {})}
+        return parse_action(data)
+
+    try:
+        raw = json.loads(content)
+        return _parse_standard(raw)
+    except Exception as primary_exc:
+        pass
+
+    # --- Fallback a: strip markdown fences ---
+    stripped = content.strip()
+    if stripped.startswith("```"):
+        # Remove opening fence (```json or ```)
+        first_newline = stripped.find("\n")
+        if first_newline != -1:
+            inner = stripped[first_newline + 1:]
+            # Remove closing fence
+            if inner.rstrip().endswith("```"):
+                inner = inner.rstrip()[:-3].rstrip()
+            try:
+                raw = json.loads(inner)
+                return _parse_standard(raw)
+            except Exception:
+                pass
+
+    # --- Fallback b: alternate envelope {tool_name: args_dict} ---
+    try:
+        raw = json.loads(content)
+        if isinstance(raw, dict) and len(raw) == 1:
+            (key, value) = next(iter(raw.items()))
+            if key in _VALID_TOOLS:
+                args = value if isinstance(value, dict) else {}
+                data = {"tool": key, **args}
+                return parse_action(data)
+    except Exception:
+        pass
+
+    # All fallbacks exhausted — re-raise the original failure.
+    raise primary_exc  # type: ignore[misc]
 
 
 def _debug_log_malformed(

@@ -24,7 +24,7 @@ from spar.simulator.mandates import IntentMandate
 
 
 def test_scaffold_version_is_pinned():
-    assert SCAFFOLD_VERSION == "2.1.0"
+    assert SCAFFOLD_VERSION == "2.2.0"
 
 
 def test_tool_catalog_is_json_covering_all_eleven_tools():

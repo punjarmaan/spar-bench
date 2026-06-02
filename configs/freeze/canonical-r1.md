@@ -73,7 +73,7 @@ Run all publication evals from this repo commit, or a descendant that does **not
 
 ## 5b. Scaffold & reasoning policy (frozen; part of `scaffold_version`)
 
-- **`scaffold_version`: `2.1.0`** (uniform JSON-action `ModelAgent`; measures model-under-fixed-harness,
+- **`scaffold_version`: `2.2.0`** (uniform JSON-action `ModelAgent`; measures model-under-fixed-harness,
   not model+scaffold).
 - **Native reasoning ON, effort `high`**, for the reasoning-capable models-under-test (per each
   model's OpenRouter `supported_parameters`): claude-opus-4, gpt-5, claude-sonnet-4, deepseek-v3.2,
