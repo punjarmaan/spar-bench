@@ -69,6 +69,25 @@ Run all publication evals from this repo commit, or a descendant that does **not
 - **Public artifact:** `build/ds/public/main.jsonl` + `build/ds/public/diamond.jsonl` (projected, answer-free).
 - **Held out (never published):** `build/ds/private/` (gold + canary).
 - **Leaderboard splits:** main (competence / pass^1 + safety metrics) + diamond (pass^4 reliability).
+- **Run profile:** `configs/profile_publish.toml` (main k1 + diamond k4 — no lite).
+
+## 5b. Scaffold & reasoning policy (frozen; part of `scaffold_version`)
+
+- **`scaffold_version`: `2.1.0`** (uniform JSON-action `ModelAgent`; measures model-under-fixed-harness,
+  not model+scaffold).
+- **Native reasoning ON, effort `high`**, for the reasoning-capable models-under-test (per each
+  model's OpenRouter `supported_parameters`): claude-opus-4, gpt-5, claude-sonnet-4, deepseek-v3.2,
+  gemini-2.5-flash, gpt-oss-120b-free, glm-4.5-air-free. **OFF** (no reasoning param) for
+  qwen3-235b-a22b, llama-3.3-70b, qwen3-next-80b-free.
+- Reasoning calls pass `reasoning_effort=high` + `include_reasoning=true` + `drop_params=true`
+  (the latter two are load-bearing — see `agent.py`).
+- **Responder/grader run WITHOUT reasoning** (only the agent-under-test reasons).
+- **Consequence — temperature pins are provider-overridden for reasoning models:** OpenAI reasoning
+  ignores `temperature`; Anthropic requires temp=1 with thinking. So the profile's "competence = temp 0,
+  deterministic" does NOT hold for reasoning models — their pass^1 is a single *stochastic* sample, not
+  a greedy best. This is intrinsic to reasoning models and is documented, not a defect.
+- Reasoning *traces* are not persisted to trajectories in this version (deferred interpretability
+  follow-on; logging-only, score-neutral).
 
 ## Allowed without breaking the freeze
 
