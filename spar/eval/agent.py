@@ -13,6 +13,7 @@ Cost is float USD (Decimal stays reserved for simulator money).
 from __future__ import annotations
 
 import json
+import os
 
 from pydantic import BaseModel
 
@@ -44,6 +45,11 @@ SCAFFOLD_VERSION = "2.1.0"
 # litellm-standard level ("low"/"medium"/"high"); pinned to "high" for maximum reasoning on this
 # safety benchmark. Changing this value bumps the frozen scaffold — increment SCAFFOLD_VERSION.
 REASONING_EFFORT = "high"
+
+# Output-token cap for reasoning calls. Reasoning tokens count toward max_tokens, and effort=high
+# overruns the profile's 2048 (truncates to empty content -> malformed) on complex turns. A generous
+# cap; it only consumes tokens if the model actually reasons that far.
+REASONING_MAX_TOKENS = 16384
 
 # The 11 tool models, keyed by their `tool` Literal — the real action space (contract.py).
 _TOOL_MODELS = (
@@ -132,6 +138,30 @@ def _to_action(content: str) -> Action:
     return parse_action(data)
 
 
+def _debug_log_malformed(
+    *, route: str, step: int, initial_content: str, retry_content: str,
+    initial_reasoning: str | None, retry_reasoning: str | None,
+) -> None:
+    """DIAGNOSTIC ONLY: append the raw replies that failed to parse to the path in the
+    SPAR_DEBUG_MALFORMED env var. No-op (score-neutral) when the var is unset — never affects a
+    run's behavior or scoring; exists to inspect WHY reasoning models malform on the prompt-format
+    path. Best-effort append; swallows IO errors so it can never break an episode."""
+    path = os.environ.get("SPAR_DEBUG_MALFORMED")
+    if not path:
+        return
+    rec = {
+        "route": route, "step": step,
+        "initial_content": initial_content[:4000], "retry_content": retry_content[:4000],
+        "initial_reasoning": (initial_reasoning or "")[:4000],
+        "retry_reasoning": (retry_reasoning or "")[:4000],
+    }
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec) + "\n")
+    except OSError:
+        pass
+
+
 class ModelAgent:
     """Agent-under-test (spec §5.1). Satisfies `Agent.act`. One fresh instance per pass^k trial."""
 
@@ -152,6 +182,7 @@ class ModelAgent:
         self.reasoning = reasoning
         self._completion_fn = completion_fn
         self.usage: list[CallUsage] = []
+        self._last_reasoning: str | None = None   # reasoning trace from the most recent _call (diag)
         self.transcript: list[dict[str, str]] = [
             {"role": "system", "content": _build_system_prompt(policy_text, mandate_text)}
         ]
@@ -177,6 +208,11 @@ class ModelAgent:
             kw["reasoning_effort"] = REASONING_EFFORT
             kw["include_reasoning"] = True
             kw["drop_params"] = True
+            # Reasoning tokens count toward max_tokens. effort=high emits ~2.6k+ reasoning tokens, so
+            # the profile's 2048 truncates (finish_reason=length -> EMPTY content -> malformed) on
+            # complex turns. Raise the cap so reasoning + the JSON answer both fit. It's a CAP (only
+            # consumed if the model reasons that far), so it adds no cost on typical turns.
+            kw["max_tokens"] = REASONING_MAX_TOKENS
         return kw
 
     def _call(self, messages: list[dict[str, str]]) -> str:
@@ -195,12 +231,15 @@ class ModelAgent:
                 billed=billed,
             )
         )
-        raw_content = resp.choices[0].message.content
+        msg = resp.choices[0].message
+        self._last_reasoning = getattr(msg, "reasoning_content", None)
+        raw_content = msg.content
         return "" if raw_content is None else str(raw_content)
 
     def act(self, observation: Observation) -> Action:
         self.transcript.append({"role": "user", "content": render_observation(observation)})
         content = self._call(self.transcript)
+        initial_reasoning = self._last_reasoning
         try:
             action = _to_action(content)
         except Exception:
@@ -216,6 +255,11 @@ class ModelAgent:
                 content = retry_content
             except Exception:
                 # A model that cannot follow the contract scores honestly (malformed-rate published).
+                _debug_log_malformed(
+                    route=self.route, step=len(self.transcript),
+                    initial_content=content, retry_content=retry_content,
+                    initial_reasoning=initial_reasoning, retry_reasoning=self._last_reasoning,
+                )
                 action = Abort(tool="abort", reason="malformed_action")
                 content = action.model_dump_json()
         self.transcript.append({"role": "assistant", "content": content})

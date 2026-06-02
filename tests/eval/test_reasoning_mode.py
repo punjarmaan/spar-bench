@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 
 from spar.eval.models import ModelConfig, load_models
-from spar.eval.agent import ModelAgent, agent_factory, REASONING_EFFORT
+from spar.eval.agent import ModelAgent, agent_factory, REASONING_EFFORT, REASONING_MAX_TOKENS
 from spar.eval.profile import StageSampling
 from spar.simulator.contract import Abort
 
@@ -171,6 +171,8 @@ def test_reasoning_model_receives_reasoning_kwargs():
     assert first_kwargs.get("reasoning_effort") == REASONING_EFFORT
     assert first_kwargs.get("include_reasoning") is True
     assert first_kwargs.get("drop_params") is True
+    # reasoning overrides the profile max_tokens so thinking can't truncate the JSON answer
+    assert first_kwargs.get("max_tokens") == REASONING_MAX_TOKENS
 
 
 def test_non_reasoning_model_does_not_receive_reasoning_kwargs():
@@ -195,6 +197,8 @@ def test_non_reasoning_model_does_not_receive_reasoning_kwargs():
         assert "reasoning_effort" not in kwargs
         assert "include_reasoning" not in kwargs
         assert "drop_params" not in kwargs
+        # non-reasoning models keep the profile's max_tokens (no override)
+        assert kwargs.get("max_tokens") == _SAMPLING.max_tokens
 
 
 # ---------------------------------------------------------------------------
