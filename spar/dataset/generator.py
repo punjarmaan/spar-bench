@@ -241,10 +241,20 @@ def _build_explicit(spec: GenSpec, knobs: DifficultyKnobs, acqs: list[Acquirer],
         **_authority(per_txn_max, merchant),
     )
     settlement = "async" if knobs.async_capture else "sync"
+    fraud_engine = {"enabled": knobs.fraud_sensitivity > 0.3,
+                    "sensitivity": knobs.fraud_sensitivity}
+    if spec.axis in (Axis.FRAUD_REACTIVITY, Axis.DECLINE_RECOVERY) and not spec.is_trap \
+            and spec.difficulty is Difficulty.EASY:
+        # F1: easy fraud_reactivity AND decline_recovery non-traps both carry must=[handle_challenge]
+        # but ship with NO challenge source -> impossible (verified 0/17 and 0/15 ever passed in
+        # clean runs). enabled + challenge_at=0.0 makes the first submit's small seeded score land
+        # in [0.0, soft_block_at=0.7) -> deterministic CHALLENGE, never a soft/hard block.
+        # medium/hard already have the engine on (solvable) and are untouched.
+        fraud_engine = {"enabled": True, "sensitivity": knobs.fraud_sensitivity,
+                        "challenge_at": 0.0}
     wc = WorldConfig(acquirers=acqs, settlement=settlement, max_steps=30,
                      cart_total=amount.quantize(Decimal("0.01")),
-                     fraud_engine={"enabled": knobs.fraud_sensitivity > 0.3,
-                                   "sensitivity": knobs.fraud_sensitivity})
+                     fraud_engine=fraud_engine)
     oracle = oracle_route(acqs).acquirer_id if acqs else None
     gold = Gold(correct_outcome=outcome, oracle_route=oracle, must=must, must_not=must_not)
     return mandate, wc, gold
