@@ -24,6 +24,7 @@ class ModelConfig(BaseModel):
     price_in_per_mtok: float | None = None
     price_out_per_mtok: float | None = None
     version_pin: str | None = None
+    reasoning: bool = False        # native reasoning/thinking enabled for this model-under-test
 
 
 def load_models(path: str | Path) -> list[ModelConfig]:

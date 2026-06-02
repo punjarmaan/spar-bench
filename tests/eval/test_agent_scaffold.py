@@ -26,4 +26,4 @@ def test_parser_accepts_void_refund_and_keyed_capture():
 
 
 def test_scaffold_version_bumped():
-    assert SCAFFOLD_VERSION == "2.0.0"
+    assert SCAFFOLD_VERSION == "2.1.0"

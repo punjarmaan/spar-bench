@@ -38,7 +38,10 @@ from spar.simulator.contract import (
 )
 
 # Bump on ANY change to the prompt template, tool catalog, or parser (spec standard 1).
-SCAFFOLD_VERSION = "2.0.0"
+SCAFFOLD_VERSION = "2.1.0"
+
+# Native reasoning effort level passed to the provider for reasoning-capable models.
+REASONING_EFFORT = "high"
 
 # The 11 tool models, keyed by their `tool` Literal — the real action space (contract.py).
 _TOOL_MODELS = (
@@ -139,10 +142,12 @@ class ModelAgent:
         supports_response_format: bool,
         completion_fn: CompletionFn,
         mandate_text: str,
+        reasoning: bool = False,
     ) -> None:
         self.route = route
         self.sampling = sampling
         self.supports_response_format = supports_response_format
+        self.reasoning = reasoning
         self._completion_fn = completion_fn
         self.usage: list[CallUsage] = []
         self.transcript: list[dict[str, str]] = [
@@ -159,6 +164,10 @@ class ModelAgent:
             kw["seed"] = self.sampling.seed
         if self.supports_response_format:
             kw["response_format"] = {"type": "json_object"}
+        if self.reasoning:
+            kw["reasoning_effort"] = REASONING_EFFORT
+            kw["include_reasoning"] = True
+            kw["drop_params"] = True
         return kw
 
     def _call(self, messages: list[dict[str, str]]) -> str:
@@ -177,7 +186,8 @@ class ModelAgent:
                 billed=billed,
             )
         )
-        return str(resp.choices[0].message.content)
+        raw_content = resp.choices[0].message.content
+        return "" if raw_content is None else str(raw_content)
 
     def act(self, observation: Observation) -> Action:
         self.transcript.append({"role": "user", "content": render_observation(observation)})
@@ -221,6 +231,7 @@ def agent_factory(
             supports_response_format=model.supports_response_format,
             completion_fn=completion_fn,
             mandate_text=mandate_text,
+            reasoning=model.reasoning,
         )
 
     return _make

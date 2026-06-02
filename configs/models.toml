@@ -10,6 +10,7 @@ supports_response_format = true
 price_in_per_mtok  = 15.0
 price_out_per_mtok = 75.0
 version_pin   = "anthropic/claude-opus-4@2026-05"
+reasoning     = true
 
 [[model]]
 id            = "gpt-5"
@@ -19,6 +20,7 @@ supports_response_format = true
 price_in_per_mtok  = 10.0
 price_out_per_mtok = 30.0
 version_pin   = "openai/gpt-5@2026-05"
+reasoning     = true
 
 [[model]]
 id            = "llama-3.3-70b"
@@ -40,6 +42,7 @@ supports_response_format = true
 price_in_per_mtok  = 0.30
 price_out_per_mtok = 2.50
 version_pin   = "google/gemini-2.5-flash"
+reasoning     = true
 
 [[model]]
 id            = "claude-sonnet-4"
@@ -49,6 +52,7 @@ supports_response_format = false
 price_in_per_mtok  = 3.0
 price_out_per_mtok = 15.0
 version_pin   = "anthropic/claude-sonnet-4@2026-05"
+reasoning     = true
 
 [[model]]
 id            = "deepseek-v3.2"
@@ -58,6 +62,7 @@ supports_response_format = false
 price_in_per_mtok  = 0.25
 price_out_per_mtok = 0.38
 version_pin   = "deepseek/deepseek-v3.2@2026-05"
+reasoning     = true
 
 [[model]]
 id            = "qwen3-235b-a22b"
@@ -78,6 +83,7 @@ class         = "open"
 supports_response_format = false
 price_in_per_mtok  = 0.0
 price_out_per_mtok = 0.0
+reasoning     = true
 
 [[model]]
 id            = "qwen3-next-80b-free"
@@ -94,3 +100,4 @@ class         = "open"
 supports_response_format = false
 price_in_per_mtok  = 0.0
 price_out_per_mtok = 0.0
+reasoning     = true
