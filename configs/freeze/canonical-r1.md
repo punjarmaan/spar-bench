@@ -56,8 +56,13 @@ Run all publication evals from this repo commit, or a descendant that does **not
 
 ## 4. Model pins (responder + grader — they move scores, so they're frozen)
 
-- `--responder-model`: `openrouter/google/gemini-2.0-flash-001@2026-05`
-- `--grader-model`: `openrouter/google/gemini-2.0-flash-001@2026-05`
+- `--responder-model`: `openrouter/google/gemini-2.5-flash`
+- `--grader-model`: `openrouter/google/gemini-2.5-flash`
+
+> Updated 2026-06-02: the original pin `gemini-2.0-flash-001@2026-05` was invalid — the model was
+> delisted on OpenRouter (404) and the `@date` suffix is rejected (400). A validation run mislabeled
+> the resulting failures as `context_overflow`. Pass BARE ids; OpenRouter has no `@date` pinning.
+> `gemini-2.5-flash` confirmed live and is neutral vs the models under test (Anthropic/OpenAI/DeepSeek/Qwen).
 
 ## 5. Published scope
 
@@ -80,13 +85,15 @@ Run all publication evals from this repo commit, or a descendant that does **not
 
 ## Run-manifest cross-check (before publishing)
 
-Every `runs_*/<model>/run_manifest.json` stamps `canary`, `build_seed`, `grader_model`,
-`responder_model`, `sampling`, `weights`. Confirm **all** published models carry:
+Every `runs_*/<model>/run_manifest.json` stamps `canary`, `grader_model`, `responder_model`,
+`sampling`, `weights`. Confirm **all** published models carry:
 
 ```
 canary        = spar:780f5805-8e46-435c-abd5-977e0dfd4a66
-build_seed    = 1
-grader_model  = responder_model = openrouter/google/gemini-2.0-flash-001@2026-05
+grader_model  = responder_model = openrouter/google/gemini-2.5-flash
 ```
 
-A model whose manifest differs on any of these is not comparable — exclude it or re-run it.
+The **canary is the authoritative dataset-identity field** (it round-trips from the build). Do NOT
+cross-check on the run manifest's `build_seed`/`spar_version` — those stamp code defaults (observed
+`build_seed=0`, `spar_version=0.1.0`), not the dataset's seed-1/`canonical-r1`. A model whose manifest
+differs on canary or the model pins is not comparable — exclude it or re-run it.

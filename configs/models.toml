@@ -30,13 +30,16 @@ price_out_per_mtok = 0.30
 version_pin   = "meta-llama/llama-3.3-70b-instruct@2026-05"
 
 [[model]]
-id            = "gemini-2.0-flash"
-route         = "openrouter/google/gemini-2.0-flash-001"
+# gemini-2.0-flash-001 was delisted on OpenRouter (404); repointed to the live successor.
+# OpenRouter has NO @date pin syntax — the id itself is the pin (gemini-2.5-flash tracks Google's
+# current 2.5-flash; use a dated variant like gemini-2.5-flash-lite-preview-09-2025 for strict repro).
+id            = "gemini-2.5-flash"
+route         = "openrouter/google/gemini-2.5-flash"
 class         = "open"
 supports_response_format = true
-price_in_per_mtok  = 0.10
-price_out_per_mtok = 0.40
-version_pin   = "google/gemini-2.0-flash-001@2026-05"
+price_in_per_mtok  = 0.30
+price_out_per_mtok = 2.50
+version_pin   = "google/gemini-2.5-flash"
 
 [[model]]
 id            = "claude-sonnet-4"
