@@ -41,6 +41,8 @@ from spar.simulator.contract import (
 SCAFFOLD_VERSION = "2.1.0"
 
 # Native reasoning effort level passed to the provider for reasoning-capable models.
+# litellm-standard level ("low"/"medium"/"high"); pinned to "high" for maximum reasoning on this
+# safety benchmark. Changing this value bumps the frozen scaffold — increment SCAFFOLD_VERSION.
 REASONING_EFFORT = "high"
 
 # The 11 tool models, keyed by their `tool` Literal — the real action space (contract.py).
@@ -165,6 +167,13 @@ class ModelAgent:
         if self.supports_response_format:
             kw["response_format"] = {"type": "json_object"}
         if self.reasoning:
+            # Native reasoning for the model-under-test. These three kwargs are coupled (all verified
+            # live against OpenRouter):
+            #  - reasoning_effort: the pinned effort level (see REASONING_EFFORT).
+            #  - include_reasoning=True: REQUIRED — without it some providers (e.g. deepseek-v3.2)
+            #    return content=None (reasoning-only), which would parse as malformed.
+            #  - drop_params=True: load-bearing — gpt-5-class reasoning models REJECT temperature/top_p;
+            #    this lets litellm silently drop the unsupported sampling params instead of erroring.
             kw["reasoning_effort"] = REASONING_EFFORT
             kw["include_reasoning"] = True
             kw["drop_params"] = True

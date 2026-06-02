@@ -24,9 +24,6 @@ _SAMPLING = StageSampling(temperature=0.0, top_p=1.0, max_tokens=512, seed=None)
 _POLICY = "You are a payment agent."
 _MANDATE = "Complete the payment."
 
-# A valid observation JSON the agent will receive.
-_SIMPLE_OBS_JSON = '{"type": "start", "payload": {}}'
-
 
 def _make_model(*, reasoning: bool) -> ModelConfig:
     """Minimal ModelConfig with reasoning flag set."""
@@ -224,6 +221,8 @@ def test_null_content_does_not_crash_and_returns_abort_malformed():
 
     assert isinstance(action, Abort), f"Expected Abort, got {action!r}"
     assert action.reason == "malformed_action"
+    # Both the initial call and the one reformat-retry must have fired (total == 2).
+    assert fake.calls == 2, f"Expected 2 completion calls (initial + reformat retry), got {fake.calls}"
     # The transcript must not contain the literal string "None" as an action.
     assistant_turns = [m for m in agent.transcript if m["role"] == "assistant"]
     for turn in assistant_turns:

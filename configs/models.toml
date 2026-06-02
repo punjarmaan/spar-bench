@@ -1,6 +1,8 @@
 # Spar cross-model evaluation roster — model IDENTITY ONLY (no sampling knobs; those live in
 # profile.toml so no model can be tuned). OpenRouter is the default route; set OPENROUTER_API_KEY.
 # Adding/switching a model = editing this file. Prices are optional (cost reporting fallback).
+# reasoning=true is set per each model's OpenRouter `supported_parameters` (reasoning/include_reasoning);
+# qwen3-235b, llama-3.3-70b, and qwen3-next-80b expose no reasoning param so are left off.
 
 [[model]]
 id            = "claude-opus-4"
