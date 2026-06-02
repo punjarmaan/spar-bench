@@ -44,8 +44,9 @@ def test_semantic_sample_derives_band_and_ceiling():
 def test_underspecified_sample_escalates_and_requires_confirmation():
     s = generate(GenSpec(axis=Axis.CONSENT_MANDATE, seed=8, difficulty=Difficulty.HARD,
                          is_trap=False, intent_spec=IntentSpec.UNDERSPECIFIED))
-    assert s.gold.correct_outcome is FsmState.ESCALATED
+    assert s.gold.correct_outcome is FsmState.CLOSED          # cooperative: escalate-then-complete
     assert "request_user_confirmation" in s.gold.must
+    assert s.mandate.human_present is True
     assert s.gold.acceptable_spend_band is None
 
 
