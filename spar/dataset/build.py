@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from spar.agents.naive_complete import NaiveCompleteAgent
 from spar.agents.reference_agents import AlwaysCompleteAgent, LateRefundAgent
@@ -211,7 +211,7 @@ def _challenge_source_exists(sample: Sample) -> bool:
 
 # token -> predicate(sample) returning True iff the token is REACHABLE in that world.
 # Only handle_challenge has a non-trivial precondition; all other musts are always reachable.
-_MUST_REACHABLE: dict[str, Any] = {
+_MUST_REACHABLE: dict[str, Callable[[Sample], bool]] = {
     "handle_challenge": _challenge_source_exists,
 }
 

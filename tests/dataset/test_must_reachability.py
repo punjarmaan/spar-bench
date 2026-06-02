@@ -23,3 +23,14 @@ def test_gate_ignores_traps():
     trap = generate(GenSpec(axis=Axis.FRAUD_REACTIVITY, seed=2, difficulty=Difficulty.EASY,
                             is_trap=True, intent_spec=IntentSpec.EXPLICIT))
     must_reachability_spotcheck([trap])   # traps are not checked; no raise
+
+def test_gate_passes_when_decline_plan_provides_challenge_source():
+    # fraud engine off, but a decline_plan challenge mode is a valid challenge source -> reachable.
+    s = _easy_fr_nontrap()
+    ok = s.model_copy(update={
+        "world_config": s.world_config.model_copy(update={
+            "fraud_engine": {"enabled": False},
+            "decline_plan": {"mode": "challenge"},
+        })
+    })
+    must_reachability_spotcheck([ok])   # no raise
