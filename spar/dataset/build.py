@@ -206,6 +206,12 @@ def _challenge_source_exists(sample: Sample) -> bool:
     wc = sample.world_config
     if wc.fraud_engine.get("enabled"):
         return True
+    # NOTE: literal mode=="challenge" only. This branch is currently unreached (every handle_challenge
+    # non-trap sources its challenge from the fraud engine above). It does NOT mirror world.py's full
+    # decline-plan resolver (which emits a CHALLENGE for any plan whose resolved kind=="challenge").
+    # If a future generator wires a sampled/scripted decline_plan challenge source, extend this to
+    # mirror that resolver rather than relying on the literal mode string. Failure mode is safe: a
+    # mismatch here over-rejects (loud build break), never lets an impossible sample through.
     return (wc.decline_plan or {}).get("mode") == "challenge"
 
 
