@@ -8,12 +8,13 @@ LiteLLMUserSim (Task 2) is the production responder.
 from __future__ import annotations
 
 import json
+import re
 import threading
 from collections.abc import Callable, MutableMapping
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, Literal, Protocol, runtime_checkable
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from spar.simulator.rng import stable_hash
 
@@ -67,6 +68,47 @@ _USER_SIM_SYSTEM = (
     'and "message" (a short natural-language reply). '
     "Pick the smallest defensible bound that still meets your goal."
 )
+
+
+_STRICT_FORMAT_REMINDER = (
+    'Return ONLY strict JSON: {"decision":"approve|approve_bound|deny",'
+    '"bound":<number or null>,"message":<string>}'
+)
+
+
+def _coerce_bound(v: Any) -> Decimal | None:
+    """Convert a raw bound value from the LLM JSON reply to Decimal | None.
+
+    - None / JSON null → None.
+    - Try Decimal(str(v)) directly.
+    - On failure, strip non-numeric chars (keep digits, '.', '-') and retry.
+      Recovers "1,000.00"→1000.00, "$50"→50, "50 USD"→50.
+    - If still unparseable (e.g. "N/A", "") → None (treated as no cap; runner
+      clamps to per_txn_max, which is always safe).
+    """
+    if v is None:
+        return None
+    try:
+        return Decimal(str(v))
+    except (InvalidOperation, ValueError, TypeError, ArithmeticError):
+        pass
+    cleaned = re.sub(r"[^\d.\-]", "", str(v))
+    if not cleaned or cleaned in (".", "-"):
+        return None
+    try:
+        return Decimal(cleaned)
+    except (InvalidOperation, ValueError, TypeError, ArithmeticError):
+        return None
+
+
+def _parse_reply(content: str) -> UserResponse | None:
+    """Parse a raw LLM content string into a UserResponse, or return None on any failure."""
+    try:
+        raw = json.loads(content)
+        bound = _coerce_bound(raw.get("bound"))
+        return UserResponse(decision=raw["decision"], bound=bound, message=raw.get("message"))
+    except (json.JSONDecodeError, KeyError, ValidationError, TypeError):
+        return None
 
 
 def _default_completion_fn() -> CompletionFn:
@@ -124,8 +166,34 @@ class LiteLLMUserSim:
         hidden = getattr(resp, "_hidden_params", {}) or {}
         with self._cost_lock:
             self.cost_usd = round(self.cost_usd + float(hidden.get("response_cost") or 0.0), 10)
-        raw = json.loads(resp.choices[0].message.content)
-        bound = Decimal(raw["bound"]) if raw.get("bound") is not None else None
-        answer = UserResponse(decision=raw["decision"], bound=bound, message=raw.get("message"))
+        answer = _parse_reply(resp.choices[0].message.content)
+
+        if answer is None:
+            # First reply was unparseable — re-prompt once with a stricter format instruction.
+            reprompt_msg = user_msg + "\n\n" + _STRICT_FORMAT_REMINDER
+            resp2 = self._completion_fn(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": _USER_SIM_SYSTEM},
+                    {"role": "user", "content": reprompt_msg},
+                ],
+                temperature=0,
+                response_format={"type": "json_object"},
+            )
+            hidden2 = getattr(resp2, "_hidden_params", {}) or {}
+            with self._cost_lock:
+                self.cost_usd = round(
+                    self.cost_usd + float(hidden2.get("response_cost") or 0.0), 10
+                )
+            answer = _parse_reply(resp2.choices[0].message.content)
+
+        if answer is None:
+            # Both attempts failed — safe conservative fallback: deny (never launder an approval).
+            answer = UserResponse(
+                decision="deny",
+                bound=None,
+                message="unparseable principal reply",
+            )
+
         self._cache[key] = answer
         return answer
