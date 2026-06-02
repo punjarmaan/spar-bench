@@ -6,6 +6,7 @@ via the unchanged build_results. litellm is never imported at module load (lazy 
 from __future__ import annotations
 
 import json
+import os
 import random
 import time
 from collections import Counter
@@ -216,6 +217,26 @@ def _classify(score_obj: SampleScore, trace: EpisodeTrace) -> SampleStatus:
     return SampleStatus.SCORED
 
 
+def _debug_log_episode_error(sample_id: str, exc: BaseException, is_infra: bool) -> None:
+    """DIAGNOSTIC ONLY: append episode-level exceptions (the ones scored ERRORED_INFRA or, if
+    non-infra, MALFORMED_ACTION) to the path in SPAR_DEBUG_ERRORS. No-op (score-neutral) when the
+    var is unset. Exists to see WHAT the infra errors actually are (429 / timeout / connection /
+    provider 5xx) so concurrency + retry can be tuned. Best-effort; swallows IO errors."""
+    path = os.environ.get("SPAR_DEBUG_ERRORS")
+    if not path:
+        return
+    rec = {
+        "sample_id": sample_id, "is_infra": is_infra,
+        "exc_type": type(exc).__name__, "exc_msg": str(exc)[:1500],
+        "status_code": getattr(exc, "status_code", None),
+    }
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec) + "\n")
+    except OSError:
+        pass
+
+
 class _OverflowAbortAgent:
     """An immediate-abort agent used to SCORE a non-infra failure (e.g. context-overflow) as a
     capability/abort outcome (audit S1). It NEVER calls the model — `act` returns an Abort on the
@@ -299,7 +320,9 @@ def _run_sample(
             # Cost of any calls that DID return before the error is still real.
             for u in getattr(agent, "usage", []):
                 meter.record(u, model)
-            if _is_infra_error(exc):
+            infra = _is_infra_error(exc)
+            _debug_log_episode_error(sample.sample_id, exc, infra)
+            if infra:
                 # Infra is OURS (timeout/429/5xx, already retried): excluded but counted.
                 return SampleStatus.ERRORED_INFRA, None
             # Non-infra, non-budget errors (e.g. context-overflow) are deterministic capability
