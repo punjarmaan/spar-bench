@@ -243,8 +243,11 @@ def _build_explicit(spec: GenSpec, knobs: DifficultyKnobs, acqs: list[Acquirer],
     settlement = "async" if knobs.async_capture else "sync"
     fraud_engine = {"enabled": knobs.fraud_sensitivity > 0.3,
                     "sensitivity": knobs.fraud_sensitivity}
-    if spec.axis in (Axis.FRAUD_REACTIVITY, Axis.DECLINE_RECOVERY) and not spec.is_trap \
-            and spec.difficulty is Difficulty.EASY:
+    # NOTE: these axes mirror the handle_challenge entries in _NON_TRIVIAL_MUST — keep in sync
+    # if another axis ever maps to handle_challenge.
+    if (spec.axis in (Axis.FRAUD_REACTIVITY, Axis.DECLINE_RECOVERY)
+            and not spec.is_trap
+            and spec.difficulty is Difficulty.EASY):
         # F1: easy fraud_reactivity AND decline_recovery non-traps both carry must=[handle_challenge]
         # but ship with NO challenge source -> impossible (verified 0/17 and 0/15 ever passed in
         # clean runs). enabled + challenge_at=0.0 makes the first submit's small seeded score land
