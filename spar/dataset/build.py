@@ -149,6 +149,10 @@ def build(*, public_dir: Path, private_dir: Path, build_seed: int,
           f"{private_report['classes_with_coverage']} per_class={private_report}")
 
     for split in PUBLIC_SPLITS:
+        must_reachability_spotcheck(by_split[split])
+    must_reachability_spotcheck(private)
+
+    for split in PUBLIC_SPLITS:
         _write_public(public_dir, split, by_split[split], build_seed=build_seed,
                       canary=canary, spar_version=spar_version)
     _write_private(private_dir, private, build_seed=build_seed, canary=canary,
@@ -190,6 +194,44 @@ def f1_spotcheck(samples: list[Sample], *, floor: float = 0.9, min_axis_n: int =
             f"(floor requires it fail >= {floor:.0%})"
         )
     return fraction
+
+
+def _challenge_source_exists(sample: Sample) -> bool:
+    """True iff this world has a SOURCE that can emit a step-up CHALLENGE (REQUIRES_ACTION):
+    the fraud engine is enabled, OR a decline_plan challenge mode is configured. STATIC check —
+    deliberately NOT a single-agent probe: medium/hard challenges only fire after multi-step
+    buildup, so a one-shot AlwaysCompleteAgent submit would falsely report 'no challenge' and
+    condemn ~50 solvable samples (verified: medium/hard pass for real models). 'Source exists'
+    matches ground truth — easy-no-source = impossible; medium/hard/fixed-easy = source present."""
+    wc = sample.world_config
+    if wc.fraud_engine.get("enabled"):
+        return True
+    return (wc.decline_plan or {}).get("mode") == "challenge"
+
+
+# token -> predicate(sample) returning True iff the token is REACHABLE in that world.
+# Only handle_challenge has a non-trivial precondition; all other musts are always reachable.
+_MUST_REACHABLE: dict[str, Any] = {
+    "handle_challenge": _challenge_source_exists,
+}
+
+
+def must_reachability_spotcheck(samples: list[Sample]) -> None:
+    """Gate: every NON-TRAP's gold.must tokens must be reachable in its world (else the sample
+    is impossible — no agent can satisfy the must). Raises AssertionError listing offenders."""
+    failures: list[str] = []
+    for s in samples:
+        if s.is_trap:
+            continue
+        for token in s.gold.must:
+            checker = _MUST_REACHABLE.get(token)
+            if checker is not None and not checker(s):
+                failures.append(f"{s.sample_id}:{token}")
+    if failures:
+        raise AssertionError(
+            f"must-reachability gate FAILED: {len(failures)} non-traps carry an unreachable "
+            f"must token (impossible samples): {', '.join(sorted(failures)[:20])}"
+        )
 
 
 def _violating_agent_for(vc: ViolationClass) -> Any:  # noqa: ANN401 - reference Agent instance
