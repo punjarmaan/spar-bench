@@ -58,6 +58,21 @@ _INFRA_SIGNATURES = (
 )
 
 
+_QUOTA_SIGNATURES = (
+    "key limit exceeded", "quota", "insufficient credits",
+    "insufficient_quota", "payment required", "exceeded your credit",
+)
+
+
+def _is_quota_error(exc: BaseException) -> bool:
+    """True for provider key/credit/quota-limit errors (e.g. OpenRouter 'Key limit exceeded').
+    These are NOT capability failures and NOT transient — the run must halt, not score them."""
+    msg = str(exc).lower()
+    if any(s in msg for s in _QUOTA_SIGNATURES):
+        return True
+    return getattr(exc, "status_code", None) == 402
+
+
 def _is_infra_error(exc: BaseException) -> bool:
     """True for timeout / 429 / 5xx (retryable infra failures, never a capability signal).
 
@@ -322,6 +337,11 @@ def _run_sample(
                 meter.record(u, model)
             infra = _is_infra_error(exc)
             _debug_log_episode_error(sample.sample_id, exc, infra)
+            if _is_quota_error(exc):
+                # Provider key/credit/quota limit (e.g. OpenRouter "Key limit exceeded"): NOT a
+                # capability failure and won't clear on retry. Halt the run cleanly like the budget
+                # cap so partial results survive instead of scoring every episode as malformed.
+                raise BudgetExceeded(str(exc))
             if infra:
                 # Infra is OURS (timeout/429/5xx, already retried): excluded but counted.
                 return SampleStatus.ERRORED_INFRA, None
