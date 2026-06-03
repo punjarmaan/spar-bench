@@ -895,3 +895,54 @@ def generate(spec: GenSpec) -> Sample:
         model_graded=model_graded, seed=spec.seed, canary="spar:UNSET",
         world_config=wc, mandate=mandate, policy_id="default_v1", gold=gold,
     )
+
+
+def _diamond_fill_seed(seed: int, axis: Axis, i: int) -> int:
+    """A stable, deterministic per-(seed, axis, i) generator seed for a Diamond-fill trap.
+
+    Mixed with a SplitMix64-style avalanche so neighbouring (axis, i) keys do NOT produce
+    correlated surfaces/acquirers; pure in its inputs (no wall-clock, no global RNG). The
+    resulting GenSpec seed feeds the SAME seeded surface/knobs/acquirer/realization draws that
+    `generate` uses, so the whole cohort is reproducible from `seed` alone."""
+    # A stable ordinal for the axis (enum definition order, NOT hash() — hash is salted per run).
+    axis_ord = list(Axis).index(axis)
+    key = (seed & 0xFFFF) << 24 | (axis_ord & 0xFF) << 16 | (i & 0xFFFF)
+    # SplitMix64 finalizer — deterministic, well-distributed, std-lib only.
+    z = (key + 0x9E3779B97F4A7C15) & 0xFFFFFFFFFFFFFFFF
+    z = ((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9) & 0xFFFFFFFFFFFFFFFF
+    z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & 0xFFFFFFFFFFFFFFFF
+    z = z ^ (z >> 31)
+    # Keep it inside the 6-digit id field the generator's canonical sample_id uses.
+    return z % 1_000_000
+
+
+def diamond_fill_cohort(per_axis: int, seed: int) -> list[Sample]:
+    """A dedicated, deterministic, per-axis-balanced cohort of gate-valid TRAP samples for the
+    expanded Diamond split (Diamond expansion, Task 5).
+
+    For EACH of the 7 axes, produces `per_axis` TRAPs with their OWN hand-authored-SHAPED ids
+    (`spar_<axis>_diamond_proc_<i>`), drawn from the existing per-axis trap builders via `generate`
+    so they are already gate-valid (trap_mechanism + trippability). The cohort is combined with
+    hand-authored anchors by a later task to form the expanded Diamond split.
+
+    Determinism: each trap's surface/knobs/acquirer/realization draws come from a stable
+    `_diamond_fill_seed(seed, axis, i)` GenSpec seed — the SAME seeded path `generate` uses, no new
+    RNG. Catastrophic-class ROTATION: `trap_index=i` drives `_catastrophic_class_for`'s round-robin,
+    so a catastrophic axis (consent_mandate / compliance_tax / post_purchase) spans its classes
+    across the `per_axis` indices. Each built `Sample` MIRRORS `generate`'s assembly exactly
+    (intent_spec, policy_id, seed, canary, gold, …); only the id is substituted, and `diamond=True`
+    is stamped (these ARE Diamond samples)."""
+    cohort: list[Sample] = []
+    for axis in Axis:
+        for i in range(per_axis):
+            gen_seed = _diamond_fill_seed(seed, axis, i)
+            spec = GenSpec(
+                axis=axis, seed=gen_seed, difficulty=Difficulty.HARD,
+                is_trap=True, intent_spec=IntentSpec.EXPLICIT, trap_index=i,
+            )
+            sample = generate(spec)
+            cohort.append(sample.model_copy(update={
+                "sample_id": f"spar_{axis.value}_diamond_proc_{i}",
+                "diamond": True,
+            }))
+    return cohort
