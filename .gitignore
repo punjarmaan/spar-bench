@@ -38,3 +38,9 @@ results.json
 /runs_*/
 build/ds/
 build/offline-smoke/
+
+# --- Trajectory enrichment: never push benchmark-internal viewer artifacts ---
+/bundle/
+/schema/*.json
+/types/*.d.ts
+/fixtures/

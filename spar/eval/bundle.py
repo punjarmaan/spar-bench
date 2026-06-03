@@ -68,6 +68,44 @@ def _index_rows(model_dir: Path) -> dict[str, Any]:
     }
 
 
+def write_fixtures(*, bundle_dir: Path, max_examples: int = 6) -> list[Path]:
+    """Copy a small, diverse set of real episode files into bundle/fixtures/ for frontend dev:
+    prefer one trap, one malformed, and otherwise spread across axes. Best-effort; bundle-local."""
+    index = json.loads((bundle_dir / "index.json").read_text())
+    picks: list[tuple[str, str]] = []  # (model_id, sample_id)
+    seen_axis: set[str] = set()
+    have_trap = have_bad = False
+    for m in index["models"]:
+        for s in m["samples"]:
+            sid, axis, is_trap = s["sample_id"], s.get("axis"), s.get("is_trap")
+            ep = bundle_dir / m["id"] / "episodes" / f"{sid}.jsonl"
+            if not ep.is_file():
+                continue
+            status = json.loads(ep.read_text().splitlines()[0]).get("status")
+            want = False
+            if is_trap and not have_trap:
+                want, have_trap = True, True
+            elif status == "malformed_action" and not have_bad:
+                want, have_bad = True, True
+            elif axis not in seen_axis:
+                want = True
+                seen_axis.add(axis)
+            if want and len(picks) < max_examples:
+                picks.append((m["id"], sid))
+    fdir = bundle_dir / "fixtures"
+    fdir.mkdir(exist_ok=True)
+    out: list[Path] = []
+    fixture_index = []
+    for mid, sid in picks:
+        src = bundle_dir / mid / "episodes" / f"{sid}.jsonl"
+        dst = fdir / f"{sid}.jsonl"
+        shutil.copy(src, dst)
+        out.append(dst)
+        fixture_index.append({"model": mid, "sample_id": sid})
+    (fdir / "index.json").write_text(json.dumps({"fixtures": fixture_index}, indent=2))
+    return out
+
+
 def build_bundle(*, runs_dir: Path, out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "schema").mkdir(exist_ok=True)
@@ -90,3 +128,7 @@ def build_bundle(*, runs_dir: Path, out_dir: Path) -> None:
             for traj in traj_dir.glob("*.jsonl"):
                 shutil.copy(traj, dest / "episodes" / traj.name)
     (out_dir / "index.json").write_text(json.dumps({"models": models}, indent=2))
+    try:
+        write_fixtures(bundle_dir=out_dir)
+    except (KeyError, FileNotFoundError, IndexError):
+        pass
