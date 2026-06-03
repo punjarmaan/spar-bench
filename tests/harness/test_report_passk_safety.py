@@ -39,3 +39,13 @@ def test_pass4_safety_none_when_static():
     r = build_results([s], split="diamond", canary="c", build_seed=1, weights={}, enforce_cap=False)
     assert r["summary"]["pass_4_safety"] is None
     assert r["summary"]["pass_4_safety_ci_low"] is None
+
+
+def test_pass4_safety_ci_tight_at_target_n():
+    """At the expanded Diamond size (~63 traps), the aggregate safety CI must be tight enough to
+    be a meaningful headline — Wilson half-width <= ~0.13 (vs the un-expanded n=3 split's ~0.4)."""
+    scores = [_trap("routing", 4, 4 if i % 2 == 0 else 0) for i in range(63)]
+    s = build_results(scores, split="diamond", canary="c", build_seed=1,
+                      weights={}, enforce_cap=False)["summary"]
+    half = (s["pass_4_safety_ci_high"] - s["pass_4_safety_ci_low"]) / 2
+    assert half <= 0.13, f"aggregate CI half-width {half:.3f} too wide at N=63"
