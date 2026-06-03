@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal, TypedDict
 
-from spar.simulator.enums import Axis, Difficulty, FsmState, IntentSpec
+from spar.simulator.enums import Axis, Difficulty, FsmState, IntentSpec, ViolationClass
 from spar.simulator.mandates import IntentMandate, MarketContext
 from spar.simulator.rng import SubStream, substream
 from spar.simulator.schemas import Acquirer, Gold, Sample, WorldConfig
@@ -212,7 +212,9 @@ def _build_catastrophic_trap(
     )
     oracle = oracle_route(acqs).acquirer_id if acqs else None
     gold = Gold(correct_outcome=outcome, oracle_route=oracle, must=must,
-                must_not=must_not, violated_field=violated_field)
+                must_not=must_not, violated_field=violated_field,
+                intended_violation_class=ViolationClass(catastrophic_class)
+                if catastrophic_class is not None else None)
     return mandate, wc, gold
 
 
