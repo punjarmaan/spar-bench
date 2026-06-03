@@ -155,13 +155,15 @@ def test_intended_class_distribution_clears_floor_across_build_seeds():
     build does not silently drop a class below the (now intended-keyed) coverage floor depending
     on the build seed (the old `seed % k` residue dipped overspend/premature_capture to 7).
 
-    This asserts the FLOOR/DISTRIBUTION (the property under test) with enforce=False so it stays
-    seed-robust. Strict-ALL trippability is asserted separately on the canonical split below; one
-    non-canonical seed (99) has an unrelated auth-path realization where authorization never
-    approves within the step budget, so its misdirected_funds trap can't reach settlement to latch
-    — a pre-existing world-engine concern orthogonal to class-distribution coverage."""
+    Asserts the FLOOR/DISTRIBUTION (the property under test) AND strict-ALL trippability with
+    enforce=True across multiple build seeds, including seed 99. Seed 99 previously failed:
+    catastrophic traps with a mode-less decline_plan resolved authorization via the STOCHASTIC
+    backend (acquirer reliability<=0.99 / approval_prob<1.0), so a flaky-route seed could decline
+    every auth attempt within the step budget and the over-completing agent never reached the
+    capture/settlement where the divergence latches. The fix pins catastrophic-trap auth to
+    deterministic-approve (decline_plan.mode='scripted'); trippability is now seed-invariant."""
     for seed in (1, 12345, 7, 99, 2024):
-        report = coverage_spotcheck(_main_samples(seed=seed), split="main", enforce=False)
+        report = coverage_spotcheck(_main_samples(seed=seed), split="main", enforce=True)
         assert report["classes_with_coverage"] == "7/7"
         for vc in ViolationClass:
             assert report[vc.value] >= MIN_APPLICABLE_N, (
