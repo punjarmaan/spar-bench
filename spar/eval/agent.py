@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
@@ -37,6 +38,9 @@ from spar.simulator.contract import (
     Void,
     parse_action,
 )
+
+if TYPE_CHECKING:
+    from spar.eval.trajectory import AgentTurn  # runtime import stays lazy in act() (circular)
 
 # Bump on ANY change to the prompt template, tool catalog, or parser (spec standard 1).
 SCAFFOLD_VERSION = "2.2.0"
@@ -156,8 +160,9 @@ def _to_action(content: str) -> Action:
     try:
         raw = json.loads(content)
         return _parse_standard(raw)
-    except Exception as primary_exc:
-        pass
+    except Exception as exc:
+        # primary failure returned
+        primary_exc = exc
 
     # --- Fallback a: strip markdown fences ---
     stripped = content.strip()
@@ -188,7 +193,7 @@ def _to_action(content: str) -> Action:
         pass
 
     # All fallbacks exhausted — re-raise the original failure.
-    raise primary_exc  # type: ignore[misc]
+    raise primary_exc
 
 
 def _debug_log_malformed(

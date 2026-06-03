@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
 
 from spar.eval.models import ModelConfig, load_models
 from spar.eval.agent import ModelAgent, agent_factory, REASONING_EFFORT, REASONING_MAX_TOKENS

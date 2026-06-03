@@ -25,7 +25,6 @@ from __future__ import annotations
 
 from spar.dataset.build import (
     COVERAGE_ENFORCED_SPLITS,
-    consent_over_limit_count,
     trap_mechanism_spotcheck,
 )
 from spar.dataset.generator import generate

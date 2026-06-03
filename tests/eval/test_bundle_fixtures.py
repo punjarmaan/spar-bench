@@ -7,7 +7,8 @@ from spar.eval.bundle import write_fixtures
 
 def test_write_fixtures_selects_diverse_episodes(tmp_path: Path):
     bundle = tmp_path / "bundle"
-    eps = bundle / "m1" / "episodes"; eps.mkdir(parents=True)
+    eps = bundle / "m1" / "episodes"
+    eps.mkdir(parents=True)
     for sid, status, is_trap in [("clean", "scored", False), ("trap", "scored", True),
                                  ("bad", "malformed_action", False)]:
         (eps / f"{sid}.jsonl").write_text(json.dumps(

@@ -237,7 +237,6 @@ def test_quota_error_not_scored_malformed(tmp_path) -> None:
 def test_non_quota_non_infra_still_malformed_action(tmp_path) -> None:
     """Regression guard: a plain non-infra, non-quota error (e.g. bad JSON) must still be
     scored as MALFORMED_ACTION (the existing capability-failure path is unchanged)."""
-    from typing import Any
 
     class _BadJsonCompletion:
         def __call__(self, *, model: str, messages: list, **sampling: Any) -> None:

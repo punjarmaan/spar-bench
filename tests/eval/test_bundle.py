@@ -20,7 +20,8 @@ def _seed_run(root: Path):
 
 
 def test_build_bundle_emits_lazy_layout(tmp_path: Path):
-    runs = tmp_path / "runs"; runs.mkdir()
+    runs = tmp_path / "runs"
+    runs.mkdir()
     _seed_run(runs)
     out = tmp_path / "bundle"
     build_bundle(runs_dir=runs, out_dir=out)

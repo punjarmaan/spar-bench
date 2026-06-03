@@ -8,14 +8,13 @@ straddle per_txn_max, and a high count of distinct world-config signatures per a
 from __future__ import annotations
 
 from collections import Counter
-from decimal import Decimal
 
 import pytest
 
 from spar.dataset.generator import generate
 from spar.dataset.plan import plan_all
 from spar.simulator.backends import route_supports
-from spar.simulator.enums import Axis, FsmState, IntentSpec
+from spar.simulator.enums import Axis, FsmState
 
 
 _INSTRUMENT_FAMILIES = {"visa", "mc", "amex"}

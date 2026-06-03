@@ -15,7 +15,6 @@ Locks four invariants introduced by Tasks 1-4:
 
 from __future__ import annotations
 
-from decimal import Decimal
 
 from spar.dataset.generator import GenSpec, generate
 from spar.harness.graders import score
