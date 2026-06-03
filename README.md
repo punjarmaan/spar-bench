@@ -78,6 +78,10 @@ List the roster and pick a model `id`:
 ```bash
 grep '^id' configs/models.toml      # e.g. gpt-oss-120b, mistral-small-2603, qwen3.5-397b-a17b, …
 ```
+Estimate the spend first (makes **no** model calls):
+```bash
+spar eval-cost --models configs/models.toml --profile configs/profile.toml --dataset-dir build/ds/private
+```
 Then evaluate it (Main pass¹ + Diamond pass⁴). Swap `--only <id>` for **any** model on the roster:
 ```bash
 spar eval \
@@ -99,11 +103,6 @@ The flags that matter:
 | `--budget-usd N` | **hard** per-model cost cap; the run stops cleanly if it's reached |
 | `--responder-model` / `--grader-model` | the pinned `gemini-2.5-flash` responder (answers escalations) + Tier-C grader. **Omit both** for the offline deny-all responder + stub grader (free & faster, but competence is floored since no escalation is ever approved) |
 | `--cache-dir DIR` | completion cache — a re-run **resumes** instead of re-paying |
-
-Estimate the spend first (makes **no** model calls):
-```bash
-spar eval-cost --models configs/models.toml --profile configs/profile.toml --dataset-dir build/ds/private
-```
 
 ### 6. Read the results
 Output lands in `runs/<model>/`:
