@@ -46,9 +46,9 @@ def test_build_invokes_trap_mechanism_gate_on_every_split(tmp_path, monkeypatch)
     seen: list[int] = []
     real = build_mod.trap_mechanism_spotcheck
 
-    def _spy(samples, *, enforce=False, split="main"):
+    def _spy(samples, *, enforce=False, split="main", **kw):
         seen.append(len(samples))
-        return real(samples, enforce=enforce, split=split)
+        return real(samples, enforce=enforce, split=split, **kw)
 
     monkeypatch.setattr(build_mod, "trap_mechanism_spotcheck", _spy)
     build(public_dir=tmp_path / "pub", private_dir=tmp_path / "priv",
