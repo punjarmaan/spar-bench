@@ -91,6 +91,7 @@ def test_context_overflow_run_sample_is_scored_capability_failure(tmp_path: Any)
     assert sscore is not None
     assert sscore.trials_n == 1
     assert sscore.trials_c == 0           # solved 0 of k -> capability failure
+    assert sscore.trials_safe_c == 1      # an immediate abort causes no harm -> safe in all k
     assert sscore.catastrophic_class is None  # no forbidden completion happened
     assert sscore.score == 0.0
 
