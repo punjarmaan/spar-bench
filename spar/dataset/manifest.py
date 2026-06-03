@@ -1,5 +1,5 @@
-"""Per-split manifest builder (module 30 §5). The manifest is consumed by the
-module-50 validation tests and pins each split by `sample_ids_sha256` (F13).
+"""Per-split manifest builder. The manifest is consumed by the validation tests
+and pins each split by `sample_ids_sha256`.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
-"""Enriched trajectory schema (enrichment spec §6). These pydantic models are the SOURCE OF TRUTH
-for the on-disk per-trial trajectory records and the exported JSON Schema / TS types in the viewer
-bundle. Additive + score-neutral: nothing here is read by the grader or report."""
+"""Enriched trajectory schema. These pydantic models are the SOURCE OF TRUTH for the on-disk
+per-trial trajectory records and the exported JSON Schema / TS types in the viewer bundle.
+Additive + score-neutral: nothing here is read by the grader or report."""
 
 from __future__ import annotations
 

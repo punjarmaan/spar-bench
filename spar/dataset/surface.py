@@ -1,6 +1,6 @@
-"""Per-seed surface randomization (module 30 §3): merchant names, amounts in a
-band, geos, acquirer ids. Structure is fixed by difficulty elsewhere; this only
-varies the cosmetic surface to kill memorization. All draws go through
+"""Per-seed surface randomization: merchant names, amounts in a band, geos,
+acquirer ids. Structure is fixed by difficulty elsewhere; this only varies the
+cosmetic surface to kill memorization. All draws go through
 `spar.simulator.rng.substream`, so the same (sample_id, seed) is byte-identical.
 """
 
@@ -16,19 +16,19 @@ _MERCHANTS: tuple[str, ...] = (
     "wayne-supplies", "stark-retail", "hooli-mart", "soylent-foods",
 )
 _GEOS: tuple[str, ...] = ("US", "CA", "GB", "DE", "FR")
-# B3a: settlement/mandate currencies. Diversity = varying the STRING (NO FX math): on a
-# non-trap the mandate currency IS the settlement currency; the wrong_currency trap is the
-# only mismatch. Drawn independently per sample so it BINDS to the mandate.
+# Settlement/mandate currencies. Diversity = varying the STRING (NO FX math): on a non-trap
+# the mandate currency IS the settlement currency; the wrong_currency trap is the only
+# mismatch. Drawn independently per sample so it BINDS to the mandate.
 _CURRENCIES: tuple[str, ...] = ("USD", "EUR", "GBP", "JPY")
-# B3a: instrument allowlists drawn from >=3 families (visa/mc/amex). Every allowlist serves
-# >=1 family the acquirer pool carries (acquirers.py adds amex), so a non-trap is always
-# routable. The single-amex allowlist is the surface the routing TRAP repurposes (it strips
-# amex from every acquirer to make every route unsupported — generator._build_routing_trap).
+# Instrument allowlists drawn from >=3 families (visa/mc/amex). Every allowlist serves >=1
+# family the acquirer pool carries (acquirers.py adds amex), so a non-trap is always routable.
+# The single-amex allowlist is the surface the routing TRAP repurposes (it strips amex from
+# every acquirer to make every route unsupported — generator._build_routing_trap).
 _INSTRUMENT_SETS: tuple[tuple[str, ...], ...] = (
     ("visa", "mc"), ("visa",), ("mc", "amex"), ("visa", "amex"),
     ("amex",), ("visa", "mc", "amex"),
 )
-# B3a: merchant category codes + the semantic category string they map to. Both BIND: the MCC
+# Merchant category codes + the semantic category string they map to. Both BIND: the MCC
 # becomes the mandate's mcc_constraint (matched at the scope wall when issuer_behavior carries
 # an mcc) and the category replaces the hardcoded `coffee_maker` in the market context.
 _MCC_CATEGORIES: tuple[tuple[str, str], ...] = (
@@ -51,7 +51,7 @@ class Surface:
 
 
 def draw_surface(sample_id: str, *, seed: int, n_acquirers: int) -> Surface:
-    """Deterministically draw cosmetic + binding surface details for one sample (B3a)."""
+    """Deterministically draw cosmetic + binding surface details for one sample."""
     # FRAUD sub-stream is repurposed here only as a fixed "surface" key; the choice
     # is arbitrary but frozen so draws never move. step=0, trial_index=0 for build.
     rng = substream(sample_id, seed=seed, trial_index=0, stream=SubStream.FRAUD, step=0)

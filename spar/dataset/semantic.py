@@ -1,4 +1,4 @@
-"""Canonical semantic-budget hint->band mapping (module 30 §3.1, REVIEW F15).
+"""Canonical semantic-budget hint->band mapping.
 
 Maps a free-text `budget_hint` to a [lo, hi] spend band over the HIDDEN
 `MarketContext` percentiles, plus the hint-independent hard `overspend_ceiling`.
@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from spar.simulator.mandates import MarketContext
 
-# Hint phrasing -> percentile field name for the band upper bound (module 30 §3.1).
+# Hint phrasing -> percentile field name for the band upper bound.
 CANONICAL_HINTS: dict[str, str] = {
     "cheap": "p25",
     "cheapest": "p25",

@@ -1,12 +1,11 @@
-"""Load a split's JSONL (module 30 §5, F13, F17).
+"""Load a split's JSONL.
 
 Published splits are immutable, hash-pinned artifacts: this loader READS them, never
 regenerates. PUBLIC splits (`lite`/`main`/`diamond`) are PROJECTED rows (no gold / hidden
-world_config, F17) — `load_public_split` returns them as validated dicts. The `private`
-split is the full graded `Sample` and is loaded by `load_split(..., base_dir=...)`. With no
-base_dir, `load_split` falls back to the bundled toy lite split (M1 behavior) so the local
-`spar run`/`grade` CLI keeps working. `load_gold` (the hand-authored backbone, owned by M2)
-is preserved here — many milestones import it.
+world_config) — `load_public_split` returns them as validated dicts. The `private` split is
+the full graded `Sample` and is loaded by `load_split(..., base_dir=...)`. With no base_dir,
+`load_split` falls back to the bundled toy lite split so the local `spar run`/`grade` CLI
+keeps working.
 """
 
 from __future__ import annotations
@@ -34,7 +33,7 @@ def _parse_full(text: str) -> list[Sample]:
 
 
 def load_public_split(split: str, *, base_dir: Path) -> list[dict[str, Any]]:
-    """Load a frozen PUBLIC (projected) split as validated dict rows (F17)."""
+    """Load a frozen PUBLIC (projected) split as validated dict rows."""
     if split not in _PUBLIC_SPLITS:
         raise ValueError(f"unknown public split: {split!r}")
     rows: list[dict[str, Any]] = []
@@ -59,10 +58,10 @@ def load_split(split: str, *, base_dir: Path | None = None) -> list[Sample]:
         if split != "private":
             raise ValueError(
                 f"{split!r} is published as a PROJECTED public split; "
-                "use load_public_split (gold is held server-side only, F17)"
+                "use load_public_split (gold is held server-side only)"
             )
         return _parse_full((Path(base_dir) / "private.jsonl").read_text(encoding="utf-8"))
-    # No base_dir: the bundled toy lite split (M1 behavior; the local CLI default).
+    # No base_dir: the bundled toy lite split (the local CLI default).
     text = resources.files("spar.dataset.toy").joinpath("lite.jsonl").read_text(encoding="utf-8")
     return _parse_full(text)
 
@@ -73,7 +72,7 @@ def load_graded_split(split: str, *, base_dir: Path) -> list[Sample]:
     The operator who cut the release (`spar build --private-out`) holds the gold, so a local
     self-run can grade against it. Reads `<base_dir>/private.jsonl` (the full graded build) and
     returns the samples whose build-stamped `split` matches. Unlike `load_split`, this is the
-    operator-holds-gold local-run path (the F17 guard on `load_split` is left intact).
+    operator-holds-gold local-run path (the public-projection guard on `load_split` is left intact).
 
     Raises ValueError for an unknown split name or when no sample carries the requested tag
     (an old build cut before split-tagging -> re-cut), and FileNotFoundError when private.jsonl
@@ -97,8 +96,7 @@ def load_graded_split(split: str, *, base_dir: Path) -> list[Sample]:
 def load_gold(axis: Axis | str) -> list[Sample]:
     """Load the hand-authored gold samples for an axis from spar/dataset/gold/<axis>.jsonl.
 
-    Registry-owned by M2; M3-M7 import this (never redefine it). Accepts an `Axis` enum or
-    its string value; returns [] if no gold file is shipped for that axis.
+    Accepts an `Axis` enum or its string value; returns [] if no gold file is shipped for that axis.
     """
     name = axis.value if isinstance(axis, Axis) else str(axis)
     resource = resources.files("spar.dataset.gold").joinpath(f"{name}.jsonl")

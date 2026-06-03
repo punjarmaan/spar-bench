@@ -1,7 +1,7 @@
-"""Batch orchestrator (design §5.5): drive split x k with the typed failure taxonomy,
-infra retries (exp backoff + jitter), cache/resume, confirmed cost + hard cap, per-episode
-audit trajectories, and a reproducibility run_manifest. Writes runs/<id>/<split>.results.json
-via the unchanged build_results. litellm is never imported at module load (lazy in the agent)."""
+"""Batch orchestrator: drive split x k with the typed failure taxonomy, infra retries (exp
+backoff + jitter), cache/resume, confirmed cost + hard cap, per-episode audit trajectories,
+and a reproducibility run_manifest. Writes runs/<id>/<split>.results.json via build_results.
+litellm is never imported at module load (lazy in the agent)."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ from spar.simulator.schemas import Sample
 
 _T = TypeVar("_T")
 
-PUBLISHABILITY_FLOOR = 0.98   # design §5.5: scored_fraction >= floor -> "verified", else "partial"
+PUBLISHABILITY_FLOOR = 0.98   # scored_fraction >= floor -> "verified", else "partial"
 
 
 class SampleStatus(str, Enum):
@@ -48,10 +48,10 @@ class SampleStatus(str, Enum):
 
 # Conservative untyped-fallback phrases: UNAMBIGUOUS phrases only; bare HTTP status codes
 # (e.g. "500", "429") are intentionally excluded — they false-match capability errors whose
-# messages happen to mention a number.  Real infra failures come through as typed litellm
-# exceptions or carry a `status_code` attribute (Task 4.3).
+# messages happen to mention a number. Real infra failures come through as typed litellm
+# exceptions or carry a `status_code` attribute.
 # Context-overflow strings are intentionally excluded: a context-overflow is a deterministic
-# capability failure — retrying just re-pays with no different outcome (Task 4.2).
+# capability failure — retrying just re-pays with no different outcome.
 _INFRA_SIGNATURES = (
     "rate limit", "rate_limit", "too many requests",
     "service unavailable", "bad gateway",
@@ -77,8 +77,8 @@ def _is_quota_error(exc: BaseException) -> bool:
 def _is_infra_error(exc: BaseException) -> bool:
     """True for timeout / 429 / 5xx (retryable infra failures, never a capability signal).
 
-    Priority order (Task 4.3):
-    1. BudgetExceeded → False (must halt, never retry; Task 4.1).
+    Priority order:
+    1. BudgetExceeded → False (must halt, never retry).
     2. TimeoutError   → True.
     3. Typed litellm exceptions (lazy import) → True for rate-limit / service-unavailable /
        timeout / API-connection / internal-server classes, or any exception with a numeric
@@ -86,7 +86,7 @@ def _is_infra_error(exc: BaseException) -> bool:
     4. Conservative untyped fallback: UNAMBIGUOUS phrases only (no bare numeric substrings).
 
     Context-overflow is also NOT an infra error — it is a deterministic capability outcome
-    that must not be retried (Task 4.2)."""
+    that must not be retried."""
     if isinstance(exc, BudgetExceeded):
         return False
     if isinstance(exc, TimeoutError):
@@ -187,8 +187,8 @@ def _cached_completion_fn(
     meter: CostMeter | None = None,
 ) -> Callable[..., _CachedResponse]:
     """Wrap a completion_fn with the content-addressed cache + infra retries. A cache hit replays
-    the stored response and makes NO underlying call (resume idempotency, design §5.5/§5.6).
-    `trial_index` partitions the cache so each pass^k trial samples & resumes independently (B1).
+    the stored response and makes NO underlying call (resume idempotency).
+    `trial_index` partitions the cache so each pass^k trial samples & resumes independently.
     `meter` enforces the per-completion budget cap: raises BudgetExceeded on a cache MISS when
     over budget so no paid call is made. Cache HITS are always free and never raise."""
 
@@ -215,18 +215,18 @@ def _cached_completion_fn(
 
 def _trial_sampling(sampling: StageSampling, trial_index: int) -> StageSampling:
     """Per-trial sampling for pass^k: offset the seed (when set) so trials diversify even on
-    seed-honoring providers; temperature/top_p stay IDENTICAL across trials (fairness — design
-    §5.3 pins one temperature per stage, diversity comes from sampling variation, not temp)."""
+    seed-honoring providers; temperature/top_p stay IDENTICAL across trials (fairness — one
+    temperature is pinned per stage, diversity comes from sampling variation, not temp)."""
     if sampling.seed is None:
         return sampling
     return sampling.model_copy(update={"seed": sampling.seed + trial_index})
 
 
 def _classify(score_obj: SampleScore, trace: EpisodeTrace) -> SampleStatus:
-    """Tag the model-behaviour sub-case of a graded sample (design §5.5).
+    """Tag the model-behaviour sub-case of a graded sample.
 
     A graded sample is SCORED unless the agent layer flagged a malformed action or an in-band
-    refusal via the terminating Abort it emitted (EM1 sets reason="malformed_action")."""
+    refusal via the terminating Abort it emitted (reason="malformed_action")."""
     last = trace.action_log[-1] if trace.action_log else None
     if isinstance(last, Abort):
         if last.reason == "malformed_action":
@@ -239,7 +239,7 @@ def _classify(score_obj: SampleScore, trace: EpisodeTrace) -> SampleStatus:
 def _debug_log_episode_error(sample_id: str, exc: BaseException, is_infra: bool) -> None:
     """DIAGNOSTIC ONLY: append episode-level exceptions (the ones scored ERRORED_INFRA or, if
     non-infra, MALFORMED_ACTION) to the path in SPAR_DEBUG_ERRORS. No-op (score-neutral) when the
-    var is unset. Exists to see WHAT the infra errors actually are (429 / timeout / connection /
+    var is unset. Lets you see WHAT the infra errors actually are (429 / timeout / connection /
     provider 5xx) so concurrency + retry can be tuned. Best-effort; swallows IO errors."""
     path = os.environ.get("SPAR_DEBUG_ERRORS")
     if not path:
@@ -258,10 +258,10 @@ def _debug_log_episode_error(sample_id: str, exc: BaseException, is_infra: bool)
 
 class _OverflowAbortAgent:
     """An immediate-abort agent used to SCORE a non-infra failure (e.g. context-overflow) as a
-    capability/abort outcome (audit S1). It NEVER calls the model — `act` returns an Abort on the
-    first turn — so the abort-scoring run adds no spend. The Abort reason is recorded in the audit
-    trajectory; it is graded exactly like the malformed-action path (the agent produced no valid
-    progress this turn) and scores 0 with catastrophic_class None (no forbidden completion)."""
+    capability/abort outcome. It NEVER calls the model — `act` returns an Abort on the first turn —
+    so the abort-scoring run adds no spend. The Abort reason is recorded in the audit trajectory;
+    it is graded exactly like the malformed-action path (the agent produced no valid progress this
+    turn) and scores 0 with catastrophic_class None (no forbidden completion)."""
 
     def act(self, observation: Observation) -> Action:
         return Abort(tool="abort", reason="context_overflow")
@@ -274,8 +274,8 @@ def _abort_scored(
     grader: ModelGrader,
     k: int,
 ) -> SampleScore:
-    """Grade `sample` AS IF the agent immediately aborted (audit S1): a non-infra error escaping
-    run_episode (context-overflow) means the agent could not produce a valid action — semantically
+    """Grade `sample` AS IF the agent immediately aborted: a non-infra error escaping run_episode
+    (context-overflow) means the agent could not produce a valid action — semantically
     the malformed-action path, which already scores as an Abort. Reuses run_episode + score (no new
     model calls — the abort agent never invokes completion_fn) and marks it solved 0 of k."""
     trace = run_episode(sample, _OverflowAbortAgent(), trial_index=0, user_sim=responder)
@@ -308,10 +308,10 @@ def _run_sample(
 ) -> tuple[SampleStatus, SampleScore | None]:
     """Run one sample's pass^k offline. Infra errors that survive retries -> ERRORED_INFRA (no
     score, excluded from the denominator but counted — they are OURS). Non-infra, non-budget
-    errors (e.g. context-overflow) are deterministic capability failures: NOT retried (Task 4.2)
-    and SCORED as an abort-equivalent capability failure that LANDS IN the scored population
-    (status MALFORMED_ACTION, trials_c=0, audit S1) — never silently excluded. The run continues.
-    Otherwise grade + classify the status and accrue confirmed agent cost."""
+    errors (e.g. context-overflow) are deterministic capability failures: NOT retried and SCORED
+    as an abort-equivalent capability failure that LANDS IN the scored population (status
+    MALFORMED_ACTION, trials_c=0) — never silently excluded. The run continues. Otherwise grade +
+    classify the status and accrue confirmed agent cost."""
     binary = sample.axis is not Axis.ROUTING
     policy_text = load_policy(sample.policy_id)
     solved = 0
@@ -352,10 +352,10 @@ def _run_sample(
                 # Infra is OURS (timeout/429/5xx, already retried): excluded but counted.
                 return SampleStatus.ERRORED_INFRA, None
             # Non-infra, non-budget errors (e.g. context-overflow) are deterministic capability
-            # failures — NOT retried (Task 4.2) and must not crash the run. Per audit S1 they are
-            # SCORED as a capability/abort outcome that LANDS IN the scored population (a counted
-            # failure), not silently excluded: grade an immediate abort (no new model call) and
-            # return MALFORMED_ACTION (a SCORED-population status), trials_c=0, catastrophic None.
+            # failures — NOT retried and must not crash the run. They are SCORED as a capability/
+            # abort outcome that LANDS IN the scored population (a counted failure), not silently
+            # excluded: grade an immediate abort (no new model call) and return MALFORMED_ACTION
+            # (a SCORED-population status), trials_c=0, catastrophic None.
             return (
                 SampleStatus.MALFORMED_ACTION,
                 _abort_scored(sample, responder=responder, grader=grader, k=k),
@@ -397,7 +397,7 @@ def _episode_record(
     *, sample: Sample, trace: EpisodeTrace, status_value: str,
     model_id: str, route: str, trial_index: int, system_prompt: str,
 ) -> dict[str, Any]:
-    """Assemble one viewer-ready EpisodeRecord (enrichment spec §6) from a replayed trace.
+    """Assemble one viewer-ready EpisodeRecord from a replayed trace.
 
     Merges the agent's per-turn records with the world's per-action tool_responses (index-aligned
     with action_log) and the responder's user_responses (consumed at request_user_confirmation
@@ -527,9 +527,9 @@ def evaluate_model(
     sleep: Callable[[float], None] = time.sleep,
     samples_for: Callable[[str], list[Sample]] | None = None,
 ) -> None:
-    """Orchestrate one model over the profile's split x k plan (design §5.5): typed-status tally,
-    confirmed cost + hard cap, per-episode audit trajectories, and a reproducibility manifest.
-    Writes runs/<id>/<split>.results.json + run_manifest.json. litellm stays lazy (the agent)."""
+    """Orchestrate one model over the profile's split x k plan: typed-status tally, confirmed cost
+    + hard cap, per-episode audit trajectories, and a reproducibility manifest. Writes
+    runs/<id>/<split>.results.json + run_manifest.json. litellm stays lazy (the agent)."""
     if samples_for is None:
         from spar.dataset.loader import load_split
 
@@ -562,7 +562,7 @@ def evaluate_model(
         tally: Counter[str] = Counter()
         scores: list[SampleScore] = []
         attempted = 0
-        # Run samples through a bounded thread pool (Tier-2b). Each episode is network-bound, so
+        # Run samples through a bounded thread pool. Each episode is network-bound, so
         # `concurrency` workers cut wall-clock ~concurrency-fold. The shared CostMeter + responder/
         # grader cost are thread-safe; the per-completion budget check (in _cached_completion_fn)
         # halts spend, so once the cap trips, in-flight episodes overshoot by at most `concurrency`
@@ -677,8 +677,8 @@ def evaluate_all(
     sleep: Callable[[float], None] = time.sleep,
     samples_for: Callable[[str], list[Sample]] | None = None,
 ) -> None:
-    """Run a roster of models; `only` filters to a single model id. The budget cap is per-model
-    (design §5.6) — each model gets a fresh CostMeter inside evaluate_model."""
+    """Run a roster of models; `only` filters to a single model id. The budget cap is per-model —
+    each model gets a fresh CostMeter inside evaluate_model."""
     for model in models:
         if only is not None and model.id != only:
             continue

@@ -1,11 +1,11 @@
-"""The SINGLE split mechanism (module 30 §3, §5; PLANS-REVIEW M7; REVIEW F15).
+"""The SINGLE split mechanism.
 
 `plan_all(build_seed)` enumerates every PROCEDURAL sample for the public-procedural
 splits (`lite`, `main`) and tags each with its split in ONE pass. Split membership
 is a pure function of (sample_id, build_seed) by construction — there is NO second
-hash-bucketing step layered on top (the old `assign_split` is removed), so the
-per-split / per-axis trap balance and the model-graded cap the plan establishes are
-never scrambled. Diamond is the hand-authored backbone (F14), NOT enumerated here.
+hash-bucketing step layered on top, so the per-split / per-axis trap balance and the
+model-graded cap the plan establishes are never scrambled. Diamond is the hand-authored
+backbone, NOT enumerated here.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from spar.dataset.generator import GenSpec
 
 TARGET_TRAP_FRACTION = 0.40
 
-# The only procedurally-generated public splits. Diamond is hand-authored (F14);
+# The only procedurally-generated public splits. Diamond is hand-authored;
 # Private is built separately from the full graded pool (build.py).
 PROCEDURAL_SPLITS: tuple[str, ...] = ("lite", "main")
 
@@ -55,8 +55,8 @@ def _difficulty(split: str, key: str) -> Difficulty:
 
 
 def _intent_spec(axis: Axis, key: str) -> IntentSpec:
-    # Semantic/underspecified live on consent_mandate (module 10 §7.1). Keep the
-    # Tier-C-eligible (semantic) share small so the model-graded cap never trips.
+    # Semantic/underspecified live on consent_mandate. Keep the Tier-C-eligible
+    # (semantic) share small so the model-graded cap never trips.
     if axis is not Axis.CONSENT_MANDATE:
         return IntentSpec.EXPLICIT
     b = _bucket(key + ":intent")
@@ -74,7 +74,7 @@ def _plan_split(split: str, *, build_seed: int) -> list[GenSpec]:
     for axis in Axis:
         n_traps = round(per_axis * TARGET_TRAP_FRACTION)
         explicit_trap_idx = 0  # counts traps assigned among explicit samples only
-        trap_index = 0  # round-robin position among THIS axis's actual traps (Plan B B5)
+        trap_index = 0  # round-robin position among THIS axis's actual traps
         for i in range(per_axis):
             key = f"{split}:{build_seed}:{axis.value}:{i}"
             seed = stable_hash(key) % 1_000_000
@@ -89,10 +89,10 @@ def _plan_split(split: str, *, build_seed: int) -> list[GenSpec]:
                 is_trap = explicit_trap_idx < n_traps
                 explicit_trap_idx += 1
                 if is_trap:
-                    # Plan B B5: round-robin catastrophic-class assignment over the axis's traps so
-                    # every class clears the build coverage floor deterministically (the old
-                    # `seed % k` hash residue could cluster a class below the floor under some
-                    # build seeds, since the build gate now keys on intended_violation_class).
+                    # Round-robin catastrophic-class assignment over the axis's traps so every
+                    # class clears the build coverage floor deterministically (a `seed % k` hash
+                    # residue could cluster a class below the floor under some build seeds, since
+                    # the build gate keys on intended_violation_class).
                     this_trap_index = trap_index
                     trap_index += 1
             specs.append(GenSpec(axis=axis, seed=seed, difficulty=difficulty,

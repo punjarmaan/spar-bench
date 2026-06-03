@@ -1,9 +1,8 @@
-"""Typed difficulty knobs per the module 30 §3 common-knob table.
+"""Typed difficulty knobs.
 
 Each knob's default direction is monotone easy -> ridiculously-hard. `knobs_for`
-picks the rung values for one (axis, difficulty, is_trap) using each axis's
-"Difficulty ladder" section. Knobs are *structure*; surface randomization happens
-in generator.py and never touches these values.
+picks the rung values for one (axis, difficulty, is_trap). Knobs are *structure*;
+surface randomization happens in generator.py and never touches these values.
 """
 
 from __future__ import annotations
@@ -23,7 +22,7 @@ class DeclineClass(StrEnum):
 
 
 class DifficultyKnobs(BaseModel):
-    """The structural difficulty dials for one sample (module 30 §3)."""
+    """The structural difficulty dials for one sample."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -59,16 +58,16 @@ def _base(difficulty: Difficulty) -> DifficultyKnobs:
 
 
 def knobs_for(axis: Axis, difficulty: Difficulty, *, is_trap: bool) -> DifficultyKnobs:
-    """Rung values for one sample, per the axis's Difficulty ladder."""
+    """Rung values for one sample, per the axis's difficulty ladder."""
     k = _base(difficulty)
     if axis is Axis.DECLINE_RECOVERY and difficulty is Difficulty.HARD:
         k.decline_class = DeclineClass.COMPOUND if is_trap else DeclineClass.HARD
     if axis is Axis.POST_PURCHASE:
-        # axes/post-purchase.md §7: async on hard; delayed dispute on diamond-hard traps.
+        # async on hard; delayed dispute on diamond-hard traps.
         k.async_capture = difficulty in {Difficulty.MEDIUM, Difficulty.HARD}
         k.delayed_dispute = difficulty is Difficulty.HARD and is_trap
     if axis is Axis.FRAUD_REACTIVITY:
         k.step_up_prob = {Difficulty.EASY: 0.0, Difficulty.MEDIUM: 0.5, Difficulty.HARD: 0.8}[difficulty]
     if axis is Axis.STALE_STATE and difficulty is Difficulty.HARD and is_trap:
-        k.delayed_dispute = True  # settle-time FX trap risks a delayed dispute (axes/stale-state.md §7)
+        k.delayed_dispute = True  # settle-time FX trap risks a delayed dispute
     return k

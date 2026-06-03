@@ -1,12 +1,11 @@
-"""Canary minting + stamping (module 30 §5; PLANS-REVIEW M7).
+"""Canary minting + stamping.
 
 Split assignment is owned by `plan.py` (the single mechanism) + the hand-authored
 backbone — NOT here; there is deliberately no `assign_split`. This module mints the
 contamination canary: a FRESH random `spar:<uuid4>` per build (recorded in the
 manifest/HF card). It is fresh — never a function of `build_seed` — so a leaked seed
-cannot be used to pre-compute and scrub the canary. The `spar:` prefix follows the
-BIG-bench/GPQA convention. Sample assignment stays deterministic; only the canary
-varies per build.
+cannot be used to pre-compute and scrub the canary. Sample assignment stays
+deterministic; only the canary varies per build.
 """
 
 from __future__ import annotations

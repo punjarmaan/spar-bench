@@ -1,4 +1,4 @@
-"""Public-distribution projection (module 30 §5, REVIEW F17, index registry).
+"""Public-distribution projection.
 
 `public_view(sample)` emits ONLY the agent-visible surface — the redacted
 Observation fields plus sample_id/axis/difficulty/policy_id/canary/seed — and
@@ -23,15 +23,15 @@ HIDDEN_WORLD_CONFIG_KEYS: tuple[str, ...] = (
     "market_context", "fraud_engine", "dispute", "settlement",
 )
 
-# Per-method fields the agent legitimately observes (module 20 §2; F2). Everything
-# else on an acquirer (true_fee_bps, approval_prob, reliability) is hidden truth.
+# Per-method fields the agent legitimately observes. Everything else on an acquirer
+# (true_fee_bps, approval_prob, reliability) is hidden truth.
 _VISIBLE_METHOD_KEYS: tuple[str, ...] = (
     "acquirer_id", "methods", "geos", "advertised_fee_bps", "observed_approval_band",
 )
 
 
 def public_view(sample: Sample) -> dict[str, Any]:
-    """The agent-visible projection of one Sample (F17). Strips gold + hidden config."""
+    """The agent-visible projection of one Sample. Strips gold + hidden config."""
     # Use JSON round-trip so Decimals/enums serialize exactly as published.
     raw = json.loads(sample.model_dump_json())
     wc = raw["world_config"]

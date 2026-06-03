@@ -1,4 +1,4 @@
-"""Evaluation profile (spec §5.3 / §6): per-STAGE sampling + the split×k plan.
+"""Evaluation profile: per-STAGE sampling + the split×k plan.
 
 Temperature is a property of the eval STAGE, not the model — pinned here and applied identically
 to every model and scenario, so no model can be tuned. Two stages: `competence` (temp 0.0, Main
@@ -54,7 +54,7 @@ def load_profile(path: str | Path) -> Profile:
     )
 
 
-# Profile "A" (spec §6): the published default. Sampling per §5.3.
+# Profile "A": the published default.
 DEFAULT_PROFILE: Profile = Profile(
     competence=StageSampling(temperature=0.0, top_p=1.0, max_tokens=2048, seed=7),
     reliability=StageSampling(temperature=0.7, top_p=1.0, max_tokens=2048, seed=7),

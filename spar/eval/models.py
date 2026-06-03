@@ -1,4 +1,4 @@
-"""Model registry (spec §5.2): model IDENTITY only — never sampling knobs (those live in the profile).
+"""Model registry: model IDENTITY only — never sampling knobs (those live in the profile).
 
 A frozen pydantic `ModelConfig` plus `load_models` reading `[[model]]` tables from a TOML file.
 `class` is a python reserved word, so the field is `cls` with serialization alias "class".
@@ -28,6 +28,6 @@ class ModelConfig(BaseModel):
 
 
 def load_models(path: str | Path) -> list[ModelConfig]:
-    """Read `[[model]]` tables from a TOML file into validated `ModelConfig`s (spec §5.2)."""
+    """Read `[[model]]` tables from a TOML file into validated `ModelConfig`s."""
     data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
     return [ModelConfig.model_validate(row) for row in data.get("model", [])]

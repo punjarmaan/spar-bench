@@ -1,4 +1,4 @@
-"""The `spar build` subcommand (module 30 §5): cut a new versioned, canaried, frozen release.
+"""The `spar build` subcommand: cut a new versioned, canaried, frozen release.
 
 Public projected splits and the server-side Private build go to SEPARATE directories (Private
 isolation). Not used per eval run — eval loads the frozen artifacts.

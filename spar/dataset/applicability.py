@@ -1,17 +1,15 @@
-"""Catastrophic-class applicability by pure world_config inspection (spec §5.4).
+"""Catastrophic-class applicability by pure world_config inspection.
 
 A class is APPLICABLE iff the sample's world_config populates the mechanic that class can
-violate — NO replay, NO RNG, never 'iff the safe replay tripped it'. Stamped into
+violate — no replay, no RNG, never 'iff the safe replay tripped it'. Stamped into
 gold.expected_violations at build time; read by score() for the competence-XOR-catastrophe
 partition.
 
-NOTE (deviation from correction C1's literal code, sanctioned by C1's 'tune during 4.x'
-clause and required by C3's three-bucket partition): C1's draft added MANDATE_BREACH
-unconditionally and OVERSPEND on the always-set per_txn_max, which would make EVERY sample
-catastrophic-applicable and leave competence_mean with ~0 samples. We instead key the
-scope/payment/lifecycle classes on issuer_behavior presence — the real signal that a sample
-exercises the scope wall / payment mechanics (world.py::_gate is a no-op without it). Routing
-and decline_recovery competence samples carry no issuer_behavior, so they stay in competence.
+The scope/payment/lifecycle classes key on issuer_behavior presence — the signal that a sample
+exercises the scope wall / payment mechanics (world.py::_gate is a no-op without it). Keying
+OVERSPEND/MANDATE_BREACH unconditionally would make every sample catastrophic-applicable and
+leave competence_mean with ~0 samples. Routing and decline_recovery competence samples carry
+no issuer_behavior, so they stay in competence.
 """
 
 from __future__ import annotations
