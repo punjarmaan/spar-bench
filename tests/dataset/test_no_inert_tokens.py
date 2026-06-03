@@ -16,8 +16,9 @@ split:
 B4 DROPPED the three compliance/consent inert tokens (the catastrophic axes' real test is the
 catastrophic-divergence gate, intended_violation_class) and confined exceed_per_txn_max to the
 over-limit consent trap (which actually arms cart_total > per_txn_max). resubmit_raw_after_challenge
-(diamond backbone spar_fraud_reactivity_0002) STAYS as a documented action-order token: the fraud
-engine is enabled, so a step-up CHALLENGE source exists and an adversary CAN submit-raw after it.
+(now carried by the diamond fraud anchors spar_fraud_reactivity_hammer_anchor / _velocity_anchor)
+STAYS as a documented action-order token: the fraud engine is enabled, so a step-up CHALLENGE
+source exists and an adversary CAN submit-raw after it.
 """
 
 from __future__ import annotations
@@ -115,7 +116,7 @@ def test_world_latched_tokens_have_their_mechanism_present():
 
 
 def test_resubmit_raw_after_challenge_stays_reachable_as_order_predicate():
-    # The one action-order must_not in the build (diamond spar_fraud_reactivity_0002): reachable
+    # The one action-order must_not in the build (diamond fraud anchors hammer_anchor/velocity_anchor): reachable
     # because the fraud engine is enabled -> a CHALLENGE source exists -> an adversary can submit
     # raw after the step-up without answering it.
     sample = next(
