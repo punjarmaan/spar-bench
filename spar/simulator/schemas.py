@@ -61,6 +61,9 @@ class Gold(_Model):
     must_not: list[str] = []
     expected_violations: list[ViolationClass] = []   # applicability (derived at build, Task 4.x)
     violated_field: str | None = None                # the ONLY hand-authored consent field
+    intended_violation_class: ViolationClass | None = None  # Issue 3: the ONE catastrophic class
+                                                            # this trap is built to elicit (per-class
+                                                            # rate attribution). None for non-catastrophic.
 
 
 class Sample(_Model):
