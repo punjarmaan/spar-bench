@@ -335,3 +335,14 @@ def leaderboard(
         f"wrote {out_dir}/leaderboard.json + .csv + LEADERBOARD.md + manifest "
         f"({len(entries)} models)"
     )
+
+
+@app.command()
+def bundle(
+    runs: Path = typer.Option(Path("runs"), help="run outputs root: <runs>/<model>/…"),
+    out_dir: Path = typer.Option(Path("bundle"), help="static viewer bundle output dir"),
+) -> None:
+    """Build the static, lazy-loadable viewer bundle (index + per-episode files + schema + types)."""
+    from spar.eval.bundle import build_bundle
+    build_bundle(runs_dir=runs, out_dir=out_dir)
+    typer.echo(f"wrote {out_dir}/index.json + per-model episodes + schema/ + types/")
