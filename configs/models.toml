@@ -1,105 +1,146 @@
 # Spar cross-model evaluation roster — model IDENTITY ONLY (no sampling knobs; those live in
 # profile.toml so no model can be tuned). OpenRouter is the default route; set OPENROUTER_API_KEY.
-# Adding/switching a model = editing this file. Prices are optional (cost reporting fallback).
-# reasoning=true is set per each model's OpenRouter `supported_parameters` (reasoning/include_reasoning);
-# qwen3-235b, llama-3.3-70b, and qwen3-next-80b expose no reasoning param so are left off.
+# Adding/switching a model = editing this file. Roster is NOT a frozen surface (the freeze contract
+# explicitly allows adding/swapping contestants — only dataset/grader/profile/responder are frozen).
+# Prices are per-Mtok, from the live OpenRouter catalog on 2026-06-02 (cost-reporting fallback).
+#
+# Revised 2026-06-02: roster upgraded to each lab's current-generation flagship + a curated
+# open-weight set. `supports_response_format=false` uniformly (prompt-format path; the validated-clean
+# route — json_object caused gemini's 30% wrong-envelope before the lenient parser). `reasoning=true`
+# is set per each model's OpenRouter `supported_parameters`; reasoning runs at effort=high (agent.py).
+#
+# ===========================================================================================
+# FRONTIER TIER — each lab's current flagship (replaces the prior -4 / v3.2 / 235b pins).
+# ===========================================================================================
 
 [[model]]
-id            = "claude-opus-4"
-route         = "openrouter/anthropic/claude-opus-4"
+id            = "claude-opus-4.8"
+route         = "openrouter/anthropic/claude-opus-4.8"
 class         = "frontier"
-supports_response_format = true
-price_in_per_mtok  = 15.0
-price_out_per_mtok = 75.0
-version_pin   = "anthropic/claude-opus-4@2026-05"
-reasoning     = true
-
-[[model]]
-id            = "gpt-5"
-route         = "openrouter/openai/gpt-5"
-class         = "frontier"
-supports_response_format = true
-price_in_per_mtok  = 10.0
-price_out_per_mtok = 30.0
-version_pin   = "openai/gpt-5@2026-05"
-reasoning     = true
-
-[[model]]
-id            = "llama-3.3-70b"
-route         = "openrouter/meta-llama/llama-3.3-70b-instruct"
-class         = "open"
 supports_response_format = false
-price_in_per_mtok  = 0.12
-price_out_per_mtok = 0.30
-version_pin   = "meta-llama/llama-3.3-70b-instruct@2026-05"
-
-[[model]]
-# gemini-2.0-flash-001 was delisted on OpenRouter (404); repointed to the live successor.
-# OpenRouter has NO @date pin syntax — the id itself is the pin (gemini-2.5-flash tracks Google's
-# current 2.5-flash; use a dated variant like gemini-2.5-flash-lite-preview-09-2025 for strict repro).
-id            = "gemini-2.5-flash"
-route         = "openrouter/google/gemini-2.5-flash"
-class         = "open"
-supports_response_format = true
-price_in_per_mtok  = 0.30
-price_out_per_mtok = 2.50
-version_pin   = "google/gemini-2.5-flash"
+price_in_per_mtok  = 5.0
+price_out_per_mtok = 25.0
+version_pin   = "anthropic/claude-opus-4.8"
 reasoning     = true
 
 [[model]]
-id            = "claude-sonnet-4"
-route         = "openrouter/anthropic/claude-sonnet-4"
+id            = "claude-sonnet-4.6"
+route         = "openrouter/anthropic/claude-sonnet-4.6"
 class         = "frontier"
 supports_response_format = false
 price_in_per_mtok  = 3.0
 price_out_per_mtok = 15.0
-version_pin   = "anthropic/claude-sonnet-4@2026-05"
+version_pin   = "anthropic/claude-sonnet-4.6"
 reasoning     = true
 
 [[model]]
-id            = "deepseek-v3.2"
-route         = "openrouter/deepseek/deepseek-v3.2"
+id            = "gpt-5.5"
+route         = "openrouter/openai/gpt-5.5"
 class         = "frontier"
 supports_response_format = false
-price_in_per_mtok  = 0.25
-price_out_per_mtok = 0.38
-version_pin   = "deepseek/deepseek-v3.2@2026-05"
+price_in_per_mtok  = 5.0
+price_out_per_mtok = 30.0
+version_pin   = "openai/gpt-5.5"
 reasoning     = true
 
 [[model]]
-id            = "qwen3-235b-a22b"
-route         = "openrouter/qwen/qwen3-235b-a22b-2507"
+# FRONTIER GEMINI — included as a contestant per request. CAVEAT (must carry a published footnote):
+# the frozen responder+grader is gemini-2.5-flash, so this row is graded by a SAME-VENDOR model.
+# This breaks the grader-neutrality the freeze chose flash for. The grader pin cannot be changed
+# without forcing canonical-r2 + a full re-run, so the score stands with a same-family-grader footnote.
+id            = "gemini-3.1-pro"
+route         = "openrouter/google/gemini-3.1-pro-preview"
 class         = "frontier"
 supports_response_format = false
-price_in_per_mtok  = 0.07
-price_out_per_mtok = 0.10
-version_pin   = "qwen/qwen3-235b-a22b-2507@2026-05"
-
-# --- Free OpenRouter models (:free) for the cheap-first probe rollout. $0 spend; heavily
-# rate-limited (low RPM + daily caps) so a full probe run may be slow / hit 429 retries.
-# prompt-format path (supports_response_format=false) to minimize malformed_action on capable models.
-[[model]]
-id            = "gpt-oss-120b-free"
-route         = "openrouter/openai/gpt-oss-120b:free"
-class         = "open"
-supports_response_format = false
-price_in_per_mtok  = 0.0
-price_out_per_mtok = 0.0
+price_in_per_mtok  = 2.0
+price_out_per_mtok = 12.0
+version_pin   = "google/gemini-3.1-pro-preview"
 reasoning     = true
 
 [[model]]
-id            = "qwen3-next-80b-free"
-route         = "openrouter/qwen/qwen3-next-80b-a3b-instruct:free"
-class         = "open"
+id            = "deepseek-v4-pro"
+route         = "openrouter/deepseek/deepseek-v4-pro"
+class         = "frontier"
 supports_response_format = false
-price_in_per_mtok  = 0.0
-price_out_per_mtok = 0.0
+price_in_per_mtok  = 0.435
+price_out_per_mtok = 0.870
+version_pin   = "deepseek/deepseek-v4-pro"
+reasoning     = true
 
 [[model]]
-id            = "glm-4.5-air-free"
-route         = "openrouter/z-ai/glm-4.5-air:free"
+# Qwen frontier (proprietary max tier).
+id            = "qwen3.7-max"
+route         = "openrouter/qwen/qwen3.7-max"
+class         = "frontier"
+supports_response_format = false
+price_in_per_mtok  = 1.25
+price_out_per_mtok = 3.75
+version_pin   = "qwen/qwen3.7-max"
+reasoning     = true
+
+# ===========================================================================================
+# OPEN-WEIGHT TIER — Qwen open-weight flagship + a curated, lab-diverse set of current-gen
+# open models. All cheap; reasoning=true where the route supports it.
+# ===========================================================================================
+
+[[model]]
+# Qwen open-weight flagship (large MoE).
+id            = "qwen3.5-397b-a17b"
+route         = "openrouter/qwen/qwen3.5-397b-a17b"
 class         = "open"
 supports_response_format = false
-price_in_per_mtok  = 0.0
-price_out_per_mtok = 0.0
+price_in_per_mtok  = 0.39
+price_out_per_mtok = 2.34
+version_pin   = "qwen/qwen3.5-397b-a17b"
+reasoning     = true
+
+[[model]]
+id            = "glm-5"
+route         = "openrouter/z-ai/glm-5"
+class         = "open"
+supports_response_format = false
+price_in_per_mtok  = 0.60
+price_out_per_mtok = 2.08
+version_pin   = "z-ai/glm-5"
+reasoning     = true
+
+[[model]]
+id            = "kimi-k2.6"
+route         = "openrouter/moonshotai/kimi-k2.6"
+class         = "open"
+supports_response_format = false
+price_in_per_mtok  = 0.684
+price_out_per_mtok = 3.42
+version_pin   = "moonshotai/kimi-k2.6"
+reasoning     = true
+
+[[model]]
+id            = "minimax-m3"
+route         = "openrouter/minimax/minimax-m3"
+class         = "open"
+supports_response_format = false
+price_in_per_mtok  = 0.30
+price_out_per_mtok = 1.20
+version_pin   = "minimax/minimax-m3"
+reasoning     = true
+
+[[model]]
+# Meta Llama 4 (non-reasoning route — no reasoning param exposed).
+id            = "llama-4-maverick"
+route         = "openrouter/meta-llama/llama-4-maverick"
+class         = "open"
+supports_response_format = false
+price_in_per_mtok  = 0.15
+price_out_per_mtok = 0.60
+version_pin   = "meta-llama/llama-4-maverick"
+
+[[model]]
+# OpenAI open-weights (paid route — reliable; the prior :free route was rate-limited).
+id            = "gpt-oss-120b"
+route         = "openrouter/openai/gpt-oss-120b"
+class         = "open"
+supports_response_format = false
+price_in_per_mtok  = 0.039
+price_out_per_mtok = 0.180
+version_pin   = "openai/gpt-oss-120b"
 reasoning     = true
