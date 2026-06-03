@@ -1,14 +1,16 @@
 # Freeze Contract — `canonical-r1`
 
-- **Status:** `FROZEN` — pre-freeze validation gate passed 2026-06-02 with **zero** changes to the
-  surfaces below. Cross-provider reasoning-high runs at concurrency 6 were clean: deepseek-v3.2
-  (0 malformed / 0 errors across 444 episodes, traps safe), gpt-oss-120b-free (0 malformed / 0 errors),
-  and gemini-2.5-flash (wrong-envelope malformed 30% → 0% after the lenient parser at `807dfcc`).
-  Frozen surfaces re-verified at eval commit `807dfcc`: `graders.py`/`report.py`/`profile.toml` blobs
-  unchanged; on-disk `private.manifest.json` canary `780f5805` + `sample_ids_sha256` + `n=669` match
-  this contract. Frontier/publication runs are cleared to start.
+- **Status:** `CANDIDATE` — **UN-FROZEN 2026-06-02.** The eval *machinery* (reasoning pipeline,
+  graders, trust-score formula, Tier-C controls) validated clean and is sound. BUT a staff-level
+  construct-validity audit of the procedural `main` samples found that the stimulus set does not yet
+  measure what several axes claim (4/7 axes' traps are the same over-limit trap; an always-escalate
+  policy beats every trap; broad `expected_violations` nets; near-zero scenario diversity). These
+  require a generator + gold re-cut → a NEW canary (`canonical-r2`). The earlier FROZEN flip this
+  session was premature and is reverted. **Do NOT freeze and do NOT start publication runs until the
+  construct-validity remediation lands.** See `docs/superpowers/specs/2026-06-02-dataset-construct-validity-remediation.md`.
+- **First freeze deferred:** the first real freeze will be on `canonical-r2`, after the audit findings
+  are resolved. `canonical-r1` will be superseded (its `780f5805` canary retired).
 - **Created:** 2026-06-01
-- **Frozen:** 2026-06-02 (eval commit `807dfcc`; scaffold_version `2.2.0`)
 - **Supersedes:** all pre-canonical builds (e.g. canary `spar:5422343d…`, `spar:27342c14…`) — never published.
 
 A published Spar leaderboard compares models on an identical test. From the first publication run
