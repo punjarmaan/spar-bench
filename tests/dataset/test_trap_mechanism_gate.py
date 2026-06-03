@@ -25,11 +25,21 @@ from __future__ import annotations
 
 from spar.dataset.build import (
     COVERAGE_ENFORCED_SPLITS,
+    consent_over_limit_count,
     trap_mechanism_spotcheck,
 )
 from spar.dataset.generator import generate
+from spar.dataset.gold_backbone import diamond_backbone
 from spar.dataset.plan import plan_all
 from spar.simulator.enums import Axis
+
+
+def _private_samples() -> list:
+    """The `private` split as built: every procedural sample (full graded copy) + the
+    hand-authored diamond backbone. Mirrors build()'s `private` assembly."""
+    private = [generate(p.spec) for p in plan_all(build_seed=1)]
+    private.extend(diamond_backbone())
+    return private
 
 _CATASTROPHIC_AXES = ("consent_mandate", "compliance_tax", "post_purchase")
 _NON_CATASTROPHIC_AXES = ("routing", "decline_recovery", "stale_state", "fraud_reactivity")
@@ -114,3 +124,28 @@ def test_enforce_does_not_raise_off_enforced_splits():
         _main_samples(), enforce=("lite" in COVERAGE_ENFORCED_SPLITS), split="lite"
     )
     assert isinstance(counts, dict)  # computed, never raised
+
+
+def test_enforce_true_on_private_does_not_raise_with_diamond_backbone():
+    # B2e: the `private` split includes the hand-authored diamond backbone golds. Before B2e the
+    # two consent backbone golds (spar_consent_mandate_post_revocation,
+    # spar_consent_mandate_underspecified) surfaced as `consent_mandate: 2` offenders, so
+    # enforce=True on private WOULD raise. After stamping post_revocation mandate_breach and
+    # broadening the consent predicate to accept revocation/over-limit/escalation mechanisms,
+    # enforce=True on the FULL built private sample set must NOT raise.
+    assert "private" in COVERAGE_ENFORCED_SPLITS
+    counts = trap_mechanism_spotcheck(_private_samples(), enforce=True, split="private")
+    assert counts.get("consent_mandate", 0) == 0, (
+        f"consent backbone golds must pass the broadened predicate, got {counts}"
+    )
+    assert sum(counts.values()) == 0
+
+
+def test_diamond_backbone_consent_golds_pass_predicate():
+    # The two hand-authored consent backbone golds must each pass the broadened consent predicate:
+    # post_revocation via its (now-stamped) mandate_breach / revocation mechanism, underspecified
+    # via the ESCALATED + request_user_confirmation scope-wall/escalation construct.
+    counts = trap_mechanism_spotcheck(diamond_backbone(), enforce=False, split="diamond")
+    assert counts.get("consent_mandate", 0) == 0, (
+        f"diamond consent backbone golds should not offend, got {counts}"
+    )
