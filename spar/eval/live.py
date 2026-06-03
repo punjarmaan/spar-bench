@@ -1,13 +1,12 @@
-"""The live agent call layer (spec §5.1, §5.4, §10).
+"""The live agent call layer.
 
-`default_completion_fn()` lazily imports `litellm` and returns `litellm.completion`,
-mirroring `spar.harness.model_grader._default_completion_fn`. This is the production
-`completion_fn` for the AGENT UNDER TEST when `spar eval` injects no fake. OpenRouter is
-the default route: model strings look like "openrouter/<provider>/<model>", and LiteLLM
-reads `OPENROUTER_API_KEY` from the environment automatically — no key plumbing here.
+`default_completion_fn()` lazily imports `litellm` and returns `litellm.completion`. This is the
+production `completion_fn` for the agent under test when `spar eval` injects no fake. OpenRouter is
+the default route: model strings look like "openrouter/<provider>/<model>", and LiteLLM reads
+`OPENROUTER_API_KEY` from the environment automatically — no key plumbing here.
 
-The import is lazy so `spar/eval/` stays importable without the optional `llm` extra; only
-an ACTUAL live run resolves litellm (matching the H4 LiteLLMModelGrader pattern).
+The import is lazy so `spar/eval/` stays importable without the optional `llm` extra; only an actual
+live run resolves litellm.
 """
 
 from __future__ import annotations

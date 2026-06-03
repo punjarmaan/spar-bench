@@ -1,8 +1,8 @@
-"""Content-addressed completion cache (design §5.5/§5.6): resume + reproducibility.
+"""Content-addressed completion cache: resume + reproducibility.
 
-Keys hash (model, messages, sampling) via `stable_hash`; each entry is a JSON file under
-`dir`. A cache hit lets a re-run skip the model call and reproduce identical grades. The
-`digest` summarizes the populated cache for the run manifest. Stdlib only — no litellm.
+Keys hash (model, messages, sampling) via `stable_hash`; each entry is a JSON file under `dir`. A
+cache hit lets a re-run skip the model call and reproduce identical grades. The `digest` summarizes
+the populated cache for the run manifest. Stdlib only — no litellm.
 """
 
 from __future__ import annotations

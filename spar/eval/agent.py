@@ -1,13 +1,13 @@
-"""ModelAgent (spec §5.1): the agent-under-test driven by a uniform JSON-action protocol.
+"""The agent-under-test, driven by a uniform JSON-action protocol.
 
-One code path for every model (native tool-calling rejected — not uniform across OpenRouter's open
-models, would confound the comparison). The system prompt is policy + mandate + a tool catalog
+One code path for every model. Native tool-calling is not used: it isn't uniform across the open
+models, which would confound the comparison. The system prompt is policy + mandate + a tool catalog
 derived from the `contract` pydantic models (so it never drifts) + the JSON output contract. Each
-`act` appends the rendered observation to an instance transcript, calls the INJECTED `completion_fn`,
+`act` appends the rendered observation to an instance transcript, calls the injected `completion_fn`,
 json.loads -> parse_action -> Action; one bounded reformat retry; else Abort(malformed_action).
 
-litellm is NOT imported here — the completion_fn is injected (the user_sim / model_grader pattern).
-Cost is float USD (Decimal stays reserved for simulator money).
+litellm is not imported here — the completion_fn is injected. Cost is float USD; Decimal is reserved
+for simulator money.
 """
 
 from __future__ import annotations
@@ -42,20 +42,20 @@ from spar.simulator.contract import (
 if TYPE_CHECKING:
     from spar.eval.trajectory import AgentTurn  # runtime import stays lazy in act() (circular)
 
-# Bump on ANY change to the prompt template, tool catalog, or parser (spec standard 1).
+# Bump on ANY change to the prompt template, tool catalog, or parser.
 SCAFFOLD_VERSION = "2.2.0"
 
 # Native reasoning effort level passed to the provider for reasoning-capable models.
-# litellm-standard level ("low"/"medium"/"high"); pinned to "high" for maximum reasoning on this
-# safety benchmark. Changing this value bumps the frozen scaffold — increment SCAFFOLD_VERSION.
+# litellm-standard level ("low"/"medium"/"high"); pinned to "high". Changing this value bumps the
+# frozen scaffold — increment SCAFFOLD_VERSION.
 REASONING_EFFORT = "high"
 
 # Output-token cap for reasoning calls. Reasoning tokens count toward max_tokens, and effort=high
-# overruns the profile's 2048 (truncates to empty content -> malformed) on complex turns. A generous
-# cap; it only consumes tokens if the model actually reasons that far.
+# overruns the profile's 2048 (truncates to empty content -> malformed) on complex turns. Generous
+# cap; only consumes tokens if the model actually reasons that far.
 REASONING_MAX_TOKENS = 16384
 
-# The 11 tool models, keyed by their `tool` Literal — the real action space (contract.py).
+# The 11 tool models, keyed by their `tool` Literal — the real action space.
 _TOOL_MODELS = (
     SelectRoute, ComputeTax, SubmitAuthorization, HandleChallenge, Retry,
     ModifyCart, RequestUserConfirmation, Capture, Void, Refund, Abort,
@@ -92,8 +92,8 @@ def tool_catalog() -> str:
     return json.dumps(catalog, sort_keys=True)
 
 
-# Frozenset of valid tool names derived from _TOOL_MODELS — used by the lenient fallback parser
-# so it never drifts from the real action space.
+# Valid tool names derived from _TOOL_MODELS — used by the lenient fallback parser so it never
+# drifts from the real action space.
 _VALID_TOOLS: frozenset[str] = frozenset(
     _tool_name(model.model_json_schema()["properties"]["tool"])
     for model in _TOOL_MODELS
@@ -110,11 +110,11 @@ def render_observation(obs: Observation) -> str:
 
 
 class CallUsage(BaseModel):
-    """Per-response token + cost record, read by EM2's cost meter. Cost is float USD.
+    """Per-response token + cost record, read by the cost meter. Cost is float USD.
 
-    `billed` is False for a cache HIT (the completion was already paid for on the run that
-    populated the cache): it counts toward the GROSS (uncached) cost but NOT the BILLED cost
-    actually spent this run, and never trips the budget cap. A live (cache-miss) call is billed.
+    `billed` is False for a cache hit (the completion was already paid for on the run that
+    populated the cache): it counts toward the gross uncached cost but not the cost actually spent
+    this run, and never trips the budget cap. A live cache-miss call is billed.
     """
 
     prompt_tokens: int
@@ -145,7 +145,7 @@ def _build_system_prompt(policy_text: str, mandate_text: str) -> str:
 def _to_action(content: str) -> Action:
     """Parse a model reply into an Action. Raises on malformed/unknown/bad-args.
 
-    Primary path: {"tool": "<name>", "args": {...}} — unchanged from 2.1.0.
+    Primary path: {"tool": "<name>", "args": {...}}.
     Lenient fallbacks (tried in order when primary fails):
       a. Strip markdown fences (```[json]...```) and retry primary path.
       b. Alternate envelope: a dict with exactly ONE key that is a valid tool name,
@@ -161,17 +161,14 @@ def _to_action(content: str) -> Action:
         raw = json.loads(content)
         return _parse_standard(raw)
     except Exception as exc:
-        # primary failure returned
         primary_exc = exc
 
     # --- Fallback a: strip markdown fences ---
     stripped = content.strip()
     if stripped.startswith("```"):
-        # Remove opening fence (```json or ```)
         first_newline = stripped.find("\n")
         if first_newline != -1:
             inner = stripped[first_newline + 1:]
-            # Remove closing fence
             if inner.rstrip().endswith("```"):
                 inner = inner.rstrip()[:-3].rstrip()
             try:
@@ -200,10 +197,10 @@ def _debug_log_malformed(
     *, route: str, step: int, initial_content: str, retry_content: str,
     initial_reasoning: str | None, retry_reasoning: str | None,
 ) -> None:
-    """DIAGNOSTIC ONLY: append the raw replies that failed to parse to the path in the
-    SPAR_DEBUG_MALFORMED env var. No-op (score-neutral) when the var is unset — never affects a
-    run's behavior or scoring; exists to inspect WHY reasoning models malform on the prompt-format
-    path. Best-effort append; swallows IO errors so it can never break an episode."""
+    """Diagnostic only: append the raw replies that failed to parse to the path in the
+    SPAR_DEBUG_MALFORMED env var. No-op when the var is unset — never affects a run's behavior or
+    scoring; exists to inspect why reasoning models malform on the prompt-format path. Best-effort
+    append; swallows IO errors so it can never break an episode."""
     path = os.environ.get("SPAR_DEBUG_MALFORMED")
     if not path:
         return
@@ -221,7 +218,7 @@ def _debug_log_malformed(
 
 
 class ModelAgent:
-    """Agent-under-test (spec §5.1). Satisfies `Agent.act`. One fresh instance per pass^k trial."""
+    """Agent-under-test. Satisfies `Agent.act`. One fresh instance per pass^k trial."""
 
     def __init__(
         self,
@@ -240,8 +237,8 @@ class ModelAgent:
         self.reasoning = reasoning
         self._completion_fn = completion_fn
         self.usage: list[CallUsage] = []
-        self.turns: list["AgentTurn"] = []  # enriched per-turn records (enrichment T3)
-        self._last_reasoning: str | None = None   # reasoning trace from the most recent _call (diag)
+        self.turns: list["AgentTurn"] = []  # enriched per-turn records
+        self._last_reasoning: str | None = None   # reasoning trace from the most recent _call
         self.transcript: list[dict[str, str]] = [
             {"role": "system", "content": _build_system_prompt(policy_text, mandate_text)}
         ]
@@ -257,20 +254,19 @@ class ModelAgent:
         if self.supports_response_format:
             kw["response_format"] = {"type": "json_object"}
         if self.reasoning:
-            # Native reasoning for the model-under-test. These three kwargs are coupled (all verified
-            # live against OpenRouter):
+            # Native reasoning for the model-under-test. These three kwargs are coupled:
             #  - reasoning_effort: the pinned effort level (see REASONING_EFFORT).
-            #  - include_reasoning=True: REQUIRED — without it some providers (e.g. deepseek-v3.2)
-            #    return content=None (reasoning-only), which would parse as malformed.
-            #  - drop_params=True: load-bearing — gpt-5-class reasoning models REJECT temperature/top_p;
-            #    this lets litellm silently drop the unsupported sampling params instead of erroring.
+            #  - include_reasoning=True: required — without it some providers return content=None
+            #    (reasoning-only), which would parse as malformed.
+            #  - drop_params=True: some reasoning models reject temperature/top_p; this lets litellm
+            #    silently drop the unsupported sampling params instead of erroring.
             kw["reasoning_effort"] = REASONING_EFFORT
             kw["include_reasoning"] = True
             kw["drop_params"] = True
             # Reasoning tokens count toward max_tokens. effort=high emits ~2.6k+ reasoning tokens, so
-            # the profile's 2048 truncates (finish_reason=length -> EMPTY content -> malformed) on
-            # complex turns. Raise the cap so reasoning + the JSON answer both fit. It's a CAP (only
-            # consumed if the model reasons that far), so it adds no cost on typical turns.
+            # the profile's 2048 truncates (finish_reason=length -> empty content -> malformed) on
+            # complex turns. Raise the cap so reasoning + the JSON answer both fit. As a cap it's only
+            # consumed if the model reasons that far, so it adds no cost on typical turns.
             kw["max_tokens"] = REASONING_MAX_TOKENS
         return kw
 
@@ -311,7 +307,7 @@ class ModelAgent:
         try:
             action = _to_action(content)
         except Exception:
-            # ONE bounded "return only the JSON action" reformat retry (spec §5.1).
+            # One bounded "return only the JSON action" reformat retry.
             retried = True
             retry_messages = [
                 *self.transcript,
@@ -341,9 +337,8 @@ class ModelAgent:
             retried=retried,
             retry_raw_output=retry_content,
             retry_reasoning=retry_reasoning,
-            # Normalized parsed action (raw text is already in raw_output): {tool, args} —
-            # the same shape the original _write_trajectory used, consistent across lenient
-            # envelopes / malformed-abort. raw_output keeps the verbatim model reply.
+            # Normalized parsed action {tool, args}, consistent across lenient envelopes and
+            # malformed-abort. raw_output keeps the verbatim model reply.
             action={"tool": action.tool, "args": action.model_dump(mode="json", exclude={"tool"})},
             usage=list(self.usage[usage_start:]),
         ))

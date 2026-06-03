@@ -1,7 +1,7 @@
-"""Token/cost accounting (design §5.6). Cost is float USD reporting metadata — Decimal stays
-reserved for simulator money. `litellm` is never imported here (provider cost arrives already
-parsed on CallUsage.response_cost). Two numbers: pre-flight `estimate_cost` and confirmed
-per-call accrual via `CostMeter` (which enforces the hard budget cap)."""
+"""Token/cost accounting. Cost is float USD reporting metadata — Decimal stays reserved for
+simulator money. `litellm` is never imported here (provider cost arrives already parsed on
+CallUsage.response_cost). Two numbers: pre-flight `estimate_cost` and confirmed per-call accrual
+via `CostMeter` (which enforces the hard budget cap)."""
 
 from __future__ import annotations
 
@@ -32,13 +32,13 @@ def _confirmed_cost(usage: CallUsage, model: ModelConfig) -> float:
 
 
 class CostMeter:
-    """Accrues agent inference cost and enforces the hard budget cap (design §5.6). Tracks TWO
-    numbers (a cache HIT is `billed=False`):
+    """Accrues agent inference cost and enforces the hard budget cap. Tracks two numbers (a cache
+    hit is `billed=False`):
 
-    - `gross()`  — what the run WOULD cost with no cache: every completion (hits + misses). This is
-      the true compute cost of the work, independent of resume state.
-    - `spent()` / `billed()` — what was ACTUALLY spent this run: cache MISSES only (real paid calls).
-      The budget cap keys on THIS, so a fully-cached resume is free and never trips the cap.
+    - `gross()`  — what the run would cost with no cache: every completion (hits + misses). The true
+      compute cost of the work, independent of resume state.
+    - `spent()` / `billed()` — what was actually spent this run: cache misses only (real paid calls).
+      The budget cap keys on this, so a fully-cached resume is free and never trips the cap.
 
     On a fresh run (empty cache) gross == spent; on a resume spent < gross. Only ModelAgent.usage is
     recorded here; the pinned judge/user-sim are metered separately as overhead (see record_overhead)."""
@@ -48,9 +48,9 @@ class CostMeter:
         self._billed = 0.0          # actually spent this run (cache misses) — drives the cap
         self._gross = 0.0           # uncached would-be cost (hits + misses)
         self._overhead = 0.0        # judge/user-sim spend (real money, also capped)
-        # Guards every read/write so the meter stays exact under concurrent sample workers
-        # (Tier-2b). Without it, two threads doing `_billed += cost` can lose an update and
-        # under-count spend, silently weakening the budget cap.
+        # Guards every read/write so the meter stays exact under concurrent sample workers. Without
+        # it, two threads doing `_billed += cost` can lose an update and under-count spend, silently
+        # weakening the budget cap.
         self._lock = threading.Lock()
 
     def record(self, usage: CallUsage, model: ModelConfig) -> None:
@@ -95,10 +95,10 @@ class CostMeter:
             return self._budget is not None and (self._billed + self._overhead) >= self._budget
 
 
-# Heuristic per-request token sizes for the pre-flight estimate (deliberately coarse, §5.6):
-# a system prompt (policy + tool catalog) plus a redacted observation per turn, and a short
-# JSON action out. Real per-episode turn count + output length are emergent; this only informs
-# the launch decision and the cap.
+# Heuristic per-request token sizes for the pre-flight estimate (deliberately coarse): a system
+# prompt (policy + tool catalog) plus a redacted observation per turn, and a short JSON action out.
+# Real per-episode turn count + output length are emergent; this only informs the launch decision
+# and the cap.
 _EST_PROMPT_TOKENS_PER_TURN = 1500
 _EST_COMPLETION_TOKENS_PER_TURN = 200
 
@@ -118,7 +118,7 @@ def estimate_cost(
     """PRE-FLIGHT heuristic projection (no model calls). For each StagePlan:
     n_samples x k x avg_turns requests, each a fixed prompt/completion token budget, priced off
     models.toml. Unpriced models project to 0.0. `samples_for` (when given) sizes against the real
-    release; default sizes the bundled toy split. Approximate by design (§5.6)."""
+    release; default sizes the bundled toy split. Approximate by design."""
     size = (lambda s: len(samples_for(s))) if samples_for is not None else _split_size
     est: dict[str, float] = {}
     for model in models:

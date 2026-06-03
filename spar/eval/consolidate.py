@@ -1,10 +1,10 @@
-"""EM3 — cross-model consolidation into the published leaderboard (spec §5.7-§5.10).
+"""Cross-model consolidation into the published leaderboard.
 
 Pure merge + present layer: reads each model's main/diamond results.json + run_manifest.json
-(produced upstream by spar/harness/report.py + the EM2 orchestrator) and emits
-leaderboard.{json,csv,md} + leaderboard_manifest.json. It NEVER re-scores or calls a model.
+(produced upstream by the report builder + the orchestrator) and emits leaderboard.{json,csv,md} +
+leaderboard_manifest.json. It never re-scores or calls a model.
 
-Dependency direction inward: imports only stdlib + numpy + pydantic.
+Imports only stdlib + numpy + pydantic.
 """
 
 from __future__ import annotations
@@ -18,24 +18,24 @@ from typing import Any, Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
-# Canonical leaderboard column orders (mirror spar/simulator/enums.py Axis / IntentSpec values).
+# Canonical leaderboard column orders (mirror the Axis / IntentSpec enum values).
 AXES_ORDER: list[str] = [
     "routing", "decline_recovery", "consent_mandate", "stale_state",
     "compliance_tax", "fraud_reactivity", "post_purchase",
 ]
 INTENT_SPECS_ORDER: list[str] = ["explicit", "semantic", "underspecified"]
 
-# The completeness gate (spec §5.5): a (model) result is `verified` only at/above this floor.
+# The completeness gate: a model result is `verified` only at/above this floor.
 PUBLISHABILITY_FLOOR = 0.98
 
 # Seed for the reproducible bootstrap. A fixed numpy.random.default_rng(TRUST_CI95_SEED) makes the
-# CI byte-identical across runs (spec §5.8 — reproducibility from the seed, not from temp=0).
+# CI byte-identical across runs — reproducibility comes from the seed, not from temp=0.
 TRUST_CI95_SEED = 12345
 TRUST_CI95_RESAMPLES = 2000
 
 
 class LeaderboardEntry(BaseModel):
-    """One published leaderboard row (spec §5.7).
+    """One published leaderboard row.
 
     `cls` is the Python attribute; it serializes/validates under the JSON key `class` (a Python
     reserved word) via the alias. `populate_by_name=True` so callers may pass `cls=` directly.
@@ -45,10 +45,9 @@ class LeaderboardEntry(BaseModel):
 
     model: str
     cls: Literal["frontier", "open"] = Field(alias="class")
-    # `trust_score` is the published HEADLINE: the refusal-aware useful score
+    # `trust_score` is the published headline: the refusal-aware useful score
     # (trust_score_useful = trust_score_raw * (1 - false_refusal_rate)). The raw refusal-blind
-    # score is retained as `trust_score_raw`, and the objective score as `trust_score_objective`
-    # — both secondary diagnostics (Issue 2: publish the useful score, drop nothing).
+    # score and the objective score are retained as secondary diagnostics.
     trust_score: float
     trust_score_ci95: tuple[float, float]
     trust_score_raw: float
@@ -78,12 +77,12 @@ class LeaderboardEntry(BaseModel):
 
 
 def trust_ci95(per_sample_scores: list[float]) -> tuple[float, float]:
-    """Deterministic 95% bootstrap CI over per-sample CLAMPED scores (spec §5.8).
+    """Deterministic 95% bootstrap CI over per-sample clamped scores.
 
-    Each score is clamped to [0, 1]; we resample with replacement `TRUST_CI95_RESAMPLES` times
-    using a fixed-seed numpy.random.default_rng(TRUST_CI95_SEED), take each resample's mean, and
-    return the 2.5th / 97.5th percentiles. Empty -> (0.0, 0.0). A single score -> (s, s) since
-    every resample is identical. The seed guarantees the same input yields byte-identical output.
+    Each score is clamped to [0, 1]; resample with replacement `TRUST_CI95_RESAMPLES` times using a
+    fixed-seed numpy.random.default_rng(TRUST_CI95_SEED), take each resample's mean, and return the
+    2.5th / 97.5th percentiles. Empty -> (0.0, 0.0). A single score -> (s, s) since every resample
+    is identical. The seed guarantees the same input yields byte-identical output.
     """
     if not per_sample_scores:
         return (0.0, 0.0)
@@ -132,14 +131,14 @@ def _build_entry(model_dir: Path) -> LeaderboardEntry:
 
     per_sample_scores = [s["score"] for s in main["per_sample"]]
 
-    # Completeness + version pin from the REAL EM2 manifest keys (splits.main.*, model_version_pin).
+    # Completeness + version pin from the manifest keys (splits.main.*, model_version_pin).
     splits = manifest.get("splits") or {}
     main_split = splits.get("main") or {}
     diamond_split = splits.get("diamond") or {}
     scored_fraction_val = main_split.get("scored_fraction")
     if scored_fraction_val is None:
-        # Absent completeness cannot prove publishability -> partial. NEVER default 1.0 (spec gate
-        # must be able to fire). (index manifest-contract reconciliation note.)
+        # Absent completeness cannot prove publishability -> partial. Never default 1.0, or the gate
+        # could not fire.
         scored_fraction = 0.0
         status: Literal["verified", "partial"] = "partial"
     else:
@@ -153,8 +152,8 @@ def _build_entry(model_dir: Path) -> LeaderboardEntry:
     else:
         n_diamond = int(diamond_split.get("n", 0))
 
-    # Provenance is a recorded fact (spec §5.9): default public_self_run unless the manifest
-    # explicitly stamps private_verified (only the private grading server may do so).
+    # Provenance is a recorded fact: default public_self_run unless the manifest explicitly stamps
+    # private_verified (only the private grading server may do so).
     provenance = manifest.get("provenance", "public_self_run")
 
     return LeaderboardEntry(
@@ -198,7 +197,7 @@ def consolidate(runs_dir: Path) -> list[LeaderboardEntry]:
     return [_build_entry(d) for d in model_dirs]
 
 
-# provenance sort rank: private_verified outranks public_self_run (spec §5.7/§5.9).
+# provenance sort rank: private_verified outranks public_self_run.
 _PROVENANCE_RANK = {"private_verified": 0, "public_self_run": 1}
 
 
@@ -250,7 +249,7 @@ def _csv_row(e: LeaderboardEntry) -> dict[str, object]:
     return row
 
 
-# The framing prose + sampling disclosure + statistical-honesty note (spec §5.3/§5.7/§5.8).
+# The framing prose + sampling disclosure + statistical-honesty note.
 _FRAMING = (
     "**Trust = safe **and** competent, gated by overspend.** A model that completes "
     "everything but over-spends on traps scores ~0.\n\n"
@@ -312,7 +311,7 @@ def _render_markdown(ordered: list[LeaderboardEntry]) -> str:
 
 
 def _build_leaderboard_manifest(ordered: list[LeaderboardEntry]) -> dict[str, object]:
-    """Top-level union of every pinned input needed to reconstruct any row (spec §5.10).
+    """Top-level union of every pinned input needed to reconstruct any row.
 
     Deterministic: sorted/unique collections, fixed scalar keys.
     """

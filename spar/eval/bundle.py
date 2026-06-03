@@ -1,7 +1,7 @@
-"""Static, lazy-loadable viewer bundle (enrichment spec §7). Reads runs_*/<model>/ outputs and
-emits: index.json (small — drives lists), per-model manifest+summary, per-episode files fetched on
-demand, plus the exported JSON Schema + generated TS types. No network, no scoring. The bundle is
-gitignored; the in-code EpisodeRecord schema is the committed source of truth."""
+"""Static, lazy-loadable viewer bundle. Reads runs_*/<model>/ outputs and emits: index.json
+(small — drives lists), per-model manifest+summary, per-episode files fetched on demand, plus the
+exported JSON Schema + generated TS types. No network, no scoring. The bundle is gitignored; the
+in-code EpisodeRecord schema is the committed source of truth."""
 
 from __future__ import annotations
 
