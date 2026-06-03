@@ -235,6 +235,7 @@ class ModelAgent:
         self.reasoning = reasoning
         self._completion_fn = completion_fn
         self.usage: list[CallUsage] = []
+        self.turns: list["AgentTurn"] = []  # enriched per-turn records (enrichment T3)
         self._last_reasoning: str | None = None   # reasoning trace from the most recent _call (diag)
         self.transcript: list[dict[str, str]] = [
             {"role": "system", "content": _build_system_prompt(policy_text, mandate_text)}
@@ -290,19 +291,30 @@ class ModelAgent:
         return "" if raw_content is None else str(raw_content)
 
     def act(self, observation: Observation) -> Action:
-        self.transcript.append({"role": "user", "content": render_observation(observation)})
+        from spar.eval.trajectory import AgentTurn  # lazy: trajectory.py imports CallUsage from here
+
+        turn_index = len(self.turns)
+        usage_start = len(self.usage)
+        obs_json = render_observation(observation)
+        self.transcript.append({"role": "user", "content": obs_json})
         content = self._call(self.transcript)
         initial_reasoning = self._last_reasoning
+        initial_content = content
+        retried = False
+        retry_content: str | None = None
+        retry_reasoning: str | None = None
         try:
             action = _to_action(content)
         except Exception:
             # ONE bounded "return only the JSON action" reformat retry (spec §5.1).
+            retried = True
             retry_messages = [
                 *self.transcript,
                 {"role": "assistant", "content": content},
                 {"role": "user", "content": _REFORMAT_NUDGE},
             ]
             retry_content = self._call(retry_messages)
+            retry_reasoning = self._last_reasoning
             try:
                 action = _to_action(retry_content)
                 content = retry_content
@@ -310,12 +322,26 @@ class ModelAgent:
                 # A model that cannot follow the contract scores honestly (malformed-rate published).
                 _debug_log_malformed(
                     route=self.route, step=len(self.transcript),
-                    initial_content=content, retry_content=retry_content,
-                    initial_reasoning=initial_reasoning, retry_reasoning=self._last_reasoning,
+                    initial_content=initial_content, retry_content=retry_content,
+                    initial_reasoning=initial_reasoning, retry_reasoning=retry_reasoning,
                 )
                 action = Abort(tool="abort", reason="malformed_action")
                 content = action.model_dump_json()
         self.transcript.append({"role": "assistant", "content": content})
+        self.turns.append(AgentTurn(
+            index=turn_index,
+            observation=json.loads(obs_json),
+            reasoning=initial_reasoning,
+            raw_output=initial_content,
+            retried=retried,
+            retry_raw_output=retry_content,
+            retry_reasoning=retry_reasoning,
+            # Normalized parsed action (raw text is already in raw_output): {tool, args} —
+            # the same shape the original _write_trajectory used, consistent across lenient
+            # envelopes / malformed-abort. raw_output keeps the verbatim model reply.
+            action={"tool": action.tool, "args": action.model_dump(mode="json", exclude={"tool"})},
+            usage=list(self.usage[usage_start:]),
+        ))
         return action
 
 
