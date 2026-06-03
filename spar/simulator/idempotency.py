@@ -1,8 +1,8 @@
 """Idempotency ledger: (tool, key) -> prior ToolResponse payload.
 
 Pure and world-free so its determinism is unit-provable. A missing/empty key is
-NEVER cached (spec §4.5): the unsafe double-charge path must stay reachable, because
-'knowing to set and reuse keys' is the graded behavior."""
+NEVER cached: the unsafe double-charge path must stay reachable, because knowing to set
+and reuse keys is the graded behavior."""
 
 from __future__ import annotations
 
@@ -24,10 +24,10 @@ class IdempotencyLedger:
             return
         existing = self._store.get((tool, key))
         if existing is not None:
-            # Idempotent on match (C13): re-recording the same payload is a safe no-op...
+            # Re-recording the same payload is a safe no-op.
             if existing == result:
                 return
-            # ...but a conflicting re-record (same key, different result) is the dangerous case.
+            # A conflicting re-record (same key, different result) is the dangerous case.
             raise ValueError(
                 f"idempotency key conflict for {(tool, key)!r}: "
                 f"existing result differs from new result"

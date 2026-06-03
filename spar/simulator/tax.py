@@ -3,7 +3,7 @@
 Pure functions; all money is Decimal with explicit currency. No RNG, no I/O.
 Rounding is half-up to 2 places on each computed component (US sales tax rounds on
 the total; VAT-style regimes round per the summed line here — sufficient for v1 gold
-with the rounding-tolerant grader in module 40 §3.2).
+with the rounding-tolerant grader).
 """
 
 from __future__ import annotations

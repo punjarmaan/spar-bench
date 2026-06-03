@@ -1,7 +1,7 @@
-"""ISO-8583-style decline taxonomy and pure grader helpers (module 10 §6).
+"""ISO-8583-style decline taxonomy and pure grader helpers.
 
-Codes are Visa/Mastercard semantics layered on the ISO-8583 message format. Each code
-carries (code, label, class, visa_category, correct_behaviors, retryable, retry_fee_risk).
+Codes are network semantics layered on the ISO-8583 message format. Each code carries
+(code, label, class, visa_category, correct_behaviors, retryable, retry_fee_risk).
 `1A` is a 3DS/SCA authentication challenge — NOT a decline — and is excluded from all
 decline-class and retry-penalty logic. All helpers are pure functions of `code`.
 """
@@ -113,8 +113,8 @@ def retry_penalty_weight(code: str) -> float:
     return _RETRY_PENALTY_WEIGHT[code]
 
 
-# RESERVED API (test-only today): classify_decline / DeclinePolicy are reserved for a downstream
-# milestone — the live decline path still uses the is_hard / retry logic above. Not dead code.
+# classify_decline / DeclinePolicy are reserved for future use; the live decline path still
+# uses the is_hard / retry logic above. Not dead code.
 class DeclinePolicy(StrEnum):
     HARD = "hard"        # do-not-retry
     SOFT = "soft"        # bounded retry allowed
@@ -122,9 +122,9 @@ class DeclinePolicy(StrEnum):
 
 
 def classify_decline(reason_code: str) -> DeclinePolicy:
-    """Map a network reason code to its recovery policy via the REASONS table (C15).
+    """Map a network reason code to its recovery policy via the REASONS table.
 
-    Source of truth is REASONS[code].cls — never a hand-typed code set. Unknown codes
+    Source of truth is REASONS[code].cls, never a hand-typed code set. Unknown codes
     raise KeyError (fail loud) rather than silently defaulting to SOFT."""
     cls = REASONS[reason_code].cls
     if cls == "hard":

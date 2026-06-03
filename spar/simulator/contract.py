@@ -22,7 +22,7 @@ class ObsMethod(_Model):
     methods: list[str]
     geos: list[str]
     advertised_fee_bps: int
-    observed_approval_band: Literal["low", "med", "high"]  # F2; true approval prob stays hidden
+    observed_approval_band: Literal["low", "med", "high"]  # true approval prob stays hidden
 
 
 class ObsCart(_Model):
@@ -40,7 +40,7 @@ class ObsContext(_Model):
     last_event: str | None = None
     last_reason_code: str | None = None
     attestation_present: bool = True
-    attempt_counts: dict[str, int] = {}   # F8: per-reason-code retry history
+    attempt_counts: dict[str, int] = {}   # per-reason-code retry history
     retry_count: int = 0
     recent_events: list[str] = []
     authorization_only: bool = False  # True when only an authorization is warranted (do NOT capture; Void instead)
@@ -54,7 +54,7 @@ class Observation(_Model):
     cart_mandate: CartMandate | None = None  # agent-visible assembled cart (payee + currency)
 
 
-# ---- Action (tagged union over the 11 tools; module 20 §4) ----
+# ---- Action (tagged union over the 11 tools) ----
 
 class SelectRoute(_Model):
     tool: Literal["select_route"]
@@ -122,7 +122,7 @@ Action = Annotated[
 ]
 
 
-# ---- ToolResponse (tagged union over ToolStatus; module 10 §8) ----
+# ---- ToolResponse (tagged union over ToolStatus) ----
 
 class ToolResponse(_Model):
     status: ToolStatus

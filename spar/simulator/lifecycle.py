@@ -2,10 +2,10 @@
 
 Pure: no RNG, no world, NO step/wall clock. It owns ONLY legality of transitions and
 the irreversibility distinction (void reverses an authorization; refund reverses a
-capture inside its window). The world drives it and mirrors the result into world.state
-(world.state stays the single authority — this is a subordinate legality oracle, C12);
-graders read its terminal flags. The refund window is measured in POST-CAPTURE MUTATING
-ORDINALS, never a step clock (C7)."""
+capture inside its window). The world drives it and mirrors the result into world.state;
+world.state stays the single authority and this is a subordinate legality oracle. Graders
+read its terminal flags. The refund window is measured in POST-CAPTURE MUTATING ORDINALS,
+never a step clock."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ class LifecycleError(Exception):
 class Lifecycle:
     def __init__(self, *, txn_ordinal: int, refund_window_len: int | None = None) -> None:
         self.txn_ordinal = txn_ordinal
-        # Max post-capture mutating ordinal at which a refund is still legal (C7).
+        # Max post-capture mutating ordinal at which a refund is still legal.
         self.refund_window_len = refund_window_len
         self.state: FsmState = FsmState.CART
         self.amount: Decimal | None = None

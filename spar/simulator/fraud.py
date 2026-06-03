@@ -1,4 +1,4 @@
-"""Agent-reactive fraud engine (module 10 §3.3).
+"""Agent-reactive fraud engine.
 
 `fraud_score(t)` is a monotone, seeded function of accumulated agent behavior:
 
@@ -8,10 +8,10 @@
                         + c * velocity(t) )
         + noise_seeded , 0.0, 1.0 )
 
-The only randomness is `noise`, drawn from the FRAUD sub-stream (module 10 §5).
-`record_submission` raises the behavioral terms; `record_wait` (modeling `retry(wait)`)
-decays the frequency/velocity terms — the only action that lets the score cool off.
-Money/velocity are Decimal; the returned score is a float in [0, 1].
+The only randomness is `noise`, drawn from the FRAUD sub-stream. `record_submission` raises
+the behavioral terms; `record_wait` (modeling `retry(wait)`) decays the frequency/velocity
+terms — the only action that lets the score cool off. Money/velocity are Decimal; the
+returned score is a float in [0, 1].
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ class FraudEngine:
         self._merchants.add(merchant)
 
     def record_wait(self) -> None:
-        """`retry(wait)` cool-off: decays the frequency/velocity terms (module 10 §3.3)."""
+        """`retry(wait)` cool-off: decays the frequency/velocity terms."""
         self._frequency *= _DECAY
         self._velocity *= _DECAY
 

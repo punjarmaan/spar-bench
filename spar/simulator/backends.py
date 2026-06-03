@@ -1,9 +1,9 @@
-"""Acquirer fragmentation + route resolution (module 10 §4) and oracle EV helpers.
+"""Acquirer fragmentation, route resolution, and oracle EV helpers.
 
 Route resolution draws approval/decline from the HIDDEN `approval_prob`/`reliability`
 via the seeded `DECLINE` sub-stream; the exposed `observed_approval_band` is set by the
-dataset generator (it is a noisy quantization of `approval_prob * reliability`, F2) and is
-never recomputed here. All EV arithmetic is `Decimal`; never float.
+dataset generator (a noisy quantization of `approval_prob * reliability`) and is never
+recomputed here. All EV arithmetic is `Decimal`, never float.
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ def expected_value(
     expected_retry_cost: Decimal = Decimal("0"),
     expected_dispute_cost: Decimal = Decimal("0"),
 ) -> Decimal:
-    """The route's knowable EV (module 40 §3.1)."""
+    """The route's knowable EV."""
     if not isinstance(amount, Decimal):
         raise TypeError("amount must be Decimal, never float")
     approval = Decimal(str(acquirer.approval_prob))
@@ -155,8 +155,8 @@ def approval_band(
     trial_index: int = 0,
     band_noise: float = 0.15,
 ) -> Literal["low", "med", "high"]:
-    """The exposed `observed_approval_band` (module 10 §4, F2): a seeded-noisy three-level
-    quantization of the HIDDEN `approval_prob * reliability` product.
+    """The exposed `observed_approval_band`: a seeded-noisy three-level quantization of the
+    HIDDEN `approval_prob * reliability` product.
     """
     product = float(acquirer.approval_prob) * float(acquirer.reliability)
     base = quantize_band(product)
@@ -185,8 +185,8 @@ def resolve_authorization(
 ) -> RouteOutcome:
     """Draw a single authorization outcome from the HIDDEN params, seeded + reproducible.
 
-    `attempt_ordinal` is the PER-ROUTE authorization-attempt counter (review G2), NOT
-    `elapsed_steps`. Reliability is checked first so a flaky route surfaces `91`.
+    `attempt_ordinal` is the PER-ROUTE authorization-attempt counter, NOT `elapsed_steps`.
+    Reliability is checked first so a flaky route surfaces `91`.
     """
     rng = substream(
         sample_id, seed=seed, trial_index=trial_index, stream=SubStream.DECLINE,

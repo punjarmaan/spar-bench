@@ -1,7 +1,7 @@
-"""Deferred-event queue (module 10 §2.2): a min-heap of (fire_at_step, seq, event).
+"""Deferred-event queue: a min-heap of (fire_at_step, seq, event).
 
-Ties on `fire_at_step` break by a monotonically increasing insertion `seq` — never by
-dict/set iteration order — so the drain is fully deterministic per seed.
+Ties on `fire_at_step` break by a monotonically increasing insertion `seq`, never by
+dict/set iteration order, so the drain is fully deterministic per seed.
 """
 
 from __future__ import annotations

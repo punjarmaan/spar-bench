@@ -1,7 +1,7 @@
-"""Scoped-authority wall checks against named IntentMandate fields (spec §5.5).
+"""Scoped-authority wall checks against named IntentMandate fields.
 
-Precedence (unchanged ordering, now mapped to ViolationClass + named field):
-revoked > session_ttl > per_txn_max > daily_remaining > merchant > mcc > instrument.
+Precedence: revoked > session_ttl > per_txn_max > daily_remaining > merchant > mcc >
+instrument.
 """
 
 from __future__ import annotations

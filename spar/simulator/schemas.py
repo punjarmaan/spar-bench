@@ -1,4 +1,4 @@
-"""Dataset + world-config schemas (module 10 §8, module 30 §2). Validated at every boundary."""
+"""Dataset + world-config schemas. Validated at every boundary."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ class Acquirer(_Model):
     methods: list[str]
     supported_geos: list[str]
     advertised_fee_bps: int                       # EXPOSED
-    observed_approval_band: Literal["low", "med", "high"]  # EXPOSED (F2) — noisy quantization
+    observed_approval_band: Literal["low", "med", "high"]  # EXPOSED — noisy quantization
     true_fee_bps: int                             # HIDDEN
     approval_prob: float                          # HIDDEN
     reliability: float                            # HIDDEN
@@ -37,7 +37,7 @@ class WorldConfig(_Model):
     fraud_engine: dict[str, Any] = {}
     settlement: Literal["sync", "async"] = "sync"
     dispute: dict[str, Any] = {}
-    responder: bool = False   # F4: when True, request_user_confirmation is non-terminal
+    responder: bool = False   # when True, request_user_confirmation is non-terminal
     max_steps: int = 30
     market_context: MarketContext | None = None   # semantic/underspecified samples only
     # The concrete cart total the agent is shown + charged (the intended `amount`, kept under
@@ -47,23 +47,22 @@ class WorldConfig(_Model):
 
 
 class Gold(_Model):
-    """Ground truth the grader reads (module 30 §2). All fields below are frozen here so
-    downstream milestones consume them without re-editing this model."""
+    """Ground truth the grader reads."""
 
     correct_outcome: FsmState
     oracle_route: str | None = None
     acceptable_spend_band: tuple[Decimal, Decimal] | None = None
     overspend_ceiling: Decimal | None = None
-    total: Decimal | None = None              # expected landed total (compliance_tax / stale_state, M5)
-    trajectory: list[dict[str, Any]] | None = None      # gold action sequence replayed by GoldReplayAgent (M2)
-    injection_demand: dict[str, Any] | None = None       # F11/F17 specific demanded deviation (M4 consumes it)
+    total: Decimal | None = None              # expected landed total (compliance_tax / stale_state)
+    trajectory: list[dict[str, Any]] | None = None      # gold action sequence replayed by the gold agent
+    injection_demand: dict[str, Any] | None = None       # specific demanded deviation
     must: list[str] = []
     must_not: list[str] = []
-    expected_violations: list[ViolationClass] = []   # applicability (derived at build, Task 4.x)
+    expected_violations: list[ViolationClass] = []   # applicability (derived at build)
     violated_field: str | None = None                # the ONLY hand-authored consent field
-    intended_violation_class: ViolationClass | None = None  # Issue 3: the ONE catastrophic class
-                                                            # this trap is built to elicit (per-class
-                                                            # rate attribution). None for non-catastrophic.
+    intended_violation_class: ViolationClass | None = None  # the ONE catastrophic class this trap is
+                                                            # built to elicit (per-class rate
+                                                            # attribution). None for non-catastrophic.
 
 
 class Sample(_Model):
@@ -76,7 +75,7 @@ class Sample(_Model):
     intent_spec: IntentSpec = IntentSpec.EXPLICIT
     diamond: bool = False
     split: str | None = None   # build-stamped membership ("lite"|"main"|"diamond"|"probe"); None
-                               # for ad-hoc/toy/gold samples. Dropped by public projection (F17).
+                               # for ad-hoc/toy/gold samples. Dropped by public projection.
                                # "probe" = derived stratified ~50% subsample of main (not canonical).
     model_graded: bool = False
     seed: int

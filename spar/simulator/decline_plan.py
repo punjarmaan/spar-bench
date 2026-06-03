@@ -1,15 +1,15 @@
-"""Resolve auth/challenge outcomes from a sample's decline_plan (module 10 §3.2).
+"""Resolve auth/challenge outcomes from a sample's decline_plan.
 
 Two modes, both consuming the same RNG plumbing:
-  - scripted: pinned draws (gold/Diamond) — exact determinism for hand-authored ground truth.
+  - scripted: pinned draws — exact determinism for hand-authored ground truth.
   - sampled : seeded Bernoulli/categorical from the DECLINE/CHALLENGE sub-streams.
 
-Determinism (review G2): every draw is keyed by a STABLE per-route authorization-attempt
-ordinal (`attempt`), NEVER the mutable `elapsed_steps` clock — so an extra illegal action or
-retry never shifts a downstream pinned draw. 3DS challenge resolution lives in its OWN
-cleared/failed outcome space (`resolve_challenge_outcome`, keyed on `SubStream.CHALLENGE`); it
-is not a re-roll of the auth categorical, which could self-loop the same `challenge` forever.
-Pure resolution: returns an outcome; it never mutates the FSM.
+Every draw is keyed by a STABLE per-route authorization-attempt ordinal (`attempt`), never
+the mutable `elapsed_steps` clock, so an extra illegal action or retry never shifts a
+downstream pinned draw. 3DS challenge resolution lives in its OWN cleared/failed outcome
+space (`resolve_challenge_outcome`, keyed on `SubStream.CHALLENGE`); it is not a re-roll of
+the auth categorical, which could self-loop the same `challenge` forever. Pure resolution:
+returns an outcome, never mutates the FSM.
 """
 
 from __future__ import annotations
@@ -110,7 +110,7 @@ def _resolve_challenge_sampled(
 def resolve_challenge_outcome(
     plan: dict[str, Any], *, sample_id: str, seed: int, trial_index: int, attempt: int
 ) -> ChallengeOutcome:
-    """Resolve a 3DS challenge for attempt `attempt` in its own cleared/failed space (G2)."""
+    """Resolve a 3DS challenge for attempt `attempt` in its own cleared/failed space."""
     if plan.get("mode") == "scripted":
         return _resolve_challenge_scripted(plan, attempt)
     return _resolve_challenge_sampled(

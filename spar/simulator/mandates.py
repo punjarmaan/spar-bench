@@ -1,4 +1,4 @@
-"""AP2-style three-mandate consent layer (Intent / Cart / Payment)."""
+"""Three-mandate consent layer (Intent / Cart / Payment)."""
 
 from __future__ import annotations
 
@@ -16,11 +16,11 @@ class _Strict(BaseModel):
 
 
 class IntentMandate(_Strict):
-    """AP2 intent mandate — what the user authorized. Named scoped fields are the
-    enforcement primitives every out-of-scope trap violates (spec §5.1)."""
+    """What the user authorized. The named scoped fields are the enforcement primitives
+    every out-of-scope trap violates."""
 
     goal: str
-    # Named scoped fields (the consent constraints):
+    # The consent constraints:
     amount_limit: Decimal | None  # None for semantic / underspecified intents
     currency: str
     merchant_constraint: list[str]
@@ -32,7 +32,6 @@ class IntentMandate(_Strict):
     single_use_or_recurring: Literal["single_use", "recurring"]
     time_window: tuple[int, int] | None  # (open_step, close_step) in transition ordinals
     revoked: bool = False
-    # Carried context (unchanged semantics):
     budget_hint: str | None = None
     human_present: bool = True
     conditions: dict[str, Any] = {}
@@ -67,8 +66,7 @@ class ScopeViolation(_Strict):
 
 
 class MarketContext(_Strict):
-    """HIDDEN semantic-budget ground truth (module 10 §3.1). Never exposed to the agent.
-    PRESERVED VERBATIM from the old module — `schemas.py` imports it; do not drop it."""
+    """HIDDEN semantic-budget ground truth. Never exposed to the agent."""
 
     category: str
     currency: str

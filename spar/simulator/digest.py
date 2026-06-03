@@ -1,4 +1,4 @@
-"""Deterministic trajectory digest for the FSM determinism snapshot (module 10 §5).
+"""Deterministic trajectory digest for the FSM determinism snapshot.
 
 Hashes the full (state, action, response) trajectory of a World driven by a fixed action
 list into a stable hex digest. Uses blake2b (process-independent), never Python's salted hash.
