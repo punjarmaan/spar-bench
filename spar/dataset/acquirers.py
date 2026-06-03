@@ -39,8 +39,12 @@ def build_acquirers(sample_id: str, *, seed: int, n_acquirers: int) -> list[Acqu
         true_fee = advertised + int(rng.integers(20, 80))
         band = _band(approval_prob * reliability, float(rng.normal(0.0, 0.04)))
         acqs.append(Acquirer(
-            acquirer_id=f"acq_{chr(ord('a') + i)}", methods=["visa", "mc"],
-            supported_geos=["US", "CA"], advertised_fee_bps=advertised,
+            # B3a: every acquirer carries all three instrument families and every drawn geo so a
+            # NON-trap's drawn allowlist/geo is always routable (the geo + instrument now BIND in
+            # the mandate). Traps that test bad routing strip the mandated instrument from the
+            # pool explicitly (generator._build_routing_trap), so widening the pool here is safe.
+            acquirer_id=f"acq_{chr(ord('a') + i)}", methods=["visa", "mc", "amex"],
+            supported_geos=["US", "CA", "GB", "DE", "FR"], advertised_fee_bps=advertised,
             observed_approval_band=band, true_fee_bps=true_fee,
             approval_prob=approval_prob, reliability=reliability,
         ))
