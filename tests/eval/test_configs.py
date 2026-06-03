@@ -14,10 +14,10 @@ def test_models_toml_parses_roster() -> None:
     models = load_models(CONFIGS / "models.toml")
     ids = {m.id for m in models}
     # Roster upgraded 2026-06-02 to current-gen flagships + curated open-weight set;
-    # mistral-small-2603 added 2026-06-03: 6 frontier + 7 open-weight = 13 total.
-    assert len(models) == 13
+    # mistral-small-2603 + mistral-medium-3-5 added 2026-06-03: 6 frontier + 8 open-weight = 14 total.
+    assert len(models) == 14
     assert sum(1 for m in models if m.cls == "frontier") == 6
-    assert sum(1 for m in models if m.cls == "open") == 7
+    assert sum(1 for m in models if m.cls == "open") == 8
     assert all(m.route.startswith("openrouter/") for m in models)
     assert len(ids) == len(models)  # ids are unique + filename-safe
     assert all("/" not in m.id and " " not in m.id for m in models)

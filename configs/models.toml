@@ -155,3 +155,15 @@ price_in_per_mtok  = 0.15
 price_out_per_mtok = 0.60
 version_pin   = "mistralai/mistral-small-2603"
 reasoning     = true
+
+[[model]]
+# Higher Mistral (reasoning) — medium tier. Pricier (1.5/7.5); raise the OpenRouter limit before a
+# full reasoning-high run. (mistral-large-2512 is the flagship but NON-reasoning → plain mode.)
+id            = "mistral-medium-3-5"
+route         = "openrouter/mistralai/mistral-medium-3-5"
+class         = "open"
+supports_response_format = false
+price_in_per_mtok  = 1.50
+price_out_per_mtok = 7.50
+version_pin   = "mistralai/mistral-medium-3-5"
+reasoning     = true
