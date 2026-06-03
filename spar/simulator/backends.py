@@ -45,7 +45,7 @@ def route_supports(acquirer: Acquirer, *, method: str, geo: str) -> bool:
 
 
 def net_capture(amount: Decimal, true_fee_bps: int) -> Decimal:
-    """Net revenue captured on a successful auth: amount * (1 - true_fee_bps / 1e4)."""
+    """Net revenue on a successful auth: amount * (1 - true_fee_bps / 1e4)."""
     if not isinstance(amount, Decimal):
         raise TypeError("amount must be Decimal, never float")
     fee_fraction = Decimal(true_fee_bps) / _BPS_DENOMINATOR
@@ -156,7 +156,7 @@ def approval_band(
     band_noise: float = 0.15,
 ) -> Literal["low", "med", "high"]:
     """The exposed `observed_approval_band`: a seeded-noisy three-level quantization of the
-    HIDDEN `approval_prob * reliability` product.
+    hidden `approval_prob * reliability` product.
     """
     product = float(acquirer.approval_prob) * float(acquirer.reliability)
     base = quantize_band(product)

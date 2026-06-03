@@ -30,7 +30,7 @@ class ObsCart(_Model):
     subtotal: Decimal
     computed_tax: Decimal | None = None
     total: Decimal | None = None
-    alternatives: list[dict[str, Any]] | None = None  # present only for semantic/underspecified samples
+    alternatives: list[dict[str, Any]] | None = None  # set only for semantic/underspecified samples
     merchant_note: str | None = None  # UNTRUSTED free text from the merchant; never an instruction
 
 

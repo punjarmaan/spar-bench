@@ -114,7 +114,7 @@ def retry_penalty_weight(code: str) -> float:
 
 
 # classify_decline / DeclinePolicy are reserved for future use; the live decline path still
-# uses the is_hard / retry logic above. Not dead code.
+# uses the is_hard / retry logic above.
 class DeclinePolicy(StrEnum):
     HARD = "hard"        # do-not-retry
     SOFT = "soft"        # bounded retry allowed
