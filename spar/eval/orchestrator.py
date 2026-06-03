@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 from spar.eval.agent import SCAFFOLD_VERSION, agent_factory
+from spar.eval.trajectory import TRAJECTORY_SCHEMA_VERSION, EpisodeRecord, EpisodeTurn
 from spar.eval.cache import CompletionCache, cache_key
 from spar.eval.cost import BudgetExceeded, CostMeter
 from spar.eval.models import ModelConfig
@@ -378,26 +379,71 @@ def _responder_id(responder: UserSim) -> str:
     return getattr(responder, "model", type(responder).__name__)
 
 
-def _write_trajectory(
-    path: Path, sample: Sample, trace: EpisodeTrace, status: SampleStatus
-) -> None:
-    """One JSONL episode transcript per sample (design §5.5 audit log)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    record = {
-        "sample_id": sample.sample_id,
-        "axis": sample.axis.value,
-        "status": status.value,
-        "final_state": trace.final_state.value if trace.final_state else None,
-        "grade_terminal": trace.grade_terminal.value if trace.grade_terminal else None,
-        "actions": [
-            {"tool": a.tool, "args": a.model_dump(mode="json", exclude={"tool"})}
-            for a in trace.action_log
-        ],
-        "abort_reason": trace.abort_reason,
-        "terminating_action": trace.terminating_action,
+def _jsonable(d: dict[str, Any]) -> dict[str, Any]:
+    """Best-effort JSON-able copy (Decimal/enum -> str) for hidden_final_state."""
+    return json.loads(json.dumps(d, default=str))
+
+
+def _episode_record(
+    *, sample: Sample, trace: EpisodeTrace, status_value: str,
+    model_id: str, route: str, trial_index: int, system_prompt: str,
+) -> dict[str, Any]:
+    """Assemble one viewer-ready EpisodeRecord (enrichment spec §6) from a replayed trace.
+
+    Merges the agent's per-turn records with the world's per-action tool_responses (index-aligned
+    with action_log) and the responder's user_responses (consumed at request_user_confirmation
+    turns). Returns a JSON-able dict validated by EpisodeRecord. Score-neutral (read-only)."""
+    tool_resps = list(trace.tool_responses)
+    user_iter = iter(trace.user_responses)
+    turns: list[EpisodeTurn] = []
+    for i, at in enumerate(trace.agent_turns):
+        tr = tool_resps[i].model_dump(mode="json") if i < len(tool_resps) else None
+        ur = None
+        if at.action.get("tool") == "request_user_confirmation":
+            nxt = next(user_iter, None)
+            ur = nxt.model_dump(mode="json") if nxt is not None else None
+        turns.append(EpisodeTurn(**at.model_dump(), tool_response=tr, user_response=ur))
+    total = {
+        "prompt_tokens": sum(u.prompt_tokens for at in trace.agent_turns for u in at.usage),
+        "completion_tokens": sum(u.completion_tokens for at in trace.agent_turns for u in at.usage),
+        "cost_usd": sum((u.response_cost or 0.0) for at in trace.agent_turns for u in at.usage),
     }
+    rec = EpisodeRecord(
+        schema_version=TRAJECTORY_SCHEMA_VERSION,
+        sample_id=sample.sample_id,
+        trial_index=trial_index,
+        axis=sample.axis.value,
+        intent_spec=sample.intent_spec.value,
+        is_trap=bool(sample.is_trap),
+        model=model_id,
+        route=route,
+        scaffold_version=SCAFFOLD_VERSION,
+        status=status_value,
+        final_state=trace.final_state.value if trace.final_state else None,
+        grade_terminal=trace.grade_terminal.value if trace.grade_terminal else None,
+        abort_reason=trace.abort_reason,
+        terminating_action=trace.terminating_action,
+        system_prompt=system_prompt,
+        turns=turns,
+        episode={
+            "scope_violations": [sv.model_dump(mode="json") for sv in trace.scope_violations],
+            "hidden_final_state": _jsonable(trace.hidden_final_state),
+            "approved_bound": str(trace.approved_bound) if trace.approved_bound is not None else None,
+            "completed_route_id": trace.completed_route_id,
+            "unsafe_completion": trace.unsafe_completion,
+            "obeyed_injection": trace.obeyed_injection,
+            "total_usage": total,
+        },
+    )
+    return rec.model_dump(mode="json")
+
+
+def _write_trajectory(path: Path, records: list[dict[str, Any]]) -> None:
+    """k JSONL lines (one enriched EpisodeRecord per pass^k trial) — the audit + viewer log."""
+    path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as fh:
-        fh.write(json.dumps(record, sort_keys=True, default=str) + "\n")
+        for rec in records:
+            fh.write(json.dumps(rec, sort_keys=True, default=str) + "\n")
 
 
 def _run_and_record(
@@ -426,32 +472,34 @@ def _run_and_record(
         k=k, retries=retries, sleep=sleep,
     )
     if sscore is not None:
-        # Replay the classified (last) trial from cache (no new model call) so the audit log
-        # matches the reported status (N1).
-        last_idx = k - 1
-        tsamp = _trial_sampling(sampling, last_idx)
-        cached_fn = _cached_completion_fn(
-            completion_fn, cache, retries=retries, sleep=sleep, trial_index=last_idx, meter=meter,
-        )
-        factory = agent_factory(
-            model, policy_text=load_policy(sample.policy_id), sampling=tsamp,
-            completion_fn=cached_fn, mandate_text=sample.mandate.goal,
-        )
-        try:
-            trace = run_episode(sample, factory(), trial_index=last_idx, user_sim=responder)
-        except BaseException as exc:  # noqa: BLE001
-            # A non-infra failure (e.g. context-overflow) never cached a trial, so the replay
-            # re-raises. The sample was abort-SCORED (audit S1); re-derive the matching audit
-            # trajectory from the same immediate-abort agent (no model call, no spend). Infra
-            # errors are excluded upstream and never reach here.
-            if _is_infra_error(exc):
-                raise
-            trace = run_episode(
-                sample, _OverflowAbortAgent(), trial_index=last_idx, user_sim=responder
+        records: list[dict[str, Any]] = []
+        for ti in range(k):
+            tsamp = _trial_sampling(sampling, ti)
+            cached_fn = _cached_completion_fn(
+                completion_fn, cache, retries=retries, sleep=sleep, trial_index=ti, meter=meter,
             )
-        _write_trajectory(
-            model_dir / "trajectories" / f"{sample.sample_id}.jsonl", sample, trace, status,
-        )
+            factory = agent_factory(
+                model, policy_text=load_policy(sample.policy_id), sampling=tsamp,
+                completion_fn=cached_fn, mandate_text=sample.mandate.goal,
+            )
+            agent = factory()
+            try:
+                trace = run_episode(sample, agent, trial_index=ti, user_sim=responder)
+            except BaseException as exc:  # noqa: BLE001
+                # Non-infra failure (e.g. context-overflow) never cached a trial → re-derive the
+                # matching immediate-abort trajectory (no model call, no spend). Infra errors raise.
+                if _is_infra_error(exc):
+                    raise
+                agent = _OverflowAbortAgent()
+                trace = run_episode(sample, agent, trial_index=ti, user_sim=responder)
+            sys_prompt = (
+                agent.transcript[0]["content"] if getattr(agent, "transcript", None) else ""
+            )
+            records.append(_episode_record(
+                sample=sample, trace=trace, status_value=status.value,
+                model_id=model.id, route=model.route, trial_index=ti, system_prompt=sys_prompt,
+            ))
+        _write_trajectory(model_dir / "trajectories" / f"{sample.sample_id}.jsonl", records)
     return status, sscore
 
 
