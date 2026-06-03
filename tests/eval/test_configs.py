@@ -13,10 +13,11 @@ CONFIGS = Path(__file__).resolve().parents[2] / "configs"
 def test_models_toml_parses_roster() -> None:
     models = load_models(CONFIGS / "models.toml")
     ids = {m.id for m in models}
-    # Roster grew to 10: 5 frontier + 5 open (3 free :free probes added in probe/free-model pass).
-    assert len(models) == 10
-    assert sum(1 for m in models if m.cls == "frontier") == 5
-    assert sum(1 for m in models if m.cls == "open") == 5
+    # Roster upgraded 2026-06-02 to current-gen flagships + curated open-weight set:
+    # 6 frontier + 6 open-weight = 12 total.
+    assert len(models) == 12
+    assert sum(1 for m in models if m.cls == "frontier") == 6
+    assert sum(1 for m in models if m.cls == "open") == 6
     assert all(m.route.startswith("openrouter/") for m in models)
     assert len(ids) == len(models)  # ids are unique + filename-safe
     assert all("/" not in m.id and " " not in m.id for m in models)

@@ -26,7 +26,7 @@ def test_offline_eval_cache_is_isolated_from_live_namespace(tmp_path: Path) -> N
             "eval",
             "--models", "configs/models.toml",
             "--profile", "configs/profile.lite.toml",
-            "--only", "llama-3.3-70b",
+            "--only", "llama-4-maverick",
             "--cache-dir", str(cache),
             "--out-dir", str(tmp_path / "runs"),
             "--offline",
