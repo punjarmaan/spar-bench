@@ -74,20 +74,30 @@ def _plan_split(split: str, *, build_seed: int) -> list[GenSpec]:
     for axis in Axis:
         n_traps = round(per_axis * TARGET_TRAP_FRACTION)
         explicit_trap_idx = 0  # counts traps assigned among explicit samples only
+        trap_index = 0  # round-robin position among THIS axis's actual traps (Plan B B5)
         for i in range(per_axis):
             key = f"{split}:{build_seed}:{axis.value}:{i}"
             seed = stable_hash(key) % 1_000_000
             difficulty = _difficulty(split, key)
             intent = _intent_spec(axis, key)
             # Underspecified/semantic are gold-CLOSED/ESCALATED, not is_trap traps.
+            this_trap_index: int | None = None
             if intent is not IntentSpec.EXPLICIT:
                 is_trap = False
             else:
                 # Assign traps among explicit samples to preserve the target fraction.
                 is_trap = explicit_trap_idx < n_traps
                 explicit_trap_idx += 1
+                if is_trap:
+                    # Plan B B5: round-robin catastrophic-class assignment over the axis's traps so
+                    # every class clears the build coverage floor deterministically (the old
+                    # `seed % k` hash residue could cluster a class below the floor under some
+                    # build seeds, since the build gate now keys on intended_violation_class).
+                    this_trap_index = trap_index
+                    trap_index += 1
             specs.append(GenSpec(axis=axis, seed=seed, difficulty=difficulty,
-                                 is_trap=is_trap, intent_spec=intent))
+                                 is_trap=is_trap, intent_spec=intent,
+                                 trap_index=this_trap_index))
     return specs
 
 

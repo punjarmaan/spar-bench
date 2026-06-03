@@ -208,7 +208,7 @@ _CONSENT_TRAP_VARIANTS: tuple[str, ...] = ("overspend", "mandate_breach", _OVER_
 def _consent_trap_variant(spec: GenSpec) -> str:
     """The consent_mandate trap variant this spec authors (`seed % 3`): a catastrophic class
     (`overspend`/`mandate_breach`) or the over-limit/scope-wall sentinel (`_OVER_LIMIT`)."""
-    return _CONSENT_TRAP_VARIANTS[spec.seed % len(_CONSENT_TRAP_VARIANTS)]
+    return _CONSENT_TRAP_VARIANTS[spec._class_index() % len(_CONSENT_TRAP_VARIANTS)]
 
 
 def _catastrophic_class_for(spec: GenSpec) -> str | None:
@@ -224,7 +224,7 @@ def _catastrophic_class_for(spec: GenSpec) -> str | None:
     classes = _CATASTROPHIC_TRAP_CLASSES.get(spec.axis)
     if not classes:
         return None
-    return classes[spec.seed % len(classes)]
+    return classes[spec._class_index() % len(classes)]
 
 
 @dataclass(frozen=True)
@@ -234,6 +234,17 @@ class GenSpec:
     difficulty: Difficulty
     is_trap: bool
     intent_spec: IntentSpec = IntentSpec.EXPLICIT
+    # Plan B B5: round-robin position of this trap among same-axis traps in its split (0-based).
+    # Used to assign the catastrophic class DETERMINISTICALLY and EVENLY across the axis's classes
+    # (the old `seed % k` is a hash residue that can cluster, dropping a class below the build
+    # coverage floor under some build seeds). Defaults to `seed` so directly-constructed GenSpecs
+    # (tests) keep the legacy modulo behavior; the planner sets the true round-robin index.
+    trap_index: int | None = None
+
+    def _class_index(self) -> int:
+        """The index used to pick the catastrophic class/variant: the planner-assigned round-robin
+        `trap_index` when present, else `seed` (legacy fallback for ad-hoc GenSpecs)."""
+        return self.trap_index if self.trap_index is not None else self.seed
 
     @property
     def sample_id(self) -> str:

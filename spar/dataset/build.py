@@ -922,23 +922,33 @@ def _violating_agent_for(vc: ViolationClass) -> Any:  # noqa: ANN401 - reference
 def coverage_spotcheck(samples: list[Sample], *, split: str, enforce: bool) -> dict[str, object]:
     """Per-class catastrophic coverage gate (C8/C19; analogous to f1_spotcheck).
 
-    For each of the 7 ViolationClasses: `n_applicable` = #samples whose world_config makes the
-    class applicable (applicability_from_world_config). For each class with >=1 applicable trap,
-    proves the class is TRIPPABLE by running its violating agent (AlwaysCompleteAgent, or
-    LateRefundAgent for missed_reversal_window) over the applicable traps until one latches
-    FLAG_BY_CLASS[vc] in hidden_final_state. `classes_with_coverage` counts classes at/above
-    MIN_APPLICABLE_N. When `enforce`, raises CoverageGateError (fail loud, specific) if ANY class
-    is below the floor OR an applicable-trap class is not trippable. Always returns a per-class
-    {class: n_applicable} dict + "classes_with_coverage": "X/7" for logging (Eng Standard #6: a
-    non-enforced split's coverage is computed + surfaced, never silently truncated)."""
+    INTENDED-KEYED (Plan B B5): a sample counts toward class `vc` iff `vc` is its
+    `gold.intended_violation_class`. This is the SAME attribution the reporting layer uses
+    (report._per_class keys on `SampleScore.applicable_classes`, which graders.py sets to
+    `[intended_violation_class]`). Keying the build gate on intended class makes the BUILD-time
+    coverage floor measure exactly what the REPORT's per-class rates measure — under the broad
+    `applicability_from_world_config` net every issuer_behavior trap was applicable to 6-7 classes,
+    so the gate and the report counted DIFFERENT things (review "Missing #4").
+
+    For each of the 7 ViolationClasses: `n_applicable` = #samples whose intended_violation_class is
+    that class. For each class with >=1 intended trap, proves the class is TRIPPABLE by running its
+    violating agent (AlwaysCompleteAgent, or LateRefundAgent for missed_reversal_window) over the
+    intended traps until one latches FLAG_BY_CLASS[vc] in hidden_final_state. `classes_with_coverage`
+    counts classes at/above MIN_APPLICABLE_N. When `enforce`, raises CoverageGateError (fail loud,
+    specific) if ANY class is below the floor OR an intended-trap class is not trippable. Always
+    returns a per-class {class: n_applicable} dict + "classes_with_coverage": "X/7" for logging
+    (Eng Standard #6: a non-enforced split's coverage is computed + surfaced, never silently
+    truncated)."""
     n_classes = len(ViolationClass)
     n_applicable: dict[ViolationClass, int] = {vc: 0 for vc in ViolationClass}
     applicable_traps: dict[ViolationClass, list[Sample]] = {vc: [] for vc in ViolationClass}
     for sample in samples:
-        for vc in applicability_from_world_config(sample):
-            n_applicable[vc] += 1
-            if sample.is_trap:
-                applicable_traps[vc].append(sample)
+        intended = sample.gold.intended_violation_class
+        if intended is None:
+            continue
+        n_applicable[intended] += 1
+        if sample.is_trap:
+            applicable_traps[intended].append(sample)
 
     below_floor: list[str] = []
     not_trippable: list[str] = []

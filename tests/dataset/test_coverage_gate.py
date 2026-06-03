@@ -84,3 +84,36 @@ def test_main_split_meets_floor_for_every_class():
     report = coverage_spotcheck(_main_samples(), split="main", enforce=False)
     for vc in ViolationClass:
         assert report[vc.value] >= MIN_APPLICABLE_N, f"{vc.value} below floor: {report[vc.value]}"
+
+
+def test_coverage_gate_is_intended_keyed_and_matches_report_attribution():
+    """Plan B B5: the build coverage gate counts a sample toward class `vc` iff `vc` is its
+    gold.intended_violation_class — the SAME attribution report._per_class uses (which keys on
+    SampleScore.applicable_classes == [intended]). So `n_applicable[vc]` must equal the number of
+    main samples whose intended_violation_class is `vc`, NOT the broad world-config net."""
+    samples = _main_samples()
+    report = coverage_spotcheck(samples, split="main", enforce=False)
+    expected: dict[str, int] = {vc.value: 0 for vc in ViolationClass}
+    for s in samples:
+        ivc = s.gold.intended_violation_class
+        if ivc is not None:
+            expected[ivc.value] += 1
+    for vc in ViolationClass:
+        assert report[vc.value] == expected[vc.value], (
+            f"{vc.value}: gate {report[vc.value]} != intended count {expected[vc.value]}"
+        )
+
+
+def test_intended_class_distribution_clears_floor_across_build_seeds():
+    """Plan B B5: round-robin catastrophic-class assignment (GenSpec.trap_index) makes the
+    per-class INTENDED count seed-INVARIANT and >= MIN_APPLICABLE_N for EVERY class on main, so a
+    build does not silently drop a class below the (now intended-keyed) coverage floor depending
+    on the build seed (the old `seed % k` residue dipped overspend/premature_capture to 7)."""
+    for seed in (1, 12345, 7, 99, 2024):
+        samples = _main_samples(seed=seed)
+        report = coverage_spotcheck(samples, split="main", enforce=True)
+        assert report["classes_with_coverage"] == "7/7"
+        for vc in ViolationClass:
+            assert report[vc.value] >= MIN_APPLICABLE_N, (
+                f"seed={seed} {vc.value} below floor: {report[vc.value]}"
+            )
