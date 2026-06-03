@@ -32,6 +32,113 @@ NEVER the `gold` block or hidden `world_config` (`approval_prob`, `true_fee_bps`
 **Canary:** every line carries a fresh `spar:<uuid4>` contamination canary, regenerated per
 build and recorded in each split's `manifest.json`. Do not train on Spar data.
 
+## Quickstart — set up and run any model
+
+Spar runs any [OpenRouter](https://openrouter.ai)-routable model through one pinned scaffold.
+Setup is ~5 minutes. Every command below assumes the repo root as the working directory.
+
+### 1. Prerequisites
+- **Python ≥ 3.11**
+- An **OpenRouter API key** (the default route for every model — one key covers the whole roster)
+- [`uv`](https://docs.astral.sh/uv/) (recommended) or `pip`
+
+### 2. Install
+```bash
+git clone <REPO-URL> spar-bench && cd spar-bench
+uv sync --extra llm            # creates .venv with the package + the `llm` (live-call) extra
+source .venv/bin/activate      # …or prefix every `spar …` command below with `uv run`
+```
+<details><summary>Prefer plain pip?</summary>
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[llm]"
+```
+</details>
+
+### 3. Add your API key
+Create a `.env` file in the repo root (it is loaded automatically — no need to `export`):
+```bash
+echo "OPENROUTER_API_KEY=sk-or-..." > .env
+```
+
+### 4. Build the dataset (once)
+Models are graded against the **private** split, so build it first. The build is deterministic
+given the `--seed` **and** git commit — two people on the same commit + seed get byte-identical
+samples (only the cosmetic contamination canary differs):
+```bash
+spar build --seed 1 \
+  --public-out build/ds/public \
+  --private-out build/ds/private \
+  --version canonical-r1
+```
+
+### 5. Run any model you want
+List the roster and pick a model `id`:
+```bash
+grep '^id' configs/models.toml      # e.g. gpt-oss-120b, mistral-small-2603, qwen3.5-397b-a17b, …
+```
+Then evaluate it (Main pass¹ + Diamond pass⁴). Swap `--only <id>` for **any** model on the roster:
+```bash
+spar eval \
+  --models   configs/models.toml \
+  --profile  configs/profile.toml \
+  --only     gpt-oss-120b \
+  --dataset-dir build/ds/private \
+  --responder-model openrouter/google/gemini-2.5-flash \
+  --grader-model    openrouter/google/gemini-2.5-flash \
+  --concurrency 6 \
+  --budget-usd  15 \
+  --out-dir runs
+```
+The flags that matter:
+| flag | what it does |
+| --- | --- |
+| `--only <id>` | run **one** model (omit to run the entire roster) |
+| `--concurrency N` | parallel episodes — raise it to go faster (cheap models handle 6–10 fine) |
+| `--budget-usd N` | **hard** per-model cost cap; the run stops cleanly if it's reached |
+| `--responder-model` / `--grader-model` | the pinned `gemini-2.5-flash` responder (answers escalations) + Tier-C grader. **Omit both** for the offline deny-all responder + stub grader (free & faster, but competence is floored since no escalation is ever approved) |
+| `--cache-dir DIR` | completion cache — a re-run **resumes** instead of re-paying |
+
+Estimate the spend first (makes **no** model calls):
+```bash
+spar eval-cost --models configs/models.toml --profile configs/profile.toml --dataset-dir build/ds/private
+```
+
+### 6. Read the results
+Output lands in `runs/<model>/`:
+- `main.results.json`, `diamond.results.json` — scored splits, each with a `summary` block
+  (`trust_score_useful`, `competence_mean`, `any_catastrophic_rate`, `pass_1` / `pass_4` + Wilson CI, …)
+- `run_manifest.json` — canary, settings, and `cost_usd`
+- `trajectories/*.jsonl` — full per-episode turn logs (incl. the live responder's decisions)
+
+Pretty-print a summary at any time (no model calls):
+```bash
+spar report --results runs/gpt-oss-120b/main.results.json
+```
+
+### 7. Split a run across machines
+The roster is embarrassingly parallel — divide the models, run them on separate machines, then
+merge. Build with the **same `--seed` on the same git commit** everywhere so the samples match.
+```bash
+# Machine A
+spar eval … --only gpt-oss-120b      --out-dir runs
+spar eval … --only mistral-small-2603 --out-dir runs
+# Machine B
+spar eval … --only qwen3.5-397b-a17b --out-dir runs
+spar eval … --only llama-4-maverick  --out-dir runs
+```
+Collect every `runs/<model>/` directory into one shared `runs/` folder, then consolidate:
+```bash
+spar leaderboard --runs runs/ --out-dir .     # → leaderboard.{json,csv,md}
+```
+
+> **Harmless log noise:** with the live `gemini-2.5-flash` responder you'll see repeated
+> `litellm … Provider List: https://docs.litellm.ai/docs/providers` lines. Ignore them — it's an
+> internal litellm capability check that logs-then-recovers; the actual call **succeeds**. A real
+> auth/quota problem surfaces as an HTTP `401` / `402` / `429`, not this. Setting
+> `LITELLM_LOG=CRITICAL` quiets most of it.
+
 ## CLI
 
 ```bash
@@ -64,18 +171,19 @@ overspend** — a model that completes everything but over-spends on traps score
   gold answers (gameable), so self-run public numbers are badged `unverified`; only
   private-server-verified numbers earn `✓ verified`.
 
-**End-to-end run sequence.** Live runs require the optional call layer and an OpenRouter key:
+**End-to-end run sequence.** See [Quickstart](#quickstart--set-up-and-run-any-model) for
+setup. To reproduce the published board, run the **whole roster** (omit `--only`) and
+consolidate:
 
 ```bash
-uv pip install -e ".[llm]"           # install the litellm `llm` extra (live calls only)
-export OPENROUTER_API_KEY=sk-or-...  # the only required secret for the openrouter/* route
+# 1. Estimate the spend first (no model calls) — checks the budget cap before you commit.
+spar eval-cost   --models configs/models.toml --profile configs/profile.toml --dataset-dir build/ds/private
 
-# 1. Dry-run cost estimate (no model calls) — checks the budget cap before you spend.
-spar eval-cost   --models configs/models.toml --profile configs/profile.toml
-
-# 2. Run the roster (Main pass^1 + Diamond pass^4) → per-model results + trajectories.
+# 2. Run every model (Main pass¹ + Diamond pass⁴) → per-model results + trajectories.
 spar eval        --models configs/models.toml --profile configs/profile.toml \
-                 --budget-usd 50 --grader-model openrouter/openai/gpt-5
+                 --dataset-dir build/ds/private --budget-usd 50 \
+                 --responder-model openrouter/google/gemini-2.5-flash \
+                 --grader-model    openrouter/google/gemini-2.5-flash
 
 # 3. Consolidate every run into the published leaderboard artifacts.
 spar leaderboard --runs runs/ --out-dir .
