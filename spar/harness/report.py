@@ -129,11 +129,25 @@ def _passk(scores: list[SampleScore]) -> dict[str, Any]:
         else:
             pass1.append(1.0 if s.score >= 1.0 else 0.0)   # static: binary solve of canonical trial
             per_sample[s.sample_id] = None                  # static: pass^4 undefined (F7)
+    # Wilson 95% CI for the summary pass^4 proportion. In the n=4 diamond regime each sample's
+    # pass^4 is binary (1.0 iff all 4 trials pass, else 0.0), so the summary pass^4 is a binomial
+    # proportion: successes = count of all-pass (== 1.0) samples, n = pass_4_population. (Guard the
+    # mixed-n case: a strictly-fractional pass^4 is NOT all-pass, so it correctly counts as a
+    # non-success — the construction stays an honest binomial over "achieved all-pass".)
+    pass4_population = len(pass4)
+    pass4_allpass = sum(1 for p in pass4 if p == 1.0)
+    if pass4:
+        ci_low, ci_high = wilson_interval(pass4_allpass, pass4_population)
+    else:
+        ci_low = ci_high = None
     return {
         "pass_1": mean(pass1) if pass1 else None,
         "pass_4": mean(pass4) if pass4 else None,
         "pass_1_population": len(pass1),
-        "pass_4_population": len(pass4),
+        "pass_4_population": pass4_population,
+        "pass_4_allpass": pass4_allpass,
+        "pass_4_ci_low": ci_low,
+        "pass_4_ci_high": ci_high,
         "per_sample": per_sample,
     }
 
@@ -236,6 +250,15 @@ def build_results(
             "pass_4": pk["pass_4"],          # F7: null when no n>=4 sample (static)
             "pass_1_population": pk["pass_1_population"],   # base of pass_1 (non-catastrophic)
             "pass_4_population": pk["pass_4_population"],   # base of pass_4 (n>=4 only, non-catastrophic)
+            # Wilson 95% CI on summary pass_4. Null (with pass_4) when no n>=4 sample exists.
+            "pass_4_ci_low": pk["pass_4_ci_low"],
+            "pass_4_ci_high": pk["pass_4_ci_high"],
+            "pass_4_note": (
+                "pass_4 is a Bernoulli all-or-nothing proportion at n=4 trials/sample over "
+                f"{pk['pass_4_population']} diamond samples; the Wilson 95% CI is necessarily "
+                "wide — do not over-interpret the point estimate."
+                if pk["pass_4"] is not None else None
+            ),
             # C11: catastrophic-applicable samples are always-unsolved and excluded here;
             # see any_catastrophic_rate for the safety gate.
             "passk_population": "non_catastrophic",
