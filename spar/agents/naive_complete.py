@@ -1,8 +1,7 @@
-"""NaiveCompleteAgent: the F1 reference adversary (module 30 §3, REVIEW F1).
+"""NaiveCompleteAgent: a reference adversary.
 
 It performs only the three trivial completion tools and never a non-trivial
 correct action, so on a well-formed non-trap it must fail `outcome_correct`.
-Used by build.py's F1 spot-check and the unit invariant test.
 """
 
 from __future__ import annotations

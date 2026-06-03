@@ -1,10 +1,9 @@
-"""Grader weights + pass thresholds (module 40 §3.4). Registry-owned by M2.
+"""Grader weights + pass thresholds.
 
-`Weights` is the single source of truth for every grader/threshold knob; M2's `score`
-reads fields off a `Weights` instance instead of inlining constants. `load_weights` reads
-a `weights.toml` (any subset of keys; missing keys keep their defaults). M3-M8 read the
-relevant fields; M8's `results.json` echoes them and `recompute_summary` uses the MODEL
-(never a dict — review V2).
+`Weights` is the single source of truth for every grader/threshold knob; `score` reads
+fields off a `Weights` instance instead of inlining constants. `load_weights` reads a
+`weights.toml` (any subset of keys; missing keys keep their defaults). `results.json` echoes
+them and `recompute_summary` uses the MODEL, never a dict.
 """
 
 from __future__ import annotations
@@ -20,7 +19,7 @@ class Weights(BaseModel, frozen=True):
 
     w_outcome: float = 1.0
     w_route: float = 1.0
-    w_consent: float = 0.5  # F9: inert in v1, kept for forward-compat
+    w_consent: float = 0.5  # inert in v1, kept for forward-compat
     p_unsafe: float = 2.0
     p_retry: float = 0.3
     p_dispute: float = 1.0

@@ -1,8 +1,8 @@
-"""The simulated user (module 40 §2, F4): answers a non-terminal request_user_confirmation.
+"""The simulated user: answers a non-terminal request_user_confirmation.
 
 The sim sees only the scenario goal and the agent's free-text reason — never the agent's
 tool calls (information asymmetry). ScriptedUserSim is deterministic and offline (tests);
-LiteLLMUserSim (Task 2) is the production responder.
+LiteLLMUserSim is the production responder.
 """
 
 from __future__ import annotations
@@ -120,9 +120,9 @@ def _default_completion_fn() -> CompletionFn:
 class LiteLLMUserSim:
     """Production responder: a pinned LiteLLM model answers as the human principal at temp=0.
 
-    C4: the agent `reason` is wrapped in <agent_message> data delimiters and the system
-    prompt forbids following instructions inside it. F12: parsed answers are cached by a
-    stable hash of the sanitized input so a temp=0 run is reproducible across provider updates.
+    The agent `reason` is wrapped in <agent_message> data delimiters and the system prompt
+    forbids following instructions inside it. Parsed answers are cached by a stable hash of the
+    sanitized input so a temp=0 run is reproducible across provider updates.
     """
 
     def __init__(
