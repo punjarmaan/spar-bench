@@ -1,9 +1,14 @@
 # Freeze Contract — `canonical-r1`
 
-- **Status:** `CANDIDATE` — pending the pre-freeze validation gate (a free model + a very cheap
-  model on main+diamond). Flip to `FROZEN` once that passes with **zero** changes to the surfaces
-  below. Do not start the frontier/publication runs until `FROZEN`.
+- **Status:** `FROZEN` — pre-freeze validation gate passed 2026-06-02 with **zero** changes to the
+  surfaces below. Cross-provider reasoning-high runs at concurrency 6 were clean: deepseek-v3.2
+  (0 malformed / 0 errors across 444 episodes, traps safe), gpt-oss-120b-free (0 malformed / 0 errors),
+  and gemini-2.5-flash (wrong-envelope malformed 30% → 0% after the lenient parser at `807dfcc`).
+  Frozen surfaces re-verified at eval commit `807dfcc`: `graders.py`/`report.py`/`profile.toml` blobs
+  unchanged; on-disk `private.manifest.json` canary `780f5805` + `sample_ids_sha256` + `n=669` match
+  this contract. Frontier/publication runs are cleared to start.
 - **Created:** 2026-06-01
+- **Frozen:** 2026-06-02 (eval commit `807dfcc`; scaffold_version `2.2.0`)
 - **Supersedes:** all pre-canonical builds (e.g. canary `spar:5422343d…`, `spar:27342c14…`) — never published.
 
 A published Spar leaderboard compares models on an identical test. From the first publication run
