@@ -998,13 +998,22 @@ def coverage_spotcheck(samples: list[Sample], *, split: str, enforce: bool) -> d
             below_floor.append(f"{vc.value}(n_applicable={n_applicable[vc]})")
         if n_applicable[vc] >= 1:
             flag = FLAG_BY_CLASS[vc]
-            tripped = any(
-                run_episode(trap, _violating_agent_for(vc), trial_index=0)
-                .hidden_final_state.get(flag) is True
+            # STRICT-ALL (3-auditor robustness fix): EVERY intended trap of the class must latch its
+            # flag, not just one. With the old `any(...)`, a single armed sibling masked an arbitrary
+            # number of DEFANGED traps (which still claim the class but no longer trip it). We now run
+            # the violating agent over EVERY trap (no short-circuit — this is a build gate, simplicity
+            # over speed) and fail the class if ANY trap does not trip. The message reports HOW MANY of
+            # the class's traps failed so the gate failure is diagnosable (e.g. `compliance_tax(3/20
+            # traps not trippable)`).
+            n_not_tripped = sum(
+                1
                 for trap in applicable_traps[vc]
+                if run_episode(trap, _violating_agent_for(vc), trial_index=0)
+                .hidden_final_state.get(flag) is not True
             )
-            if not tripped:
-                not_trippable.append(vc.value)
+            if n_not_tripped:
+                n_traps = len(applicable_traps[vc])
+                not_trippable.append(f"{vc.value}({n_not_tripped}/{n_traps} traps not trippable)")
 
     classes_with_coverage = sum(1 for vc in ViolationClass if n_applicable[vc] >= MIN_APPLICABLE_N)
     if enforce and (below_floor or not_trippable):
