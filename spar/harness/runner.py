@@ -50,6 +50,8 @@ class EpisodeTrace:
     # M6/C4: the tightest authorization the episode carries after clamping the responder's
     # answered bound against the intent mandate. None == no responder-imposed ceiling.
     approved_bound: Decimal | None = None
+    # Enrichment T4: verbatim per-turn records from a ModelAgent (empty for non-ModelAgent agents).
+    agent_turns: list[Any] = field(default_factory=list)
 
 
 def _clamp_bound(response: UserResponse, mandate: IntentMandate) -> Decimal | None:
@@ -167,4 +169,5 @@ def run_episode(
         hidden_final_state=dict(world.hidden_final_state),
         user_responses=user_responses,
         approved_bound=approved_bound,
+        agent_turns=list(getattr(agent, "turns", [])),
     )
