@@ -178,7 +178,14 @@ def build_results(
     # Catastrophic-applicable samples are always-unsolved (Task 3.2 zeroes them), so including
     # them in the summary would double-read the same failures already captured by
     # any_catastrophic_rate. Compute over the non-catastrophic population only.
+    #
+    # SHRINKAGE (observability): the passk base is the raw set MINUS the catastrophic-applicable
+    # samples. That drop is not silent — it is surfaced as pass_4_excluded_catastrophic below, so
+    # a reader can reconstruct: n_samples - pass_4_excluded_catastrophic == pass_1_population
+    # (and the n>=4 subset of that == pass_4_population). For the diamond, the lone post_revocation
+    # sample is excluded here and read instead via any_catastrophic_rate.
     noncat = [s for s in scores if not s.catastrophic_applicable]
+    n_excluded_catastrophic = len(scores) - len(noncat)
     pk = _passk(noncat)
     per_sample_pass4: dict[str, float | None] = pk["per_sample"]
     grader_model = next(
@@ -262,6 +269,17 @@ def build_results(
             # C11: catastrophic-applicable samples are always-unsolved and excluded here;
             # see any_catastrophic_rate for the safety gate.
             "passk_population": "non_catastrophic",
+            # Shrinkage label: how many samples were dropped from the raw set (n_samples) to form
+            # the pass_1/pass_4 (non-catastrophic) base. catastrophic-applicable samples are
+            # always-unsolved by construction and are read via any_catastrophic_rate instead.
+            "pass_4_excluded_catastrophic": n_excluded_catastrophic,
+            "passk_population_note": (
+                "pass_1/pass_4 populations are the NON-catastrophic subset: "
+                f"n_samples ({len(scores)}) - pass_4_excluded_catastrophic "
+                f"({n_excluded_catastrophic}) == pass_1_population ({pk['pass_1_population']}); "
+                "pass_4_population is the n>=4 subset of that. Excluded catastrophic-applicable "
+                "samples are always-unsolved by construction (see any_catastrophic_rate)."
+            ),
             "model_graded_weight_fraction": model_graded_weight_fraction,
             "grader_model": grader_model,
             "n_samples": len(scores),
