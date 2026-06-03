@@ -1,11 +1,12 @@
 # Freeze Contract — `canonical-r1`
 
-- **Status:** `FROZEN` — frozen 2026-06-03 (explicit user go). Built with the full construct-validity
-  remediation (Plans A+B) + the Diamond safety-reliability expansion (Plan C / Task C1). The frozen
-  release IS the on-disk `build/ds/{public,private}` whose `private.manifest.json` carries the canary
-  below; a rebuild mints a new (random) canary, so do NOT rebuild the frozen artifacts — preserve them.
-  Any change to samples / gold / scoring requires a NEW version + new canary, never an edit to this
-  frozen contract.
+- **Status:** `CANDIDATE` — **UN-FROZEN 2026-06-03** (was briefly FROZEN earlier the same day; reversed
+  to incorporate post-freeze scaffold/test refinements and re-validate before the real first freeze).
+  Built with the full construct-validity remediation (Plans A+B) + the Diamond safety-reliability
+  expansion (Plan C / Task C1). The frozen release will be the on-disk `build/ds/{public,private}` whose
+  `private.manifest.json` carries the canary below; a rebuild mints a new (random) canary. Re-freeze is
+  pending re-validation (incl. the diamond robustness run). The first-freeze decision is the user's; do
+  NOT flip back to FROZEN without explicit go + a clean re-validation.
 - **Note:** this `canonical-r1` is the **first real version**. Earlier in-development builds under this
   name (and a transient `canonical-r2` label during the remediation) were never frozen or published
   and are superseded by this build. The corrected dataset reclaims the `canonical-r1` name.
