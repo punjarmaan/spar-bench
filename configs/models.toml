@@ -144,3 +144,14 @@ price_in_per_mtok  = 0.039
 price_out_per_mtok = 0.180
 version_pin   = "openai/gpt-oss-120b"
 reasoning     = true
+
+[[model]]
+# Mistral (reasoning) — the cheap reasoning Mistral; medium-3-5 is the pricier (1.5/7.5) alternative.
+id            = "mistral-small-2603"
+route         = "openrouter/mistralai/mistral-small-2603"
+class         = "open"
+supports_response_format = false
+price_in_per_mtok  = 0.15
+price_out_per_mtok = 0.60
+version_pin   = "mistralai/mistral-small-2603"
+reasoning     = true
