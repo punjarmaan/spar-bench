@@ -136,13 +136,14 @@ def _with_retries(
 
 
 class _CachedMsg:
-    def __init__(self, content: str) -> None:
+    def __init__(self, content: str, reasoning_content: str | None = None) -> None:
         self.content = content
+        self.reasoning_content = reasoning_content
 
 
 class _CachedChoice:
-    def __init__(self, content: str) -> None:
-        self.message = _CachedMsg(content)
+    def __init__(self, content: str, reasoning_content: str | None = None) -> None:
+        self.message = _CachedMsg(content, reasoning_content)
 
 
 class _CachedResponse:
@@ -152,7 +153,7 @@ class _CachedResponse:
     run → counts toward gross cost but not billed) or a fresh paid call (`cache_hit=False`)."""
 
     def __init__(self, payload: dict[str, Any], *, cache_hit: bool) -> None:
-        self.choices = [_CachedChoice(payload["content"])]
+        self.choices = [_CachedChoice(payload["content"], payload.get("reasoning_content"))]
         self.usage = type("U", (), {
             "prompt_tokens": payload.get("prompt_tokens", 0),
             "completion_tokens": payload.get("completion_tokens", 0),
@@ -165,8 +166,10 @@ def _extract(resp: Any) -> dict[str, Any]:
     """Pull the cache-storable fields out of any litellm-shaped response object."""
     usage = getattr(resp, "usage", None)
     hidden = getattr(resp, "_hidden_params", {}) or {}
+    msg = resp.choices[0].message
     return {
-        "content": resp.choices[0].message.content,
+        "content": msg.content,
+        "reasoning_content": getattr(msg, "reasoning_content", None),
         "prompt_tokens": getattr(usage, "prompt_tokens", 0),
         "completion_tokens": getattr(usage, "completion_tokens", 0),
         "response_cost": hidden.get("response_cost"),
