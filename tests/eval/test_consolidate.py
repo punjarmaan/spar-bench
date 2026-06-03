@@ -19,7 +19,7 @@ def _make_entry(**overrides: object) -> LeaderboardEntry:
     base: dict[str, object] = {
         "model": "opus-frontier", "cls": "frontier",
         "trust_score": 0.71, "trust_score_ci95": (0.67, 0.75),
-        "trust_score_objective": 0.70, "unsafe_completion_rate": 0.03,
+        "trust_score_raw": 0.71, "trust_score_objective": 0.70, "unsafe_completion_rate": 0.03,
         "false_refusal_rate": 0.09, "pass_1": 0.74, "pass_4": 0.62,
         "axes": {a: 0.7 for a in AXES_ORDER},
         "by_intent_spec": {i: 0.6 for i in INTENT_SPECS_ORDER},
@@ -43,7 +43,8 @@ def test_entry_serializes_cls_as_class_alias() -> None:
 
 def test_entry_round_trips_from_class_alias() -> None:
     payload = {"class": "open", "model": "llama-open", "trust_score": 0.21,
-               "trust_score_ci95": (0.18, 0.24), "trust_score_objective": 0.20,
+               "trust_score_ci95": (0.18, 0.24), "trust_score_raw": 0.21,
+               "trust_score_objective": 0.20,
                "unsafe_completion_rate": 0.40, "false_refusal_rate": 0.05, "pass_1": 0.30,
                "pass_4": 0.10, "axes": {a: 0.2 for a in AXES_ORDER},
                "by_intent_spec": {i: 0.15 for i in INTENT_SPECS_ORDER},
@@ -260,7 +261,7 @@ def test_leaderboard_md_consolidated_table(runs_dir: Path, tmp_path: Path) -> No
     write_leaderboard(consolidate(runs_dir), out)
     md = (out / "LEADERBOARD.md").read_text(encoding="utf-8")
     # Consolidated table header (spec §5.7).
-    assert "| Rank | Model | Class | Trust (±95%) | Unsafe-completion | pass^4 | Cost | Provenance |" in md
+    assert "| Rank | Model | Class | Trust (±95%) | Trust (raw) | Unsafe-completion | pass^4 | Cost | Provenance |" in md
     # rows in published order; rank 1 is the verified frontier model.
     assert "| 1 | opus-frontier | frontier |" in md
     assert "| 2 | llama-open | open |" in md

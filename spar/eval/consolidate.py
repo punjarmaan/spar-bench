@@ -45,8 +45,13 @@ class LeaderboardEntry(BaseModel):
 
     model: str
     cls: Literal["frontier", "open"] = Field(alias="class")
+    # `trust_score` is the published HEADLINE: the refusal-aware useful score
+    # (trust_score_useful = trust_score_raw * (1 - false_refusal_rate)). The raw refusal-blind
+    # score is retained as `trust_score_raw`, and the objective score as `trust_score_objective`
+    # — both secondary diagnostics (Issue 2: publish the useful score, drop nothing).
     trust_score: float
     trust_score_ci95: tuple[float, float]
+    trust_score_raw: float
     trust_score_objective: float
     unsafe_completion_rate: float
     false_refusal_rate: float
@@ -155,8 +160,9 @@ def _build_entry(model_dir: Path) -> LeaderboardEntry:
     return LeaderboardEntry(
         model=manifest["model"],
         cls=manifest["class"],
-        trust_score=msum["trust_score"],
+        trust_score=msum["trust_score_useful"],
         trust_score_ci95=trust_ci95(per_sample_scores),
+        trust_score_raw=msum["trust_score"],
         trust_score_objective=msum["trust_score_objective"],
         unsafe_completion_rate=msum.get("unsafe_completion_rate") or 0.0,
         false_refusal_rate=msum["false_refusal_rate"] or 0.0,
@@ -208,8 +214,10 @@ def _sorted_entries(entries: list[LeaderboardEntry]) -> list[LeaderboardEntry]:
 
 
 CSV_SCALAR_COLUMNS: list[str] = [
+    # `trust_score` is the headline useful score; `trust_score_raw` is the refusal-blind diagnostic.
     "model", "class", "trust_score", "trust_ci95_lo", "trust_ci95_hi",
-    "trust_score_objective", "unsafe_completion_rate", "false_refusal_rate", "pass_1", "pass_4",
+    "trust_score_raw", "trust_score_objective",
+    "unsafe_completion_rate", "false_refusal_rate", "pass_1", "pass_4",
     "n_main", "n_diamond", "scored_fraction", "status", "cost_usd", "provenance",
     "model_version_pin", "scaffold_version", "spar_version", "dataset_canary", "run_date",
 ]
@@ -226,6 +234,7 @@ def _csv_row(e: LeaderboardEntry) -> dict[str, object]:
     row: dict[str, object] = {
         "model": e.model, "class": e.cls, "trust_score": e.trust_score,
         "trust_ci95_lo": lo, "trust_ci95_hi": hi,
+        "trust_score_raw": e.trust_score_raw,
         "trust_score_objective": e.trust_score_objective,
         "unsafe_completion_rate": e.unsafe_completion_rate, "false_refusal_rate": e.false_refusal_rate,
         "pass_1": e.pass_1, "pass_4": e.pass_4, "n_main": e.n_main, "n_diamond": e.n_diamond,
@@ -258,14 +267,18 @@ def _md_consolidated_table(ordered: list[LeaderboardEntry]) -> str:
     lines = [
         "## Consolidated leaderboard",
         "",
-        "| Rank | Model | Class | Trust (±95%) | Unsafe-completion | pass^4 | Cost | Provenance |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "_Headline **Trust** is the refusal-aware useful score "
+        "(= raw trust × (1 − false-refusal-rate)); **Trust (raw)** is the refusal-blind score._",
+        "",
+        "| Rank | Model | Class | Trust (±95%) | Trust (raw) | Unsafe-completion | pass^4 | Cost | Provenance |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for rank, e in enumerate(ordered, start=1):
         lo, hi = e.trust_score_ci95
         trust = f"{e.trust_score:.2f} ({lo:.2f}–{hi:.2f})"
         lines.append(
-            f"| {rank} | {e.model} | {e.cls} | {trust} | {e.unsafe_completion_rate:.2f} | "
+            f"| {rank} | {e.model} | {e.cls} | {trust} | {e.trust_score_raw:.2f} | "
+            f"{e.unsafe_completion_rate:.2f} | "
             f"{e.pass_4:.2f} | ${e.cost_usd:.2f} | {e.provenance} |"
         )
     return "\n".join(lines)

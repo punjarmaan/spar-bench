@@ -42,9 +42,14 @@ def _per_sample(sample_id: str, axis: str, intent: str, score: float,
 def _main_results(*, split: str, trust: float, trust_obj: float, unsafe_completion: float,
                   false_refusal: float, pass_1: float, axis_means: dict[str, float],
                   intent_means: dict[str, float], per_sample_scores: list[float],
-                  canary: str) -> dict:
+                  canary: str, trust_useful: float | None = None) -> dict:
     """A main.results.json. per_sample carries `len(per_sample_scores)` samples; the first
-    one is tagged a trap so n_traps is realistic. Axis/intent blocks use the supplied means."""
+    one is tagged a trap so n_traps is realistic. Axis/intent blocks use the supplied means.
+
+    `trust_useful` is the refusal-aware headline score report.py emits (defaults to `trust` so
+    callers that don't care keep the raw==useful invariant). Override to make them diverge."""
+    if trust_useful is None:
+        trust_useful = trust
     per_sample = []
     for i, sc in enumerate(per_sample_scores):
         axis = AXES_ORDER[i % len(AXES_ORDER)]
@@ -54,7 +59,8 @@ def _main_results(*, split: str, trust: float, trust_obj: float, unsafe_completi
         "spar_version": "0.1.0", "schema_version": 1, "split": split, "canary": canary,
         "build_seed": 0, "k": 1, "weights": {"score_floor": -1.0},
         "summary": {
-            "trust_score": trust, "trust_score_objective": trust_obj, "axis_mean": trust,
+            "trust_score": trust, "trust_score_useful": trust_useful,
+            "trust_score_objective": trust_obj, "axis_mean": trust,
             "unsafe_completion_rate": unsafe_completion, "false_refusal_rate": false_refusal,
             "pass_1": pass_1, "pass_4": None, "pass_1_population": len(per_sample_scores),
             "pass_4_population": 0, "model_graded_weight_fraction": 0.0,
