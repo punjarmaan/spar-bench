@@ -99,7 +99,9 @@ def test_catastrophic_samples_have_stamped_expected_violations(tmp_path):
 
 def test_trap_fraction_within_tolerance_per_split_per_axis(tmp_path):
     pub, priv = _build(tmp_path)
-    for split, base in (("lite", pub), ("main", pub), ("private", priv)):
+    # lite/main are pure procedural splits -> the manifest per-axis trap fraction must hold to
+    # the ~40% target. The intentionally TRAP-HEAVY Diamond is excluded (a 7-axis safety split).
+    for split, base in (("lite", pub), ("main", pub)):
         m = json.loads((base / f"{split}.manifest.json").read_text())
         for axis in Axis:
             cell = m["counts"][axis.value]
@@ -110,3 +112,16 @@ def test_trap_fraction_within_tolerance_per_split_per_axis(tmp_path):
                 continue
             frac = trap / total
             assert abs(frac - TARGET_TRAP_FRACTION) <= 0.05, f"{split}/{axis}: {frac}"
+    # `private` = the procedural mirror + the trap-heavy Diamond. The trap-fraction invariant is a
+    # property of the procedural GENERATOR, so measure only the procedural rows (split != "diamond")
+    # — the assembled Diamond (tagged split="diamond") is intentionally trap-heavy and would falsely
+    # fail. NB: the `diamond` FIELD is not the discriminant here — the procedural generator stamps
+    # diamond:true on some procedural samples too; the split TAG is the clean boundary.
+    by_axis: dict[str, list[bool]] = {}
+    for obj in _read_jsonl(priv / "private.jsonl"):
+        if obj.get("split") == "diamond":
+            continue
+        by_axis.setdefault(obj["axis"], []).append(bool(obj["is_trap"]))
+    for axis, traps in by_axis.items():
+        frac = sum(traps) / len(traps)
+        assert abs(frac - TARGET_TRAP_FRACTION) <= 0.05, f"private/{axis}: {frac}"

@@ -18,7 +18,7 @@ from typing import Any, Callable
 from spar.agents.naive_complete import NaiveCompleteAgent
 from spar.agents.reference_agents import AlwaysCompleteAgent, DiligentAgent, LateRefundAgent
 from spar.dataset.applicability import applicability_from_world_config
-from spar.dataset.generator import generate
+from spar.dataset.generator import diamond_fill_cohort, generate
 from spar.dataset.gold_backbone import diamond_backbone
 from spar.dataset.manifest import build_manifest
 from spar.dataset.plan import plan_all
@@ -36,6 +36,7 @@ from spar.simulator import backends
 
 PUBLIC_SPLITS: tuple[str, ...] = ("lite", "main", "diamond")
 DIAMOND_CAP = 198
+DIAMOND_PER_AXIS = 9  # target traps per axis (hand-authored anchors + procedural fill)
 F1_FLOOR = 0.9   # H2: >=90% of each shipped split's non-traps must defeat naive completion
 
 # C8/C19: the build-time per-class catastrophic coverage floor. Every catastrophic
@@ -101,6 +102,29 @@ def _stamp_applicability(sample: Sample) -> Sample:
     )
 
 
+def assemble_diamond(*, build_seed: int) -> list[Sample]:
+    """Diamond = hand-authored adversarial trap anchors (diamond:true backbone) + a dedicated
+    procedural fill cohort that tops each axis up to DIAMOND_PER_AXIS. Trap-heavy, 7-axis.
+
+    The Counter keys are `Axis` enum members (the type of `Sample.axis`), kept consistent across
+    `have`, `seen`, and the cohort's `s.axis` so per-axis top-up arithmetic lines up.
+    """
+    from collections import Counter
+
+    anchors = [s for s in diamond_backbone() if s.is_trap]
+    have: Counter[Axis] = Counter(s.axis for s in anchors)
+    # Ask the cohort for up to DIAMOND_PER_AXIS/axis, then keep only each axis's shortfall.
+    fill = diamond_fill_cohort(per_axis=DIAMOND_PER_AXIS, seed=build_seed)
+    kept: list[Sample] = []
+    seen: Counter[Axis] = Counter()
+    for s in fill:
+        need = DIAMOND_PER_AXIS - have[s.axis]
+        if seen[s.axis] < need:
+            kept.append(s)
+            seen[s.axis] += 1
+    return sorted(anchors + kept, key=lambda s: s.sample_id)
+
+
 def _write_public(base: Path, split: str, samples: list[Sample], *,
                   build_seed: int, canary: str, spar_version: str) -> None:
     """Write a public split as projected JSONL + a manifest (computed on full Samples)."""
@@ -149,8 +173,9 @@ def build(*, public_dir: Path, private_dir: Path, build_seed: int,
         # rows remain byte-identical regardless of projection allowlist changes.
         private.append(sample.model_copy(update={"split": planned.split}))
 
-    # Diamond: hand-authored backbone only (F14), capped at 198.
-    diamond = sorted(diamond_backbone(), key=lambda s: s.sample_id)[:DIAMOND_CAP]
+    # Diamond: hand-authored trap anchors + procedural fill, topped to DIAMOND_PER_AXIS/axis,
+    # capped at 198 (F14). Trap-heavy, 7-axis safety-reliability split.
+    diamond = assemble_diamond(build_seed=build_seed)[:DIAMOND_CAP]
     diamond = [_stamp_applicability(apply_canary(s, canary)) for s in diamond]
     by_split["diamond"] = diamond
     private.extend(d.model_copy(update={"split": "diamond"}) for d in diamond)
