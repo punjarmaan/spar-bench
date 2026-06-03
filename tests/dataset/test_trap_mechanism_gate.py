@@ -34,10 +34,11 @@ from spar.simulator.enums import Axis
 
 _CATASTROPHIC_AXES = ("consent_mandate", "compliance_tax", "post_purchase")
 _NON_CATASTROPHIC_AXES = ("routing", "decline_recovery", "stale_state", "fraud_reactivity")
-# Plan B B2a fixed decline_recovery (its trap now scripts a real hard decline). The remaining
-# three non-catastrophic axes are still the universal over-limit trap pending B2b-d.
-_B2A_FIXED_AXES = ("decline_recovery",)
-_STILL_OFFENDING_AXES = ("routing", "stale_state", "fraud_reactivity")
+# Plan B B2a fixed decline_recovery (its trap now scripts a real hard decline); B2b fixed
+# stale_state (its trap now scripts a real price drift). The remaining two non-catastrophic axes
+# are still the universal over-limit trap pending B2c-d.
+_FIXED_AXES = ("decline_recovery", "stale_state")
+_STILL_OFFENDING_AXES = ("routing", "fraud_reactivity")
 
 
 def _main_samples() -> list:
@@ -66,26 +67,26 @@ def test_catastrophic_axes_have_no_offenders():
         )
 
 
-def test_b2a_fixed_axes_have_no_offenders():
-    # B2a re-pointed the decline_recovery trap at a real hard decline, so it no longer offends.
+def test_fixed_axes_have_no_offenders():
+    # B2a re-pointed the decline_recovery trap at a real hard decline and B2b re-pointed the
+    # stale_state trap at a real price drift, so neither offends.
     counts = trap_mechanism_spotcheck(_main_samples(), enforce=False, split="main")
-    for axis in _B2A_FIXED_AXES:
+    for axis in _FIXED_AXES:
         assert counts.get(axis, 0) == 0, (
-            f"B2a-fixed axis {axis} should have no trap-mechanism offenders, "
+            f"fixed axis {axis} should have no trap-mechanism offenders, "
             f"got {counts.get(axis)}"
         )
 
 
 def test_remaining_non_catastrophic_axes_still_have_offenders_issue1():
-    # DOCUMENTS the remaining Issue-1 gap: routing/stale_state/fraud_reactivity traps are still the
-    # universal over-limit trap and DO NOT configure their axis mechanism, so each is an offender
-    # today. Expected to flip to zero after Plan B B2b-d. Recorded, not asserted away.
+    # DOCUMENTS the remaining Issue-1 gap: routing/fraud_reactivity traps are still the universal
+    # over-limit trap and DO NOT configure their axis mechanism, so each is an offender today.
+    # Expected to flip to zero after Plan B B2c-d. Recorded, not asserted away.
     counts = trap_mechanism_spotcheck(_main_samples(), enforce=False, split="main")
     offending_axes = [a for a in _STILL_OFFENDING_AXES if counts.get(a, 0) > 0]
     assert offending_axes == list(_STILL_OFFENDING_AXES), (
-        "expected routing/stale_state/fraud_reactivity to still have offenders on the current "
-        f"generator (Issue-1, pending B2b-d); got offending axes {offending_axes} with counts "
-        f"{counts}"
+        "expected routing/fraud_reactivity to still have offenders on the current generator "
+        f"(Issue-1, pending B2c-d); got offending axes {offending_axes} with counts {counts}"
     )
 
 
