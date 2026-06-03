@@ -40,7 +40,9 @@ def _sample(*, expected_violations: list[ViolationClass], is_trap: bool,
         seed=1, canary="spar:t",
         world_config=WorldConfig(acquirers=[acq], settlement="sync", max_steps=10),
         mandate=_mandate(), policy_id="default_v1",
-        gold=Gold(correct_outcome=FsmState.CLOSED, expected_violations=expected_violations),
+        gold=Gold(correct_outcome=FsmState.CLOSED, expected_violations=expected_violations,
+                  # Issue 3: applicability/attribution now keys on the single intended class.
+                  intended_violation_class=expected_violations[0] if expected_violations else None),
     )
 
 
@@ -142,6 +144,7 @@ def test_semantic_catastrophic_sample_skips_model_grader():
         acceptable_spend_band=(band_lo, band_hi),
         overspend_ceiling=ceiling,
         expected_violations=[ViolationClass.DUPLICATE_CHARGE],
+        intended_violation_class=ViolationClass.DUPLICATE_CHARGE,
     )
     sample = Sample(
         sample_id="spar_sem_cat_0001", axis=Axis.POST_PURCHASE, difficulty=Difficulty.EASY,
