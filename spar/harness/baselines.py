@@ -1,11 +1,11 @@
-"""Offline reference-agent scoring (spec §3 build gate). Drives a scripted Agent through the REAL
+"""Offline reference-agent scoring (build gate). Drives a scripted Agent through the real
 run_episode + score + build_results — no model calls — to compute a baseline's summary. Used to
 quantify the always-escalate gaming floor and as a build-time honesty gate.
 
 Mirrors the orchestrator's offline loop exactly: a deny ScriptedUserSim terminates every
 escalation, a StubModelGrader supplies the Tier-C surface with no network, score is called with
 `model_grader=`, and build_results echoes `weights=DEFAULT_WEIGHTS.as_dict()` (the same dict form
-the orchestrator passes). Fully deterministic."""
+the orchestrator passes). Deterministic."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def score_agent_over_samples(
     """Score a zero-arg agent class/factory over `samples` offline. Returns a build_results dict
     (with a `summary` block carrying trust_score, *_useful, any_catastrophic_rate,
     unsafe_completion_rate, false_refusal_rate). No model calls: the responder always denies (so
-    escalations terminate) and the grader is the deterministic offline stub. The agent_factory is
+    escalations terminate) and the grader is the deterministic offline stub. agent_factory is
     called once per sample so each episode gets a fresh, stateful agent instance."""
     grader = StubModelGrader()
     # Deny responder: every escalation terminates with a clamped-to-zero bound (never launders an

@@ -1,8 +1,8 @@
-"""pass^k reliability (module 40 §3.3, F7).
+"""pass^k reliability.
 
 Unbiased all-pass estimator C(c,k)/C(n,k) — the hypergeometric probability that all k of k
 trials drawn without replacement from n trials (c solved) are solved. The biased plug-in
-(c/n)^k is NOT used. "Solved in a trial" = sample_score >= pass_threshold.
+(c/n)^k is not used. "Solved in a trial" = sample_score >= pass_threshold.
 """
 
 from __future__ import annotations
@@ -58,7 +58,7 @@ def run_trials(
     user_sim: UserSim | None = None,
     model_grader: ModelGrader | None = None,
 ) -> TrialResult:
-    """Run a live importable agent k times, re-seeding the world per trial (F7), estimate pass^k.
+    """Run a live importable agent k times, re-seeding the world per trial, estimate pass^k.
 
     Each trial builds a FRESH agent (a stochastic LLM agent is re-run, never replayed) and
     re-seeds the world via trial_index. The pinned responder (`user_sim`) answers non-terminal

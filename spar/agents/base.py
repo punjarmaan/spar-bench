@@ -1,4 +1,4 @@
-"""The Agent protocol (module 20 §5) and a trivial reference agent for M1 smoke tests."""
+"""The Agent protocol and a trivial reference agent for smoke tests."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ class Agent(Protocol):
 
 
 class AbortAgent:
-    """Trivial baseline: always aborts immediately. Used only to smoke-test the loop."""
+    """Always aborts immediately. Smoke-tests the loop."""
 
     def act(self, observation: Observation) -> Action:
         return Abort(tool="abort", reason="noop-baseline")

@@ -1,4 +1,4 @@
-"""The `spar` CLI (module 40 §5). M1 implements `run`; `grade`/`report` land in M6/M8."""
+"""The `spar` CLI."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ from spar.simulator.schemas import Sample
 
 app = typer.Typer(add_completion=False, help="Spar — payment-execution benchmark")
 
-# `spar build` cuts a frozen dataset release (module 30 §5).
+# `spar build` cuts a frozen dataset release.
 app.command(name="build")(build_cmd)
 
 
@@ -49,12 +49,12 @@ def _load_agent(spec: str) -> Agent:
 
 
 def _make_grader(grader_model: str | None) -> ModelGrader:
-    """H4: the live CLI ALWAYS supplies a Tier-C model grader so a gray-zone semantic sample
+    """The live CLI always supplies a Tier-C model grader so a gray-zone semantic sample
     grades instead of crashing with NotImplementedError.
 
     Default is the deterministic, offline `StubModelGrader` (pinned id recorded in
     results.json) so a local run is reproducible and needs no API. `--grader-model <id>` opts
-    into the pinned LiteLLM judge (temp=0, F12) for a published-grade run.
+    into the pinned LiteLLM judge (temp=0) for a published-grade run.
     """
     if grader_model is None:
         return StubModelGrader()
@@ -97,7 +97,7 @@ def _run_eval(
     only: str | None,
     samples_for: Callable[[str], list[Sample]] | None = None,
 ) -> None:
-    """Pure, offline-testable wiring: run evaluate_model for each selected model, threading the
+    """Offline-testable wiring: run evaluate_model for each selected model, threading the
     injected agent completion_fn + pinned responder/grader through the shared completion cache.
     The Typer `eval` command builds the live infra (default_completion_fn + LiteLLMUserSim) and
     delegates here; tests inject fakes. No litellm import in this function."""
@@ -124,9 +124,9 @@ def run(
                    "model id for the pinned LLM judge (temp=0, F12)."),
 ) -> None:
     if split == "private":
-        # C5: the local --agent path imports code in-process and must NEVER run against the
+        # The local --agent path imports code in-process and must never run against the
         # private split + hidden gold + canary. Private is served only by the trajectory-replay
-        # leaderboard server (descoped from v1), not the local CLI.
+        # leaderboard server, not the local CLI.
         typer.echo(
             "refused: --split private is not served by the local CLI (C5). The local "
             "--agent import is trusted-local-only and must never run against the private "
@@ -172,7 +172,7 @@ def grade(
 ) -> None:
     """Grade a pre-recorded predictions.jsonl by replaying it against the canonical seed.
 
-    A static trajectory desyncs under re-seeding (F7), so this path reports pass^1 only and
+    A static trajectory desyncs under re-seeding, so this path reports pass^1 only and
     emits pass_4: null.
     """
     samples = {s.sample_id: s for s in load_split(split)}
@@ -253,11 +253,11 @@ def eval_models(
     dataset_dir: Path = typer.Option(
         None, help="a `spar build --private-out` dir; resolve REAL graded splits (else toy fallback)"),
 ) -> None:
-    """Run one or all models for a profile (design §5.5/§7). Writes per-model results +
-    trajectories + manifest. Resumable via the completion cache."""
+    """Run one or all models for a profile. Writes per-model results + trajectories + manifest.
+    Resumable via the completion cache."""
     # Auto-load a repo-root .env so OPENROUTER_API_KEY placed there reaches LiteLLM (which reads
     # it from os.environ). A shell-exported key still wins (override=False). Fail fast with a
-    # clear message BEFORE any work if a live run has no key, rather than a mid-run auth error.
+    # clear message before any work if a live run has no key, rather than a mid-run auth error.
     env_path = load_env()
     if not offline and not os.environ.get("OPENROUTER_API_KEY"):
         typer.echo(
@@ -271,13 +271,13 @@ def eval_models(
     # Isolate the offline (stub) cache from the live namespace. The completion cache keys only on
     # (model, messages, sampling, trial_index) — it cannot tell a stub `abort` response from a real
     # paid one — so sharing a --cache-dir between `--offline` and a live run lets the live run
-    # silently cache-HIT the stubs at $0 and never call the model. Namespacing offline under
+    # silently cache-hit the stubs at $0 and never call the model. Namespacing offline under
     # `_offline` makes that impossible (a live run with the same --cache-dir never reads it).
     if offline:
         cache_dir = cache_dir / "_offline"
     roster = load_models(models)
-    # Guard (audit S?/B-cost): an unpriced model meters at $0 if the provider omits response_cost,
-    # silently defeating the budget cap. Warn loudly before any spend.
+    # An unpriced model meters at $0 if the provider omits response_cost, silently defeating
+    # the budget cap. Warn loudly before any spend.
     for warning in _unpriced_warnings(roster, only=only, budget_usd=budget_usd):
         typer.echo(warning, err=True)
     prof = load_profile(profile)
@@ -309,7 +309,7 @@ def eval_cost(
     dataset_dir: Path = typer.Option(
         None, help="a `spar build --private-out` dir; size the estimate against REAL splits"),
 ) -> None:
-    """Dry-run pre-flight cost ESTIMATE (no model calls; design §5.6). Sets the launch decision."""
+    """Dry-run pre-flight cost estimate (no model calls). Sets the launch decision."""
     roster = load_models(models)
     prof = load_profile(profile)
     samples_for: Callable[[str], list[Sample]] | None = (
@@ -326,7 +326,7 @@ def leaderboard(
     runs: Path = typer.Option(Path("runs"), help="directory of runs/<model>/ results (EM2 output)"),
     out_dir: Path = typer.Option(Path("."), help="where to write leaderboard.{json,csv,md} + manifest"),
 ) -> None:
-    """Consolidate every runs/<model>/ result into the published leaderboard artifacts (EM3)."""
+    """Consolidate every runs/<model>/ result into the published leaderboard artifacts."""
     from spar.eval.consolidate import consolidate, write_leaderboard
 
     entries = consolidate(runs)

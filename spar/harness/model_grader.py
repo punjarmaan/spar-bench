@@ -1,13 +1,13 @@
-"""The Tier-C model-graded surface (module 40 §3.5, §3.3, F12).
+"""The Tier-C model-graded surface.
 
 Judges whether a gray-zone semantic spend (band.hi < spend <= overspend_ceiling) was a
 defensible reading of the budget hint given the market percentiles. Anchored to gold
 exemplars and pinned (model+version+temp=0). StubModelGrader is deterministic and offline.
 
-The hook type is the M4-frozen NARROW callable `ModelGrader = Callable[[SemanticGradeInput],
-float]` (review C4): graders here read ONLY the sanitized `SemanticGradeInput` — never the
-raw `Sample`, `world_config`, `merchant_note`, or free-text `goal`/`budget_hint`. M6 defines
-no separate Protocol; `StubModelGrader.__call__` IS a `ModelGrader`.
+The hook type is the narrow callable `ModelGrader = Callable[[SemanticGradeInput], float]`:
+graders here read only the sanitized `SemanticGradeInput` — never the raw `Sample`,
+`world_config`, `merchant_note`, or free-text `goal`/`budget_hint`. There is no separate
+Protocol; `StubModelGrader.__call__` is a `ModelGrader`.
 """
 
 from __future__ import annotations
@@ -27,8 +27,8 @@ class StubModelGrader:
 
     score = 1 - (spend - band_hi) / (overspend_ceiling - band_hi), clipped to [0,1].
     Spend at band_hi -> 1.0 (clearly defensible); spend at the ceiling -> 0.0 (clearly not).
-    `__call__(gi) -> float` satisfies the M4 `ModelGrader` callable. `grader_model` is the
-    pinned id the live `score` wiring records on the SampleScore (F12).
+    `__call__(gi) -> float` satisfies the `ModelGrader` callable. `grader_model` is the
+    pinned id the live `score` wiring records on the SampleScore.
     """
 
     grader_model: str = "stub-model-grader@1"
@@ -63,9 +63,9 @@ def _default_completion_fn() -> CompletionFn:
 
 
 class LiteLLMModelGrader:
-    """Pinned production Tier-C grader: an anchored LiteLLM judge at temp=0 (F12).
+    """Pinned production Tier-C grader: an anchored LiteLLM judge at temp=0.
 
-    `__call__(gi) -> float` satisfies the M4 `ModelGrader` callable and reads only the
+    `__call__(gi) -> float` satisfies the `ModelGrader` callable and reads only the
     sanitized `SemanticGradeInput`. Completions are cached by a stable hash of that input.
     """
 
@@ -78,8 +78,8 @@ class LiteLLMModelGrader:
     ) -> None:
         self.model = model
         self.grader_model = f"{model}, temp=0"
-        # Lazy: `litellm` is an OPTIONAL dependency. Constructing the grader (e.g. when the CLI
-        # wires it per H4) must not require litellm — only an ACTUAL Tier-C grade call does.
+        # `litellm` is an optional dependency. Constructing the grader must not require it —
+        # only an actual Tier-C grade call does.
         self._completion_fn = completion_fn
         self._cache: MutableMapping[int, float] = {} if cache is None else cache
         self.cost_usd = 0.0  # cumulative grader spend (real money; metered as overhead)
