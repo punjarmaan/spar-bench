@@ -14,18 +14,17 @@ catastrophic gold carries an intended_violation_class). It is wired LOG-ONLY (en
 into `build()` now; Plan B B2e flips it to enforced once B2a-d fix the four broken axes.
 
 These tests DOCUMENT the current state: the 3 catastrophic axes (consent_mandate / compliance_tax
-/ post_purchase) already PASS (Plan A stamped intended_violation_class), while the 4
-non-catastrophic axes currently have offenders (Issue-1). We assert the catastrophic axes pass
-and RECORD the others; we deliberately do NOT assert all axes pass — they don't yet.
+/ post_purchase) PASS (Plan A stamped intended_violation_class), and B2a-d re-pointed all 4
+non-catastrophic axes at their real mechanisms (decline_recovery -> hard decline, stale_state ->
+price drift, fraud_reactivity -> guaranteed soft block, routing -> bad route / unsupported
+acquirer), so EVERY axis now has 0 offenders. The gate is still wired LOG-ONLY (enforce=False)
+into `build()`; Plan B B2e flips the WIRING to enforced now that every axis is fixed.
 """
 
 from __future__ import annotations
 
-import pytest
-
 from spar.dataset.build import (
     COVERAGE_ENFORCED_SPLITS,
-    TrapMechanismGateError,
     trap_mechanism_spotcheck,
 )
 from spar.dataset.generator import generate
@@ -36,10 +35,10 @@ _CATASTROPHIC_AXES = ("consent_mandate", "compliance_tax", "post_purchase")
 _NON_CATASTROPHIC_AXES = ("routing", "decline_recovery", "stale_state", "fraud_reactivity")
 # Plan B B2a fixed decline_recovery (its trap now scripts a real hard decline); B2b fixed
 # stale_state (its trap now scripts a real price drift); B2c fixed fraud_reactivity (its trap now
-# guarantees a soft block). The remaining non-catastrophic axis is still the universal over-limit
-# trap pending B2d.
-_FIXED_AXES = ("decline_recovery", "stale_state", "fraud_reactivity")
-_STILL_OFFENDING_AXES = ("routing",)
+# guarantees a soft block); B2d fixed routing (its trap is now a bad-routing / unsupported-acquirer
+# surface, not the universal over-limit knob). All 4 non-catastrophic axes are now fixed.
+_FIXED_AXES = ("decline_recovery", "stale_state", "fraud_reactivity", "routing")
+_STILL_OFFENDING_AXES: tuple[str, ...] = ()
 
 
 def _main_samples() -> list:
@@ -80,35 +79,35 @@ def test_fixed_axes_have_no_offenders():
         )
 
 
-def test_remaining_non_catastrophic_axes_still_have_offenders_issue1():
-    # DOCUMENTS the remaining Issue-1 gap: routing traps are still the universal over-limit trap
-    # and DO NOT configure their axis mechanism, so each is an offender today. Expected to flip to
-    # zero after Plan B B2d. Recorded, not asserted away.
+def test_all_non_catastrophic_axes_now_fixed_issue1_closed():
+    # Issue-1 is fully closed: B2a-d re-pointed every non-catastrophic axis at its real mechanism,
+    # so NONE has offenders. (Was: routing still offended pending B2d.)
     counts = trap_mechanism_spotcheck(_main_samples(), enforce=False, split="main")
-    offending_axes = [a for a in _STILL_OFFENDING_AXES if counts.get(a, 0) > 0]
-    assert offending_axes == list(_STILL_OFFENDING_AXES), (
-        "expected routing to still have offenders on the current generator "
-        f"(Issue-1, pending B2d); got offending axes {offending_axes} with counts {counts}"
+    offending_axes = [a for a in _NON_CATASTROPHIC_AXES if counts.get(a, 0) > 0]
+    assert offending_axes == [], (
+        f"expected all non-catastrophic axes fixed after B2a-d; still offending: "
+        f"{offending_axes} with counts {counts}"
     )
+    assert list(_STILL_OFFENDING_AXES) == [], "no axis should remain on the Issue-1 list"
 
 
-def test_log_only_never_raises_even_with_offenders():
-    # enforce=False must never raise, regardless of offenders (the wiring is log-only now).
+def test_log_only_never_raises_with_zero_offenders():
+    # enforce=False must never raise; with B2a-d landed, every axis is 0 offenders.
     counts = trap_mechanism_spotcheck(_main_samples(), enforce=False, split="main")
-    assert sum(counts.values()) > 0  # Issue-1: offenders exist
+    assert sum(counts.values()) == 0  # Issue-1 closed: no offenders remain
     # no exception => log-only contract honored
 
 
-def test_enforce_raises_on_enforced_split_when_offenders_exist():
-    # The FUNCTION can enforce: on an enforced split with offenders it raises (B2e will flip the
-    # WIRING to this). Today main has offenders (Issue-1), so enforcing must raise.
+def test_enforce_does_not_raise_when_no_offenders():
+    # The FUNCTION enforces on an enforced split, but with every axis fixed there are no offenders
+    # to raise on -> it returns cleanly (B2e flips the WIRING to enforced safely).
     assert "main" in COVERAGE_ENFORCED_SPLITS
-    with pytest.raises(TrapMechanismGateError):
-        trap_mechanism_spotcheck(_main_samples(), enforce=True, split="main")
+    counts = trap_mechanism_spotcheck(_main_samples(), enforce=True, split="main")
+    assert sum(counts.values()) == 0  # no offenders => no TrapMechanismGateError
 
 
 def test_enforce_does_not_raise_off_enforced_splits():
-    # Even with offenders, a non-enforced split (lite) must not raise when enforce flows through
+    # A non-enforced split (lite) must not raise when enforce flows through
     # COVERAGE_ENFORCED_SPLITS membership (mirrors f1/coverage/solvability/safe_completion wiring).
     assert "lite" not in COVERAGE_ENFORCED_SPLITS
     counts = trap_mechanism_spotcheck(
