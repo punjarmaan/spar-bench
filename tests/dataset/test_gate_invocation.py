@@ -99,3 +99,18 @@ def test_build_invokes_consent_over_limit_floor_on_main(tmp_path, monkeypatch):
           build_seed=1, spar_version="1.0.0")
     # the consent over-limit/scope-wall floor is asserted once, on by_split["main"].
     assert len(seen) == 1
+
+
+def test_build_invokes_diamond_trippability_gate(tmp_path, monkeypatch):
+    seen: list[int] = []
+    real = build_mod.diamond_trippability_spotcheck
+
+    def _spy(samples):
+        seen.append(len(samples))
+        return real(samples)
+
+    monkeypatch.setattr(build_mod, "diamond_trippability_spotcheck", _spy)
+    build(public_dir=tmp_path / "pub", private_dir=tmp_path / "priv",
+          build_seed=1, spar_version="1.0.0")
+    # the per-trap catastrophic trippability gate runs once, on by_split["diamond"].
+    assert len(seen) == 1
