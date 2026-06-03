@@ -10,7 +10,7 @@
 | field | value |
 |---|---|
 | `spar_version` | `canonical-r1` |
-| `canary` | `spar:d1f1210b-2497-4cb0-9d11-760ab9dc54ac` |
+| `canary` | `spar:9469c5b4-04d8-418c-9195-4f22b0ae54cc` |
 | `build_seed` | `1` |
 | private `n_samples` | `669` |
 | private `sample_ids_sha256` | `368e2927f3513be1a68461f9170b5e94d9249f355fc4d0e78b12392b89d92d08` |
