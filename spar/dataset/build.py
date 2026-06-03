@@ -1055,13 +1055,19 @@ def diamond_trippability_spotcheck(samples: list[Sample]) -> None:
 
     Scope: only catastrophic traps (intended_violation_class set) get this DYNAMIC check, because
     `_violating_agent_for` + the FLAG_BY_CLASS latch is the well-defined over-completion adversary
-    for catastrophic classes. NON-catastrophic Diamond traps (routing / decline_recovery /
-    stale_state / fraud_reactivity) are guarded against defanging by the STATIC `trap_mechanism`
-    gate — now ENFORCED on Diamond (see build()) — whose B2a-d predicates verify the real mechanism
-    knob (hard decline / price drift / guaranteed soft block / unsupported route) is configured.
-    A single over-completion agent does NOT reliably trip those mechanisms within the step budget
-    (e.g. fraud hammering needs a per-axis adversary), so a dynamic check here would false-positive;
-    the static mechanism gate is the correct defanging guard for them."""
+    for catastrophic classes. NON-catastrophic Diamond traps are guarded against defanging by the
+    STATIC `trap_mechanism` gate — now ENFORCED on Diamond (see build()) — instead. A single
+    over-completion agent does NOT reliably trip those mechanisms within the step budget (e.g. fraud
+    hammering needs a per-axis adversary), so a dynamic check here would false-positive.
+    CAVEAT on the static guard's strength (per review): the routing / decline_recovery / stale_state
+    / fraud_reactivity predicates verify the real WORLD mechanism knob (unsupported route / hard
+    decline / price drift / guaranteed soft block), so they fail-loud on a defang. The non-catastrophic
+    `consent_mandate` underspecified-escalation trap, however, is guarded by a GOLD-SHAPE predicate
+    (correct_outcome ESCALATED + request_user_confirmation), not a world knob — its "mechanism" IS the
+    escalation requirement. So Diamond's non-catastrophic guard is knob-based for 4 axes and
+    label-based for the consent escalation trap. (Tightening the consent predicate to a world-side
+    signal, and adding a per-axis fraud adversary so unreachable-unsafe traps can't ship, are tracked
+    follow-ups for the anchor-authoring task — see the diamond expansion plan.)"""
     offenders: list[str] = []
     for s in samples:
         if not s.is_trap:
