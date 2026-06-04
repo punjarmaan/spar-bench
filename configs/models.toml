@@ -1,11 +1,10 @@
-# Spar cross-model evaluation roster — model identity only; sampling knobs live in profile.toml
-# so no model can be tuned. OpenRouter is the default route; set OPENROUTER_API_KEY. The roster is
-# not a frozen surface: adding or swapping contestants is allowed.
-# Prices are per-Mtok from the OpenRouter catalog on 2026-06-02, used as a cost-reporting fallback.
-# supports_response_format=false uniformly: json_object caused gemini's wrong-envelope outputs, so
-# everything uses the prompt-format path. reasoning runs at effort=high.
+# Model roster: identity only; sampling knobs live in profile.toml. OpenRouter is the default
+# route; set OPENROUTER_API_KEY. Adding or swapping models is allowed.
+# Prices are per-Mtok, used as a cost-reporting fallback.
+# supports_response_format=false everywhere: json_object caused gemini's wrong-envelope outputs,
+# so everything uses the prompt-format path. reasoning runs at effort=high.
 #
-# FRONTIER TIER — each lab's current flagship.
+# Frontier models.
 
 [[model]]
 id            = "claude-opus-4.8"
@@ -38,8 +37,7 @@ version_pin   = "openai/gpt-5.5"
 reasoning     = true
 
 [[model]]
-# Graded by a same-vendor model: the grader is gemini-2.5-flash, so this row needs a
-# same-family-grader footnote when published.
+# Graded by a same-vendor model (grader is gemini-2.5-flash); note this when publishing.
 id            = "gemini-3.1-pro"
 route         = "openrouter/google/gemini-3.1-pro-preview"
 class         = "frontier"
@@ -69,7 +67,7 @@ price_out_per_mtok = 3.75
 version_pin   = "qwen/qwen3.7-max"
 reasoning     = true
 
-# OPEN-WEIGHT TIER — reasoning=true where the route supports it.
+# Open-weight models; reasoning=true where the route supports it.
 
 [[model]]
 id            = "qwen3.5-397b-a17b"
@@ -144,7 +142,7 @@ version_pin   = "mistralai/mistral-small-2603"
 reasoning     = true
 
 [[model]]
-# Medium-tier reasoning Mistral; raise the OpenRouter limit before a full reasoning-high run.
+# Medium-tier reasoning Mistral; raise the OpenRouter rate limit before a full reasoning-high run.
 id            = "mistral-medium-3-5"
 route         = "openrouter/mistralai/mistral-medium-3-5"
 class         = "open"

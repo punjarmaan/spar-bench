@@ -1,7 +1,6 @@
 # Frontier validation profile — lite competence only (pass^1 @ temp 0), never published.
 # Deterministic capability read on one split for a single expensive model: one trial per sample,
-# no reliability k=4 (keeps frontier spend ~1/5 of the full lite profile and avoids the same-split
-# results.json overwrite).
+# no reliability k=4 (keeps frontier spend low and avoids the same-split results.json overwrite).
 
 [competence]
 temperature = 0.0

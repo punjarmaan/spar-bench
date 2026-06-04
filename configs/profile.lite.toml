@@ -1,7 +1,6 @@
-# Validation profile — lite only, both stages, never published. Validates the live eval pipeline
-# end-to-end on one cheap model before widening. Temperature is a property of the stage, not the
-# model: competence = pass^1 @ temp 0; reliability = pass^4 @ temp 0.7 (pass^k at temp 0 would make
-# all k trajectories identical and measure nothing).
+# Validation profile — lite only, both stages, never published. Validates the eval pipeline
+# end-to-end on one cheap model before widening. Temperature is pinned per stage: competence =
+# pass^1 @ temp 0; reliability = pass^4 @ temp 0.7 (temp 0 would make all k trajectories identical).
 
 [competence]
 temperature = 0.0

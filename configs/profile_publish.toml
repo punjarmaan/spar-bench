@@ -1,8 +1,8 @@
 # Canonical published scope only: main (competence, k1) plus diamond (reliability, k4). Excludes
-# the unpublished lite dev-smoke split so paid/frontier runs don't pay for episodes that never get
-# published. Temperatures are pinned per stage, same values as profile.toml.
+# the unpublished lite dev-smoke split so paid runs don't pay for episodes that never get
+# published. Temperatures are pinned per stage, same values as the default profile.
 
-[competence]   # main pass^1 plus the per-axis breakdown
+[competence]   # main pass^1 plus per-axis breakdown
 temperature = 0.0
 top_p = 1.0
 max_tokens = 2048

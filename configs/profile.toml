@@ -1,7 +1,6 @@
-# Default Spar evaluation profile. Temperature is a property of the stage, not the model:
-# pinned here and applied identically to every model.
+# Default Spar evaluation profile. Temperature is pinned per stage and applied to every model.
 
-[competence]   # main pass^1 plus the per-axis breakdown
+[competence]   # main pass^1 plus per-axis breakdown
 temperature = 0.0
 top_p = 1.0
 max_tokens = 2048
