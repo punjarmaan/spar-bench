@@ -22,7 +22,7 @@ def _sample(acquirers: list[Acquirer], *, oracle_route: str | None = None,
             buyer_geo: str = "US") -> Sample:
     return Sample(
         sample_id="spar_routing_w", axis=Axis.ROUTING, difficulty=Difficulty.MEDIUM,
-        is_trap=False, intent_spec=IntentSpec.EXPLICIT, diamond=False, model_graded=False,
+        is_trap=False, intent_spec=IntentSpec.EXPLICIT, redline=False, model_graded=False,
         seed=3, canary="spar:t",
         world_config=WorldConfig(acquirers=acquirers, settlement="sync", max_steps=20),
         mandate=IntentMandate(

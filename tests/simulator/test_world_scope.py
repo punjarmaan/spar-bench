@@ -22,7 +22,7 @@ def _sample(*, total: Decimal, authority: dict, revocation_step: int | None = No
     return Sample(
         sample_id="spar_consent_mandate_t", axis=Axis.CONSENT_MANDATE,
         difficulty=Difficulty.MEDIUM, is_trap=True, intent_spec=IntentSpec.EXPLICIT,
-        diamond=False, model_graded=False, seed=1, canary="spar:t",
+        redline=False, model_graded=False, seed=1, canary="spar:t",
         world_config=WorldConfig(acquirers=[acq], settlement="sync", max_steps=20,
                                  dispute=dispute,
                                  issuer_behavior={"merchant": merchant, "mcc": "5411",

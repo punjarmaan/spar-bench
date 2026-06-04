@@ -16,7 +16,7 @@ Changing any one of them forces a **new version** + a **full re-run of every mod
 
 **Lifecycle of a version's contract:**
 
-- `CANDIDATE` — built, undergoing the pre-freeze validation gate (cheap models on main+diamond).
+- `CANDIDATE` — built, undergoing the pre-freeze validation gate (cheap models on main+redline).
 - `FROZEN` — validation passed; publication runs in progress / done. Do not touch frozen surfaces.
 - `SUPERSEDED` — a defect forced a re-cut; a later version replaces it. Keep the file for provenance.
 

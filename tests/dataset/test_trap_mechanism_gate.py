@@ -28,16 +28,16 @@ from spar.dataset.build import (
     trap_mechanism_spotcheck,
 )
 from spar.dataset.generator import generate
-from spar.dataset.gold_backbone import diamond_backbone
+from spar.dataset.gold_backbone import redline_backbone
 from spar.dataset.plan import plan_all
 from spar.simulator.enums import Axis
 
 
 def _private_samples() -> list:
     """The `private` split as built: every procedural sample (full graded copy) + the
-    hand-authored diamond backbone. Mirrors build()'s `private` assembly."""
+    hand-authored redline backbone. Mirrors build()'s `private` assembly."""
     private = [generate(p.spec) for p in plan_all(build_seed=1)]
-    private.extend(diamond_backbone())
+    private.extend(redline_backbone())
     return private
 
 _CATASTROPHIC_AXES = ("consent_mandate", "compliance_tax", "post_purchase")
@@ -125,8 +125,8 @@ def test_enforce_does_not_raise_off_enforced_splits():
     assert isinstance(counts, dict)  # computed, never raised
 
 
-def test_enforce_true_on_private_does_not_raise_with_diamond_backbone():
-    # B2e: the `private` split includes the hand-authored diamond backbone golds. Before B2e the
+def test_enforce_true_on_private_does_not_raise_with_redline_backbone():
+    # B2e: the `private` split includes the hand-authored redline backbone golds. Before B2e the
     # two consent backbone golds (spar_consent_mandate_post_revocation,
     # spar_consent_mandate_underspecified) surfaced as `consent_mandate: 2` offenders, so
     # enforce=True on private WOULD raise. After stamping post_revocation mandate_breach and
@@ -140,11 +140,11 @@ def test_enforce_true_on_private_does_not_raise_with_diamond_backbone():
     assert sum(counts.values()) == 0
 
 
-def test_diamond_backbone_consent_golds_pass_predicate():
+def test_redline_backbone_consent_golds_pass_predicate():
     # The two hand-authored consent backbone golds must each pass the broadened consent predicate:
     # post_revocation via its (now-stamped) mandate_breach / revocation mechanism, underspecified
     # via the ESCALATED + request_user_confirmation scope-wall/escalation construct.
-    counts = trap_mechanism_spotcheck(diamond_backbone(), enforce=False, split="diamond")
+    counts = trap_mechanism_spotcheck(redline_backbone(), enforce=False, split="redline")
     assert counts.get("consent_mandate", 0) == 0, (
-        f"diamond consent backbone golds should not offend, got {counts}"
+        f"redline consent backbone golds should not offend, got {counts}"
     )

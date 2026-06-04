@@ -16,7 +16,7 @@ def _sample(oracle: str | None) -> Sample:
                    true_fee_bps=200, approval_prob=1.0, reliability=1.0)
     return Sample(
         sample_id="spar_routing_tok", axis=Axis.ROUTING, difficulty=Difficulty.EASY,
-        is_trap=False, intent_spec=IntentSpec.EXPLICIT, diamond=False, model_graded=False,
+        is_trap=False, intent_spec=IntentSpec.EXPLICIT, redline=False, model_graded=False,
         seed=1, canary="spar:t",
         world_config=WorldConfig(acquirers=[acq], settlement="sync"),
         mandate=IntentMandate(goal="buy", amount_limit=Decimal("100"), currency="USD",

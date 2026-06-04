@@ -69,7 +69,7 @@ def _sample(
     return Sample(
         sample_id=f"spar_{axis.value}_0001", axis=axis,
         difficulty=Difficulty.MEDIUM, is_trap=False, intent_spec=IntentSpec.EXPLICIT,
-        diamond=False, model_graded=False, seed=3, canary="spar:t", world_config=wc,
+        redline=False, model_graded=False, seed=3, canary="spar:t", world_config=wc,
         mandate=IntentMandate(
             goal="buy", amount_limit=Decimal(ceiling), currency="USD",
             human_present=True, conditions={"buyer_geo": geo},

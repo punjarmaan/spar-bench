@@ -35,13 +35,13 @@ def test_build_invokes_f1_gate_on_every_shipped_split(tmp_path, monkeypatch):
     monkeypatch.setattr(build_mod, "f1_spotcheck", _spy)
     build(public_dir=tmp_path / "pub", private_dir=tmp_path / "priv",
           build_seed=1, spar_version="1.0.0")
-    # gate must run on lite + main + diamond + private (4 shipped graded sets).
+    # gate must run on lite + main + redline + private (4 shipped graded sets).
     assert len(seen) == 4
 
 
 def test_build_succeeds_because_shipped_splits_pass_f1(tmp_path):
     # Real build over real data must NOT raise: every shipped split clears the F1 floor
-    # (procedural generator keeps non-traps non-trivial; diamond is all traps).
+    # (procedural generator keeps non-traps non-trivial; redline is all traps).
     build(public_dir=tmp_path / "pub", private_dir=tmp_path / "priv",
           build_seed=7, spar_version="1.0.0")
     assert (tmp_path / "pub" / "main.jsonl").exists()

@@ -19,7 +19,7 @@ def test_manifest_has_all_required_fields():
     m = build_manifest(_samples(), split="main", build_seed=12345,
                        canary="spar:t", spar_version="1.0.0")
     for key in ("split", "spar_version", "schema_version", "build_seed", "canary",
-                "n_samples", "counts", "n_diamond", "n_model_graded",
+                "n_samples", "counts", "n_redline", "n_model_graded",
                 "trap_fraction", "sample_ids_sha256"):
         assert key in m
     assert m["n_samples"] == 2

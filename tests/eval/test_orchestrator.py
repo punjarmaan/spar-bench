@@ -296,8 +296,8 @@ def test_evaluate_all_runs_each_model_and_honors_only(tmp_path) -> None:
     assert (out_dir / "beta" / "run_manifest.json").exists()
 
 
-def test_exit_criterion_main_pass1_plus_diamond_pass4_offline(tmp_path) -> None:
-    """EM2 exit: one model runs Main pass^1 + Diamond pass^4 offline, resumable, with confirmed
+def test_exit_criterion_main_pass1_plus_redline_pass4_offline(tmp_path) -> None:
+    """EM2 exit: one model runs Main pass^1 + Redline pass^4 offline, resumable, with confirmed
     cost + cap, writing results.json + trajectories + manifest."""
     model = make_model(id="exit")
     out_dir = tmp_path / "runs"

@@ -23,7 +23,7 @@ def _semantic_sample(*, intent_spec, band, ceiling, correct_outcome) -> Sample:
     return Sample(
         sample_id="spar_consent_mandate_sem", axis=Axis.CONSENT_MANDATE,
         difficulty=Difficulty.MEDIUM, is_trap=False, intent_spec=intent_spec,
-        diamond=False, model_graded=(intent_spec == IntentSpec.SEMANTIC), seed=1,
+        redline=False, model_graded=(intent_spec == IntentSpec.SEMANTIC), seed=1,
         canary="spar:t",
         world_config=WorldConfig(acquirers=[acq], settlement="sync", max_steps=20,
                                  market_context=mc),

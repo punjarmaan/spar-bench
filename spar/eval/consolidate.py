@@ -1,6 +1,6 @@
 """Cross-model consolidation into the published leaderboard.
 
-Pure merge + present layer: reads each model's main/diamond results.json + run_manifest.json
+Pure merge + present layer: reads each model's main/redline results.json + run_manifest.json
 (produced upstream by the report builder + the orchestrator) and emits leaderboard.{json,csv,md} +
 leaderboard_manifest.json. It never re-scores or calls a model.
 
@@ -59,7 +59,7 @@ class LeaderboardEntry(BaseModel):
     axes: dict[str, float]
     by_intent_spec: dict[str, float]
     n_main: int
-    n_diamond: int
+    n_redline: int
     scored_fraction: float
     status: Literal["verified", "partial"]
     cost_usd: float
@@ -110,7 +110,7 @@ def _mean_or_zero(block: dict[str, Any] | None) -> float:
 
 
 def _build_entry(model_dir: Path) -> LeaderboardEntry:
-    """Merge one model's main + diamond + run_manifest into a LeaderboardEntry."""
+    """Merge one model's main + redline + run_manifest into a LeaderboardEntry."""
     main = _read_json(model_dir / "main.results.json")
     manifest = _read_json(model_dir / "run_manifest.json")
 
@@ -118,23 +118,23 @@ def _build_entry(model_dir: Path) -> LeaderboardEntry:
     per_axis = main["per_axis"]
     by_intent = main["by_intent_spec"]
 
-    # Robustness: a run that skipped the reliability stage may lack diamond.results.json.
-    diamond_path = model_dir / "diamond.results.json"
-    if diamond_path.exists():
-        diamond = _read_json(diamond_path)
-        dsum = diamond["summary"]
+    # Robustness: a run that skipped the reliability stage may lack redline.results.json.
+    redline_path = model_dir / "redline.results.json"
+    if redline_path.exists():
+        redline = _read_json(redline_path)
+        dsum = redline["summary"]
         pass_4 = dsum["pass_4"] or 0.0
-        n_diamond_results = dsum["n_samples"]
+        n_redline_results = dsum["n_samples"]
     else:
         pass_4 = 0.0
-        n_diamond_results = None
+        n_redline_results = None
 
     per_sample_scores = [s["score"] for s in main["per_sample"]]
 
     # Completeness + version pin from the manifest keys (splits.main.*, model_version_pin).
     splits = manifest.get("splits") or {}
     main_split = splits.get("main") or {}
-    diamond_split = splits.get("diamond") or {}
+    redline_split = splits.get("redline") or {}
     scored_fraction_val = main_split.get("scored_fraction")
     if scored_fraction_val is None:
         # Absent completeness cannot prove publishability -> partial. Never default 1.0, or the gate
@@ -147,10 +147,10 @@ def _build_entry(model_dir: Path) -> LeaderboardEntry:
             "verified" if scored_fraction >= PUBLISHABILITY_FLOOR else "partial"
         )
     n_main = int(main_split.get("n", msum["n_samples"]))
-    if n_diamond_results is not None:
-        n_diamond = int(diamond_split.get("n", n_diamond_results))
+    if n_redline_results is not None:
+        n_redline = int(redline_split.get("n", n_redline_results))
     else:
-        n_diamond = int(diamond_split.get("n", 0))
+        n_redline = int(redline_split.get("n", 0))
 
     # Provenance is a recorded fact: default public_self_run unless the manifest explicitly stamps
     # private_verified (only the private grading server may do so).
@@ -170,7 +170,7 @@ def _build_entry(model_dir: Path) -> LeaderboardEntry:
         axes={a: _mean_or_zero(per_axis.get(a)) for a in AXES_ORDER},
         by_intent_spec={i: _mean_or_zero(by_intent.get(i)) for i in INTENT_SPECS_ORDER},
         n_main=n_main,
-        n_diamond=n_diamond,
+        n_redline=n_redline,
         scored_fraction=scored_fraction,
         status=status,
         cost_usd=float(manifest.get("cost_usd", 0.0)),
@@ -184,7 +184,7 @@ def _build_entry(model_dir: Path) -> LeaderboardEntry:
 
 
 def consolidate(runs_dir: Path) -> list[LeaderboardEntry]:
-    """Read every runs/<model>/ dir (main + diamond + manifest) -> one LeaderboardEntry each.
+    """Read every runs/<model>/ dir (main + redline + manifest) -> one LeaderboardEntry each.
 
     Returns entries in directory-name sorted order (deterministic input ordering); the published
     sort (provenance, then trust desc) is applied by write_leaderboard.
@@ -217,7 +217,7 @@ CSV_SCALAR_COLUMNS: list[str] = [
     "model", "class", "trust_score", "trust_ci95_lo", "trust_ci95_hi",
     "trust_score_raw", "trust_score_objective",
     "unsafe_completion_rate", "false_refusal_rate", "pass_1", "pass_4",
-    "n_main", "n_diamond", "scored_fraction", "status", "cost_usd", "provenance",
+    "n_main", "n_redline", "scored_fraction", "status", "cost_usd", "provenance",
     "model_version_pin", "scaffold_version", "spar_version", "dataset_canary", "run_date",
 ]
 
@@ -236,7 +236,7 @@ def _csv_row(e: LeaderboardEntry) -> dict[str, object]:
         "trust_score_raw": e.trust_score_raw,
         "trust_score_objective": e.trust_score_objective,
         "unsafe_completion_rate": e.unsafe_completion_rate, "false_refusal_rate": e.false_refusal_rate,
-        "pass_1": e.pass_1, "pass_4": e.pass_4, "n_main": e.n_main, "n_diamond": e.n_diamond,
+        "pass_1": e.pass_1, "pass_4": e.pass_4, "n_main": e.n_main, "n_redline": e.n_redline,
         "scored_fraction": e.scored_fraction, "status": e.status, "cost_usd": e.cost_usd,
         "provenance": e.provenance, "model_version_pin": e.model_version_pin,
         "scaffold_version": e.scaffold_version, "spar_version": e.spar_version,
@@ -254,7 +254,7 @@ _FRAMING = (
     "**Trust = safe **and** competent, gated by overspend.** A model that completes "
     "everything but over-spends on traps scores ~0.\n\n"
     "Sampling (identical for every model): competence stage (Main pass^1) temperature=0.0, "
-    "top_p=1.0; reliability stage (Diamond pass^4) temperature=0.7, top_p=1.0. "
+    "top_p=1.0; reliability stage (Redline pass^4) temperature=0.7, top_p=1.0. "
     "Reproducibility comes from the completion cache + pinned model snapshots, not from "
     "temperature=0.\n\n"
     "Statistical honesty: differences within overlapping CIs are not significant — rankings "

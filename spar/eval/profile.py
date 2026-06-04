@@ -2,7 +2,7 @@
 
 Temperature is a property of the eval STAGE, not the model — pinned here and applied identically
 to every model and scenario, so no model can be tuned. Two stages: `competence` (temp 0.0, Main
-pass^1) and `reliability` (temp 0.7, Diamond pass^4); pass^k at temp 0 would make all k trajectories
+pass^1) and `reliability` (temp 0.7, Redline pass^4); pass^k at temp 0 would make all k trajectories
 identical on scripted worlds, measuring nothing.
 """
 
@@ -37,7 +37,7 @@ class Profile(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     competence: StageSampling          # Main pass^1 + per-axis breakdown
-    reliability: StageSampling         # Diamond pass^4
+    reliability: StageSampling         # Redline pass^4
     plan: list[StagePlan]              # ordered (split, k, stage, published) entries
 
 
@@ -60,7 +60,7 @@ DEFAULT_PROFILE: Profile = Profile(
     reliability=StageSampling(temperature=0.7, top_p=1.0, max_tokens=2048, seed=7),
     plan=[
         StagePlan(split="main", k=1, stage="competence", published=True),
-        StagePlan(split="diamond", k=4, stage="reliability", published=True),
+        StagePlan(split="redline", k=4, stage="reliability", published=True),
         StagePlan(split="lite", k=1, stage="competence", published=False),
     ],
 )

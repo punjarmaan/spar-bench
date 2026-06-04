@@ -20,11 +20,11 @@ def test_build_stamps_split_on_private_not_public(tmp_path: Path) -> None:
     private_rows = _rows(private_dir / "private.jsonl")
     assert private_rows, "private build is non-empty"
     # every private sample carries a valid split tag
-    assert all(r["split"] in {"lite", "main", "diamond"} for r in private_rows)
+    assert all(r["split"] in {"lite", "main", "redline"} for r in private_rows)
     # each procedural + backbone split is actually present (a dropped split would slip past `all`)
     assert any(r["split"] == "lite" for r in private_rows)
     assert any(r["split"] == "main" for r in private_rows)
-    assert any(r["split"] == "diamond" for r in private_rows)
+    assert any(r["split"] == "redline" for r in private_rows)
 
     # public rows NEVER carry the tag (projection allowlist + private-only stamping)
     public_main = _rows(public_dir / "main.jsonl")

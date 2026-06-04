@@ -30,7 +30,7 @@ def _routing_sample(acquirers, *, oracle_route, amount="100", is_trap=False,
                     correct_outcome=FsmState.CLOSED) -> Sample:  # gold uses grade-terminals
     return Sample(
         sample_id="spar_routing_o", axis=Axis.ROUTING, difficulty=Difficulty.MEDIUM,
-        is_trap=is_trap, intent_spec=IntentSpec.EXPLICIT, diamond=False, model_graded=False,
+        is_trap=is_trap, intent_spec=IntentSpec.EXPLICIT, redline=False, model_graded=False,
         seed=5, canary="spar:t",
         world_config=WorldConfig(acquirers=acquirers, settlement="sync", max_steps=20),
         mandate=IntentMandate(

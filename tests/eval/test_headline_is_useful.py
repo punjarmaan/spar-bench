@@ -1,7 +1,7 @@
 """Issue 2: the published leaderboard headline is the refusal-aware trust_score_useful,
 NOT the refusal-blind trust_score. Raw + objective are retained as secondary columns.
 
-Mirrors tests/eval/conftest.py's golden-fixture layout (runs/<model>/{main,diamond}.results.json
+Mirrors tests/eval/conftest.py's golden-fixture layout (runs/<model>/{main,redline}.results.json
 + run_manifest.json), but supplies a summary where trust_score (0.80) and trust_score_useful (0.30)
 DIFFER so we can prove which one is published.
 """
@@ -16,7 +16,7 @@ from tests.eval.conftest import (
     AXES_ORDER,
     CANARY,
     INTENT_SPECS_ORDER,
-    OPUS_DIAMOND,
+    OPUS_REDLINE,
     _main_results,
     _manifest,
     _write_model,
@@ -51,9 +51,9 @@ def _useful_runs(tmp_path: Path) -> Path:
                          provenance="private_verified", cost_usd=2.0,
                          version_pin="x/diverge@2026", canary=CANARY,
                          main_scored_fraction=1.0, main_status="verified",
-                         n_main=8, n_diamond=6)
+                         n_main=8, n_redline=6)
     _write_model(runs / "diverge-model", main=_useful_main(),
-                 diamond=OPUS_DIAMOND, manifest=manifest)
+                 redline=OPUS_REDLINE, manifest=manifest)
     return runs
 
 
@@ -102,7 +102,7 @@ def test_headline_sort_is_by_useful_score(tmp_path: Path) -> None:
     for name, m in (("a-high-raw", a_main), ("b-high-useful", b_main)):
         manifest = _manifest(model=name, cls="frontier", provenance="private_verified",
                              cost_usd=1.0, version_pin=f"x/{name}@1", canary=CANARY)
-        _write_model(runs / name, main=m, diamond=OPUS_DIAMOND, manifest=manifest)
+        _write_model(runs / name, main=m, redline=OPUS_REDLINE, manifest=manifest)
     out = tmp_path / "out"
     write_leaderboard(consolidate(runs), out)
     data = json.loads((out / "leaderboard.json").read_text(encoding="utf-8"))

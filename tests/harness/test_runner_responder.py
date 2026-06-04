@@ -32,7 +32,7 @@ def _sample(*, responder: bool, intent_spec: IntentSpec, correct_outcome: FsmSta
     return Sample(
         sample_id="spar_consent_mandate_0001", axis=Axis.CONSENT_MANDATE,
         difficulty=Difficulty.MEDIUM, is_trap=False, intent_spec=intent_spec,
-        diamond=False, model_graded=False, seed=7, canary="spar:t",
+        redline=False, model_graded=False, seed=7, canary="spar:t",
         world_config=WorldConfig(acquirers=[acq], settlement="sync", max_steps=12,
                                  responder=responder,
                                  issuer_behavior={"merchant": "acme", "mcc": None,

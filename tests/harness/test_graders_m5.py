@@ -29,7 +29,7 @@ from spar.simulator.schemas import Gold, Sample, WorldConfig
 def _sample(axis: Axis, *, gold: Gold, is_trap: bool = False) -> Sample:
     return Sample(
         sample_id=f"spar_{axis.value}_0001", axis=axis, difficulty=Difficulty.MEDIUM,
-        is_trap=is_trap, intent_spec=IntentSpec.EXPLICIT, diamond=False, model_graded=False,
+        is_trap=is_trap, intent_spec=IntentSpec.EXPLICIT, redline=False, model_graded=False,
         seed=1, canary="spar:t",
         world_config=WorldConfig(acquirers=[], settlement="sync"),
         mandate=IntentMandate(

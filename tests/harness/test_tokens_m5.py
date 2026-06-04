@@ -36,7 +36,7 @@ def _sample() -> Sample:
     return Sample(
         sample_id="spar_stale_state_tok", axis=Axis.STALE_STATE,
         difficulty=Difficulty.EASY, is_trap=False, intent_spec=IntentSpec.EXPLICIT,
-        diamond=False, model_graded=False, seed=1, canary="spar:t",
+        redline=False, model_graded=False, seed=1, canary="spar:t",
         world_config=WorldConfig(acquirers=[acq], settlement="sync", max_steps=20),
         mandate=IntentMandate(
             goal="buy", amount_limit=Decimal("100"), currency="USD",

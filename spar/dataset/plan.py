@@ -4,7 +4,7 @@
 splits (`lite`, `main`) and tags each with its split in ONE pass. Split membership
 is a pure function of (sample_id, build_seed) by construction — there is NO second
 hash-bucketing step layered on top, so the per-split / per-axis trap balance and the
-model-graded cap the plan establishes are never scrambled. Diamond is the hand-authored
+model-graded cap the plan establishes are never scrambled. Redline is the hand-authored
 backbone, NOT enumerated here.
 """
 
@@ -19,7 +19,7 @@ from spar.dataset.generator import GenSpec
 
 TARGET_TRAP_FRACTION = 0.40
 
-# The only procedurally-generated public splits. Diamond is hand-authored;
+# The only procedurally-generated public splits. Redline is hand-authored;
 # Private is built separately from the full graded pool (build.py).
 PROCEDURAL_SPLITS: tuple[str, ...] = ("lite", "main")
 

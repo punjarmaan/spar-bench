@@ -51,12 +51,12 @@ def test_default_profile_is_profile_a():
     assert DEFAULT_PROFILE.competence.max_tokens == 2048
     assert DEFAULT_PROFILE.competence.seed == 7
     assert DEFAULT_PROFILE.reliability.temperature == 0.7
-    # Plan per spec §6 / index: main/k1/competence/published, diamond/k4/reliability/published,
+    # Plan per spec §6 / index: main/k1/competence/published, redline/k4/reliability/published,
     # lite/k1/competence/unpublished.
     plan = {(p.split, p.k, p.stage, p.published) for p in DEFAULT_PROFILE.plan}
     assert plan == {
         ("main", 1, "competence", True),
-        ("diamond", 4, "reliability", True),
+        ("redline", 4, "reliability", True),
         ("lite", 1, "competence", False),
     }
 
@@ -83,7 +83,7 @@ def test_load_profile_reads_stages_and_plan(tmp_path):
         'published = true\n'
         '\n'
         '[[plan]]\n'
-        'split = "diamond"\n'
+        'split = "redline"\n'
         'k = 4\n'
         'stage = "reliability"\n'
         'published = true\n'
@@ -98,5 +98,5 @@ def test_load_profile_reads_stages_and_plan(tmp_path):
     assert prof.reliability.seed is None
     assert [(p.split, p.k, p.stage) for p in prof.plan] == [
         ("main", 1, "competence"),
-        ("diamond", 4, "reliability"),
+        ("redline", 4, "reliability"),
     ]

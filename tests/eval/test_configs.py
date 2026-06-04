@@ -29,5 +29,5 @@ def test_profile_toml_is_profile_a() -> None:
     assert prof.reliability.temperature == 0.7
     plan = {(p.split, p.k, p.stage, p.published) for p in prof.plan}
     assert ("main", 1, "competence", True) in plan
-    assert ("diamond", 4, "reliability", True) in plan
+    assert ("redline", 4, "reliability", True) in plan
     assert ("lite", 1, "competence", False) in plan

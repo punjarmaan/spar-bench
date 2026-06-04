@@ -48,7 +48,7 @@ def test_report_pass4_null_for_static_trajectories():
 
 
 def test_report_pass4_has_wilson_ci_and_n4_note():
-    # n=4 diamond regime: pass^4 is Bernoulli all-or-nothing per sample.
+    # n=4 redline regime: pass^4 is Bernoulli all-or-nothing per sample.
     # c=4 -> all-pass (1.0); c<4 -> 0.0. So 2 all-pass of 4 in the population.
     scores = [
         _score("s1", n=4, c=4),  # all-pass
@@ -99,7 +99,7 @@ def test_report_pass4_ci_round_trips_through_recompute_summary():
 
 
 def test_report_labels_catastrophic_exclusion_shrinkage():
-    # 3 non-catastrophic n>=4 diamond samples + 2 catastrophic-applicable n>=4 samples.
+    # 3 non-catastrophic n>=4 redline samples + 2 catastrophic-applicable n>=4 samples.
     # The summary pass^4 population is the 3 non-catastrophic samples; the 2 catastrophic
     # ones are excluded and that shrinkage must be labeled explicitly.
     noncat = [_score("n1", n=4, c=4), _score("n2", n=4, c=3), _score("n3", n=4, c=0)]

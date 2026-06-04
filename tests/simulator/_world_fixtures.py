@@ -21,7 +21,7 @@ def build_world(approval_prob: float = 1.0, **wc_over: Any) -> World:
     sample = Sample(
         sample_id="spar_post_purchase_lifecycle_0001", axis=Axis.POST_PURCHASE,
         difficulty=Difficulty.EASY, is_trap=False, intent_spec=IntentSpec.EXPLICIT,
-        diamond=False, model_graded=False, seed=1, canary="spar:t",
+        redline=False, model_graded=False, seed=1, canary="spar:t",
         world_config=WorldConfig(**wc_kwargs),
         mandate=make_intent(allowed_instruments=["card_visa"], merchant_constraint=["acme"]),
         policy_id="default_v1", gold=Gold(correct_outcome=FsmState.CLOSED),

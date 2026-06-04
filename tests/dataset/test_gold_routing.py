@@ -81,6 +81,6 @@ def test_trap_sample_has_no_supported_route_and_correct_must_not():
 
 def test_no_hard_sample_advertises_its_true_fee():
     for s in load_gold("routing"):
-        if s.difficulty.value == "hard" or s.diamond:
+        if s.difficulty.value == "hard" or s.redline:
             for a in s.world_config.acquirers:
                 assert a.advertised_fee_bps != a.true_fee_bps

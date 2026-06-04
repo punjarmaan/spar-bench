@@ -73,8 +73,8 @@ class Sample(_Model):
     difficulty: Difficulty
     is_trap: bool
     intent_spec: IntentSpec = IntentSpec.EXPLICIT
-    diamond: bool = False
-    split: str | None = None   # build-stamped membership ("lite"|"main"|"diamond"|"probe"); None
+    redline: bool = False
+    split: str | None = None   # build-stamped membership ("lite"|"main"|"redline"|"probe"); None
                                # for ad-hoc/toy/gold samples. Dropped by public projection.
                                # "probe" = derived stratified ~50% subsample of main (not canonical).
     model_graded: bool = False

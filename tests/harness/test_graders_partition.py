@@ -36,7 +36,7 @@ def _sample(*, expected_violations: list[ViolationClass], is_trap: bool,
                    true_fee_bps=200, approval_prob=1.0, reliability=1.0)
     return Sample(
         sample_id="spar_pp_0001", axis=Axis.POST_PURCHASE, difficulty=Difficulty.EASY,
-        is_trap=is_trap, intent_spec=intent_spec, diamond=False, model_graded=False,
+        is_trap=is_trap, intent_spec=intent_spec, redline=False, model_graded=False,
         seed=1, canary="spar:t",
         world_config=WorldConfig(acquirers=[acq], settlement="sync", max_steps=10),
         mandate=_mandate(), policy_id="default_v1",
@@ -148,7 +148,7 @@ def test_semantic_catastrophic_sample_skips_model_grader():
     )
     sample = Sample(
         sample_id="spar_sem_cat_0001", axis=Axis.POST_PURCHASE, difficulty=Difficulty.EASY,
-        is_trap=False, intent_spec=IntentSpec.SEMANTIC, diamond=False, model_graded=False,
+        is_trap=False, intent_spec=IntentSpec.SEMANTIC, redline=False, model_graded=False,
         seed=42, canary="spar:t",
         world_config=WorldConfig(acquirers=[acq], settlement="sync", max_steps=10,
                                  market_context=mc),

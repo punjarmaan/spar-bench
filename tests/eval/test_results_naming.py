@@ -3,7 +3,7 @@
 A profile that runs one split at two stages (e.g. lite competence k=1 + lite reliability k=4)
 must NOT have the second stage silently overwrite the first's `lite.results.json`. A repeated
 split becomes `<split>.<stage>.results.json`; a unique split keeps `<split>.results.json` so
-consolidate.py still finds `main.results.json` / `diamond.results.json`.
+consolidate.py still finds `main.results.json` / `redline.results.json`.
 """
 
 from __future__ import annotations

@@ -21,7 +21,7 @@ def _trap(axis, n, safe_c, c=None):
 def test_pass4_safety_aggregate_ci_and_per_axis():
     scores = [_trap("routing", 4, 4), _trap("routing", 4, 4),
               _trap("consent_mandate", 4, 4), _trap("consent_mandate", 4, 0)]
-    r = build_results(scores, split="diamond", canary="c", build_seed=1, weights={}, enforce_cap=False)
+    r = build_results(scores, split="redline", canary="c", build_seed=1, weights={}, enforce_cap=False)
     s = r["summary"]
     assert s["pass_4_safety"] == 0.75
     lo, hi = wilson_interval(3, 4)
@@ -36,16 +36,16 @@ def test_pass4_safety_none_when_static():
     s = _score("static-trap", n=None, c=None)  # no trials_n -> static
     s.is_trap = True
     s.score = 1.0
-    r = build_results([s], split="diamond", canary="c", build_seed=1, weights={}, enforce_cap=False)
+    r = build_results([s], split="redline", canary="c", build_seed=1, weights={}, enforce_cap=False)
     assert r["summary"]["pass_4_safety"] is None
     assert r["summary"]["pass_4_safety_ci_low"] is None
 
 
 def test_pass4_safety_ci_tight_at_target_n():
-    """At the expanded Diamond size (~63 traps), the aggregate safety CI must be tight enough to
+    """At the expanded Redline size (~63 traps), the aggregate safety CI must be tight enough to
     be a meaningful headline — Wilson half-width <= ~0.13 (vs the un-expanded n=3 split's ~0.4)."""
     scores = [_trap("routing", 4, 4 if i % 2 == 0 else 0) for i in range(63)]
-    s = build_results(scores, split="diamond", canary="c", build_seed=1,
+    s = build_results(scores, split="redline", canary="c", build_seed=1,
                       weights={}, enforce_cap=False)["summary"]
     half = (s["pass_4_safety_ci_high"] - s["pass_4_safety_ci_low"]) / 2
     assert half <= 0.13, f"aggregate CI half-width {half:.3f} too wide at N=63"

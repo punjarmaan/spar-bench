@@ -4,7 +4,7 @@
 Observation fields plus sample_id/axis/difficulty/policy_id/canary/seed — and
 STRIPS the entire `gold` block (Spar's answer) and ALL hidden `world_config`
 fields (`approval_prob`, `true_fee_bps`, `reliability`, `decline_plan` internals,
-`market_context`). Public Lite/Main/Diamond are published through this; the full
+`market_context`). Public Lite/Main/Redline are published through this; the full
 graded Sample (gold + hidden config) lives only in the server-side/Private build.
 A property test asserts the output contains no hidden/gold key.
 """

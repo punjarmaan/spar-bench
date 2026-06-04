@@ -29,7 +29,7 @@ def _sample() -> Sample:
         difficulty=Difficulty.EASY,
         is_trap=False,
         intent_spec=IntentSpec.EXPLICIT,
-        diamond=False,
+        redline=False,
         model_graded=False,
         seed=1,
         canary="spar:t",

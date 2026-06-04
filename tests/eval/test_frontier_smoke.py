@@ -45,16 +45,16 @@ def test_one_cheap_model_produces_a_leaderboard_row(tmp_path: Path) -> None:
         version_pin=f"{SMOKE_MODEL_ROUTE}@smoke",
         **{"class": "open"},
     )
-    # The leaderboard consolidates the COMPETENCE (main) + RELIABILITY (diamond) splits — a
+    # The leaderboard consolidates the COMPETENCE (main) + RELIABILITY (redline) splits — a
     # lite-only run writes no main.results.json and cannot consolidate (spec §6: lite is dev,
     # never published). Run the published shape at k=1 (cheapest publishable end-to-end path; the
-    # bundled main/diamond splits are tiny, so this stays ~cents).
+    # bundled main/redline splits are tiny, so this stays ~cents).
     profile = Profile(
         competence=StageSampling(temperature=0.0, top_p=1.0, max_tokens=512, seed=7),
         reliability=StageSampling(temperature=0.7, top_p=1.0, max_tokens=512),
         plan=[
             StagePlan(split="main", k=1, stage="competence", published=True),
-            StagePlan(split="diamond", k=1, stage="reliability", published=True),
+            StagePlan(split="redline", k=1, stage="reliability", published=True),
         ],
     )
     # Pinned infra: live responder (temp=0) sharing the agent route; offline stub grader so

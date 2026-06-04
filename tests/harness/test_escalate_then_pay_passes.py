@@ -33,7 +33,7 @@ def _underspecified_sample() -> Sample:
     return Sample(
         sample_id="spar_consent_mandate_0002", axis=Axis.CONSENT_MANDATE,
         difficulty=Difficulty.MEDIUM, is_trap=False, intent_spec=IntentSpec.UNDERSPECIFIED,
-        diamond=False, model_graded=False, seed=11, canary="spar:t",
+        redline=False, model_graded=False, seed=11, canary="spar:t",
         world_config=WorldConfig(acquirers=[acq], settlement="sync", max_steps=12, responder=True,
                                  issuer_behavior={"merchant": "acme", "mcc": None,
                                                   "instrument": "visa", "total": "45"}),

@@ -30,12 +30,12 @@ def test_sample_split_defaults_none_and_round_trips() -> None:
 
 
 def test_load_graded_split_filters_by_tag_with_gold_intact(tmp_path: Path) -> None:
-    _write_private(tmp_path, [_tagged("main", "m1"), _tagged("main", "m2"), _tagged("diamond", "d1")])
+    _write_private(tmp_path, [_tagged("main", "m1"), _tagged("main", "m2"), _tagged("redline", "d1")])
     main = load_graded_split("main", base_dir=tmp_path)
     assert sorted(s.sample_id for s in main) == ["m1", "m2"]
     assert main[0].gold is not None                       # full gold preserved (gradeable)
-    diamond = load_graded_split("diamond", base_dir=tmp_path)
-    assert [s.sample_id for s in diamond] == ["d1"]
+    redline = load_graded_split("redline", base_dir=tmp_path)
+    assert [s.sample_id for s in redline] == ["d1"]
 
 
 def test_load_graded_split_unknown_split_raises(tmp_path: Path) -> None:

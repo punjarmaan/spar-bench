@@ -16,7 +16,7 @@ split:
 B4 DROPPED the three compliance/consent inert tokens (the catastrophic axes' real test is the
 catastrophic-divergence gate, intended_violation_class) and confined exceed_per_txn_max to the
 over-limit consent trap (which actually arms cart_total > per_txn_max). resubmit_raw_after_challenge
-(now carried by the diamond fraud anchors spar_fraud_reactivity_hammer_anchor / _velocity_anchor)
+(now carried by the redline fraud anchors spar_fraud_reactivity_hammer_anchor / _velocity_anchor)
 STAYS as a documented action-order token: the fraud engine is enabled, so a step-up CHALLENGE
 source exists and an adversary CAN submit-raw after it.
 """
@@ -32,7 +32,7 @@ from spar.dataset.build import (
     must_not_reachable_spotcheck,
 )
 from spar.dataset.generator import generate
-from spar.dataset.gold_backbone import diamond_backbone
+from spar.dataset.gold_backbone import redline_backbone
 from spar.dataset.plan import plan_all
 
 
@@ -42,7 +42,7 @@ def _main_samples() -> list:
 
 def _private_samples() -> list:
     private = [generate(p.spec) for p in plan_all(build_seed=1)]
-    private.extend(diamond_backbone())
+    private.extend(redline_backbone())
     return private
 
 
@@ -60,7 +60,7 @@ def test_main_has_no_inert_must_not_tokens():
 
 
 def test_private_has_no_inert_must_not_tokens():
-    # The full private set (procedural + diamond backbone, incl. resubmit_raw_after_challenge)
+    # The full private set (procedural + redline backbone, incl. resubmit_raw_after_challenge)
     # is fully reachable too.
     assert must_not_reachable_spotcheck(_private_samples()) == []
 
@@ -116,11 +116,11 @@ def test_world_latched_tokens_have_their_mechanism_present():
 
 
 def test_resubmit_raw_after_challenge_stays_reachable_as_order_predicate():
-    # The one action-order must_not in the build (diamond fraud anchors hammer_anchor/velocity_anchor): reachable
+    # The one action-order must_not in the build (redline fraud anchors hammer_anchor/velocity_anchor): reachable
     # because the fraud engine is enabled -> a CHALLENGE source exists -> an adversary can submit
     # raw after the step-up without answering it.
     sample = next(
-        d for d in diamond_backbone()
+        d for d in redline_backbone()
         if "resubmit_raw_after_challenge" in d.gold.must_not
     )
     assert _must_not_reachable("resubmit_raw_after_challenge", sample)

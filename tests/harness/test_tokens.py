@@ -29,7 +29,7 @@ def _sample(gold: Gold) -> Sample:
     return Sample(
         sample_id="spar_decline_recovery_tok", axis=Axis.DECLINE_RECOVERY,
         difficulty=Difficulty.EASY, is_trap=False, intent_spec=IntentSpec.EXPLICIT,
-        diamond=False, model_graded=False, seed=1, canary="spar:t",
+        redline=False, model_graded=False, seed=1, canary="spar:t",
         world_config=WorldConfig(
             acquirers=[acq], decline_plan={"mode": "scripted", "draws": []},
             settlement="sync", max_steps=20,

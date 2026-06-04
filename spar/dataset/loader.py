@@ -1,7 +1,7 @@
 """Load a split's JSONL.
 
 Published splits are immutable, hash-pinned artifacts: this loader READS them, never
-regenerates. PUBLIC splits (`lite`/`main`/`diamond`) are PROJECTED rows (no gold / hidden
+regenerates. PUBLIC splits (`lite`/`main`/`redline`) are PROJECTED rows (no gold / hidden
 world_config) — `load_public_split` returns them as validated dicts. The `private` split is
 the full graded `Sample` and is loaded by `load_split(..., base_dir=...)`. With no base_dir,
 `load_split` falls back to the bundled toy lite split so the local `spar run`/`grade` CLI
@@ -18,8 +18,8 @@ from typing import Any
 from spar.simulator.enums import Axis
 from spar.simulator.schemas import Sample
 
-_PUBLIC_SPLITS = {"lite", "main", "diamond", "probe"}
-_ALL_SPLITS = {"lite", "main", "diamond", "private", "probe"}
+_PUBLIC_SPLITS = {"lite", "main", "redline", "probe"}
+_ALL_SPLITS = {"lite", "main", "redline", "private", "probe"}
 
 # Keys a projected public row is allowed to carry (mirrors projection.public_view).
 _PUBLIC_KEYS = frozenset(

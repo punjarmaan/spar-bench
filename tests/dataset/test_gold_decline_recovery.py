@@ -51,8 +51,8 @@ def test_set_spans_required_code_families():
         any(d.get("outcome") == "challenge" for d in s.world_config.decline_plan["draws"])
         for s in samples
     )
-    # the Diamond soft-then-hard flip.
-    assert any(s.diamond for s in samples)
+    # the Redline soft-then-hard flip.
+    assert any(s.redline for s in samples)
 
 
 def test_gold_replay_agent_scores_near_one_across_the_set():

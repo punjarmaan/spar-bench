@@ -23,7 +23,7 @@ def _make_entry(**overrides: object) -> LeaderboardEntry:
         "false_refusal_rate": 0.09, "pass_1": 0.74, "pass_4": 0.62,
         "axes": {a: 0.7 for a in AXES_ORDER},
         "by_intent_spec": {i: 0.6 for i in INTENT_SPECS_ORDER},
-        "n_main": 8, "n_diamond": 6, "scored_fraction": 1.0, "status": "verified",
+        "n_main": 8, "n_redline": 6, "scored_fraction": 1.0, "status": "verified",
         "cost_usd": 4.10, "provenance": "private_verified",
         "model_version_pin": "anthropic/claude-opus-4@2026-xx",
         "scaffold_version": "1.0.0", "spar_version": "0.1.0",
@@ -48,7 +48,7 @@ def test_entry_round_trips_from_class_alias() -> None:
                "unsafe_completion_rate": 0.40, "false_refusal_rate": 0.05, "pass_1": 0.30,
                "pass_4": 0.10, "axes": {a: 0.2 for a in AXES_ORDER},
                "by_intent_spec": {i: 0.15 for i in INTENT_SPECS_ORDER},
-               "n_main": 5, "n_diamond": 6, "scored_fraction": 0.90, "status": "partial",
+               "n_main": 5, "n_redline": 6, "scored_fraction": 0.90, "status": "partial",
                "cost_usd": 0.15, "provenance": "public_self_run",
                "model_version_pin": "meta-llama/llama-3-70b@2026-xx",
                "scaffold_version": "1.0.0", "spar_version": "0.1.0",
@@ -97,9 +97,9 @@ def test_consolidate_single_model_pulls_competence_from_main(single_runs_dir: Pa
     assert e.unsafe_completion_rate == 0.03
     assert e.false_refusal_rate == 0.09
     assert e.pass_1 == 0.74                        # main pass^1
-    assert e.pass_4 == 0.62                        # diamond pass^4
+    assert e.pass_4 == 0.62                        # redline pass^4
     assert e.n_main == 8                           # main summary.n_samples
-    assert e.n_diamond == 6                        # diamond summary.n_samples
+    assert e.n_redline == 6                        # redline summary.n_samples
 
 
 def test_consolidate_pulls_axes_and_intents_from_main(single_runs_dir: Path) -> None:
@@ -192,20 +192,20 @@ def test_write_leaderboard_json_sort_order(runs_dir: Path, tmp_path: Path) -> No
 def test_write_leaderboard_json_verified_above_unverified() -> None:
     # A higher-trust public_self_run still sorts BELOW any private_verified (provenance first).
     from tests.eval.conftest import (
-        OPUS_DIAMOND, OPUS_MAIN, _manifest, _write_model)
+        OPUS_REDLINE, OPUS_MAIN, _manifest, _write_model)
     import tempfile
     tmp = Path(tempfile.mkdtemp())
     runs = tmp / "runs"
     # high-trust public model
     hi_pub = _manifest(model="hi-pub", cls="open", provenance="public_self_run",
                        cost_usd=1.0, version_pin="x@1", canary="spar:abc")
-    _write_model(runs / "hi-pub", main=OPUS_MAIN, diamond=OPUS_DIAMOND, manifest=hi_pub)
+    _write_model(runs / "hi-pub", main=OPUS_MAIN, redline=OPUS_REDLINE, manifest=hi_pub)
     # lower-trust private-verified model
     lo_priv_main = json.loads(json.dumps(OPUS_MAIN))
     lo_priv_main["summary"]["trust_score"] = 0.10
     lo_priv = _manifest(model="lo-priv", cls="frontier", provenance="private_verified",
                         cost_usd=2.0, version_pin="y@1", canary="spar:abc")
-    _write_model(runs / "lo-priv", main=lo_priv_main, diamond=OPUS_DIAMOND, manifest=lo_priv)
+    _write_model(runs / "lo-priv", main=lo_priv_main, redline=OPUS_REDLINE, manifest=lo_priv)
     out = tmp / "out"
     write_leaderboard(consolidate(runs), out)
     data = json.loads((out / "leaderboard.json").read_text(encoding="utf-8"))
@@ -230,7 +230,7 @@ def test_write_leaderboard_csv_columns(runs_dir: Path, tmp_path: Path) -> None:
     # scalar columns present
     for col in ("model", "class", "trust_score", "trust_ci95_lo", "trust_ci95_hi",
                 "trust_score_objective", "unsafe_completion_rate", "false_refusal_rate",
-                "pass_1", "pass_4", "n_main", "n_diamond", "scored_fraction", "status",
+                "pass_1", "pass_4", "n_main", "n_redline", "scored_fraction", "status",
                 "cost_usd", "provenance", "model_version_pin", "scaffold_version",
                 "spar_version", "dataset_canary", "run_date"):
         assert col in header, col
@@ -373,7 +373,7 @@ def test_consolidate_on_real_em2_output_tolerates_sparse_axes(tmp_path: Path) ->
         competence=StageSampling(temperature=0.0, top_p=1.0, max_tokens=64, seed=7),
         reliability=StageSampling(temperature=0.7, top_p=1.0, max_tokens=64, seed=7),
         plan=[StagePlan(split="main", k=1, stage="competence", published=True),
-              StagePlan(split="diamond", k=4, stage="reliability", published=True)],
+              StagePlan(split="redline", k=4, stage="reliability", published=True)],
     )
     evaluate_model(
         model, profile, out_dir=runs, cache=CompletionCache(tmp_path / "c"),

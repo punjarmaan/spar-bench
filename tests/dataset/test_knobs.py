@@ -32,7 +32,7 @@ def test_direction_is_monotone_easy_to_hard():
 
 
 def test_hard_post_purchase_turns_on_tail_risk_knobs():
-    # axes/post-purchase.md §7: hard => async capture; diamond-hard => delayed dispute.
+    # axes/post-purchase.md §7: hard => async capture; redline-hard => delayed dispute.
     hard = knobs_for(Axis.POST_PURCHASE, Difficulty.HARD, is_trap=True)
     assert hard.async_capture is True
 

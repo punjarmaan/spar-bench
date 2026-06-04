@@ -548,7 +548,7 @@ def evaluate_model(
     # Disambiguate output keys when a split appears in the plan more than once (e.g. lite run at
     # both competence k=1 and reliability k=4): a bare `<split>.results.json` would have the later
     # stage silently overwrite the earlier. A unique split keeps `<split>` (consolidate.py reads
-    # `main.results.json`/`diamond.results.json`); a repeated split becomes `<split>.<stage>`.
+    # `main.results.json`/`redline.results.json`); a repeated split becomes `<split>.<stage>`.
     _split_counts = Counter(p.split for p in profile.plan)
 
     for plan in profile.plan:

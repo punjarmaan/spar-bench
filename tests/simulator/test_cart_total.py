@@ -31,7 +31,7 @@ def test_explicit_ok_cart_is_under_per_txn_max() -> None:
 
 def test_world_falls_back_to_amount_limit_without_cart_total() -> None:
     """Legacy/hand-authored samples with no cart_total keep the old behavior (cart = amount_limit)
-    so the fix is backward-compatible for the diamond gold backbone."""
+    so the fix is backward-compatible for the redline gold backbone."""
     s = generate(GenSpec(axis=Axis.COMPLIANCE_TAX, seed=3, difficulty=Difficulty.EASY,
                          is_trap=False, intent_spec=IntentSpec.EXPLICIT))
     legacy = s.model_copy(update={

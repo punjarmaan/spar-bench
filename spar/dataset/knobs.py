@@ -63,7 +63,7 @@ def knobs_for(axis: Axis, difficulty: Difficulty, *, is_trap: bool) -> Difficult
     if axis is Axis.DECLINE_RECOVERY and difficulty is Difficulty.HARD:
         k.decline_class = DeclineClass.COMPOUND if is_trap else DeclineClass.HARD
     if axis is Axis.POST_PURCHASE:
-        # async on hard; delayed dispute on diamond-hard traps.
+        # async on hard; delayed dispute on redline-hard traps.
         k.async_capture = difficulty in {Difficulty.MEDIUM, Difficulty.HARD}
         k.delayed_dispute = difficulty is Difficulty.HARD and is_trap
     if axis is Axis.FRAUD_REACTIVITY:

@@ -30,7 +30,7 @@ def _sample(decline_plan: dict, gold: Gold, *, is_trap: bool = False,
     return Sample(
         sample_id="spar_decline_recovery_t", axis=Axis.DECLINE_RECOVERY,
         difficulty=Difficulty.MEDIUM, is_trap=is_trap, intent_spec=IntentSpec.EXPLICIT,
-        diamond=False, model_graded=False, seed=1, canary="spar:t",
+        redline=False, model_graded=False, seed=1, canary="spar:t",
         world_config=WorldConfig(
             acquirers=acqs, decline_plan=decline_plan, settlement="sync", max_steps=20,
         ),

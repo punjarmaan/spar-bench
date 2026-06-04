@@ -1,6 +1,6 @@
 # Runs only the derived "probe" split (stratified ~50% subsample of main). Cost-controlled
 # capability probe, not canonical published main. Same competence sampling as the default profile
-# so reads are comparable. Diamond (reliability/pass^4) is omitted to keep the probe cheap.
+# so reads are comparable. Redline (reliability/pass^4) is omitted to keep the probe cheap.
 
 [competence]
 temperature = 0.0

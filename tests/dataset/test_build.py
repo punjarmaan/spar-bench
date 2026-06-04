@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from spar.dataset.build import DIAMOND_CAP, build
+from spar.dataset.build import REDLINE_CAP, build
 from spar.dataset.gold_backbone import is_hand_authored_id
 from spar.dataset.plan import TARGET_TRAP_FRACTION
 from spar.simulator.enums import Axis
@@ -25,7 +25,7 @@ def _build(tmp_path, **kw):
 
 def test_public_dir_holds_three_splits_private_dir_is_separate(tmp_path):
     pub, priv = _build(tmp_path)
-    for split in ("lite", "main", "diamond"):
+    for split in ("lite", "main", "redline"):
         assert (pub / f"{split}.jsonl").exists()
         assert (pub / f"{split}.manifest.json").exists()
     assert (priv / "private.jsonl").exists()
@@ -36,7 +36,7 @@ def test_public_dir_holds_three_splits_private_dir_is_separate(tmp_path):
 
 def test_public_splits_are_projected_no_gold_or_hidden_config(tmp_path):
     pub, _ = _build(tmp_path)
-    for split in ("lite", "main", "diamond"):
+    for split in ("lite", "main", "redline"):
         for obj in _read_jsonl(pub / f"{split}.jsonl"):
             assert "gold" not in obj
             assert "world_config" not in obj
@@ -60,7 +60,7 @@ def test_private_holds_full_graded_samples(tmp_path):
 def test_canary_present_on_every_line_with_spar_prefix(tmp_path):
     pub, priv = _build(tmp_path)
     all_objs = []
-    for split in ("lite", "main", "diamond"):
+    for split in ("lite", "main", "redline"):
         all_objs += _read_jsonl(pub / f"{split}.jsonl")
     all_objs += _read_jsonl(priv / "private.jsonl")
     assert all_objs
@@ -68,18 +68,18 @@ def test_canary_present_on_every_line_with_spar_prefix(tmp_path):
     assert len({o["canary"] for o in all_objs}) == 1
 
 
-def test_diamond_split_all_diamond_human_authored_and_capped(tmp_path):
+def test_redline_split_all_redline_human_authored_and_capped(tmp_path):
     pub, _ = _build(tmp_path)
-    objs = _read_jsonl(pub / "diamond.jsonl")
-    # F14: every Diamond line is hand-authored (non-procedural id), capped <=198.
+    objs = _read_jsonl(pub / "redline.jsonl")
+    # F14: every Redline line is hand-authored (non-procedural id), capped <=198.
     assert all(is_hand_authored_id(o["sample_id"]) for o in objs)
-    assert len(objs) <= DIAMOND_CAP
+    assert len(objs) <= REDLINE_CAP
 
 
 def test_two_builds_same_seed_have_identical_samples(tmp_path):
     a, _ = _build(tmp_path / "a", seed=777)
     b, _ = _build(tmp_path / "b", seed=777)
-    for split in ("lite", "main", "diamond"):
+    for split in ("lite", "main", "redline"):
         am = json.loads((a / f"{split}.manifest.json").read_text())
         bm = json.loads((b / f"{split}.manifest.json").read_text())
         assert am["sample_ids_sha256"] == bm["sample_ids_sha256"]
@@ -100,7 +100,7 @@ def test_catastrophic_samples_have_stamped_expected_violations(tmp_path):
 def test_trap_fraction_within_tolerance_per_split_per_axis(tmp_path):
     pub, priv = _build(tmp_path)
     # lite/main are pure procedural splits -> the manifest per-axis trap fraction must hold to
-    # the ~40% target. The intentionally TRAP-HEAVY Diamond is excluded (a 7-axis safety split).
+    # the ~40% target. The intentionally TRAP-HEAVY Redline is excluded (a 7-axis safety split).
     for split, base in (("lite", pub), ("main", pub)):
         m = json.loads((base / f"{split}.manifest.json").read_text())
         for axis in Axis:
@@ -112,14 +112,14 @@ def test_trap_fraction_within_tolerance_per_split_per_axis(tmp_path):
                 continue
             frac = trap / total
             assert abs(frac - TARGET_TRAP_FRACTION) <= 0.05, f"{split}/{axis}: {frac}"
-    # `private` = the procedural mirror + the trap-heavy Diamond. The trap-fraction invariant is a
-    # property of the procedural GENERATOR, so measure only the procedural rows (split != "diamond")
-    # — the assembled Diamond (tagged split="diamond") is intentionally trap-heavy and would falsely
-    # fail. NB: the `diamond` FIELD is not the discriminant here — the procedural generator stamps
-    # diamond:true on some procedural samples too; the split TAG is the clean boundary.
+    # `private` = the procedural mirror + the trap-heavy Redline. The trap-fraction invariant is a
+    # property of the procedural GENERATOR, so measure only the procedural rows (split != "redline")
+    # — the assembled Redline (tagged split="redline") is intentionally trap-heavy and would falsely
+    # fail. NB: the `redline` FIELD is not the discriminant here — the procedural generator stamps
+    # redline:true on some procedural samples too; the split TAG is the clean boundary.
     by_axis: dict[str, list[bool]] = {}
     for obj in _read_jsonl(priv / "private.jsonl"):
-        if obj.get("split") == "diamond":
+        if obj.get("split") == "redline":
             continue
         by_axis.setdefault(obj["axis"], []).append(bool(obj["is_trap"]))
     for axis, traps in by_axis.items():

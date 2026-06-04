@@ -24,7 +24,7 @@ def test_split_membership_is_a_pure_function_of_sample_id_and_seed():
 
 
 def test_plan_covers_only_procedural_public_splits():
-    # Diamond is the hand-authored backbone (F14), never procedural here.
+    # Redline is the hand-authored backbone (F14), never procedural here.
     splits = {p.split for p in plan_all(build_seed=1)}
     assert splits == set(PROCEDURAL_SPLITS) == {"lite", "main"}
 

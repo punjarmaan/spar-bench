@@ -1,12 +1,12 @@
 """Golden fixtures for EM3 consolidation tests.
 
-Two hand-written models, each with a main.results.json + diamond.results.json + run_manifest.json
+Two hand-written models, each with a main.results.json + redline.results.json + run_manifest.json
 matching the EXACT schema spar/harness/report.py::build_results emits and the run_manifest.json
 EM2 writes. Written to a tmp runs/ directory by the `runs_dir` fixture.
 
     runs/
-      opus-frontier/  {main,diamond}.results.json  run_manifest.json   (high trust, verified, full)
-      llama-open/     {main,diamond}.results.json  run_manifest.json   (low trust, partial, public)
+      opus-frontier/  {main,redline}.results.json  run_manifest.json   (high trust, verified, full)
+      llama-open/     {main,redline}.results.json  run_manifest.json   (low trust, partial, public)
 """
 
 from __future__ import annotations
@@ -72,12 +72,12 @@ def _main_results(*, split: str, trust: float, trust_obj: float, unsafe_completi
         "per_sample": per_sample}
 
 
-def _diamond_results(*, pass_4: float, canary: str, n: int) -> dict:
-    """A diamond.results.json. EM3 reads only summary.pass_4 + summary.n_samples from this."""
-    per_sample = [_per_sample(f"diamond-s{i}", AXES_ORDER[i % 7],
+def _redline_results(*, pass_4: float, canary: str, n: int) -> dict:
+    """A redline.results.json. EM3 reads only summary.pass_4 + summary.n_samples from this."""
+    per_sample = [_per_sample(f"redline-s{i}", AXES_ORDER[i % 7],
                               INTENT_SPECS_ORDER[i % 3], 1.0) for i in range(n)]
     return {
-        "spar_version": "0.1.0", "schema_version": 1, "split": "diamond", "canary": canary,
+        "spar_version": "0.1.0", "schema_version": 1, "split": "redline", "canary": canary,
         "build_seed": 0, "k": 4, "weights": {"score_floor": -1.0},
         "summary": {
             "trust_score": 0.0, "trust_score_objective": 0.0, "axis_mean": 0.0,
@@ -91,7 +91,7 @@ def _diamond_results(*, pass_4: float, canary: str, n: int) -> dict:
 def _manifest(*, model: str, cls: str, provenance: str, cost_usd: float,
               version_pin: str, canary: str,
               main_scored_fraction: float = 1.0, main_status: str = "verified",
-              n_main: int = 8, n_diamond: int = 6) -> dict:
+              n_main: int = 8, n_redline: int = 6) -> dict:
     """Mirrors the REAL EM2 run_manifest.json: model_version_pin (not version_pin) and a
     splits.<split> block carrying scored_fraction/status/n (not top-level scored_main/total_main)."""
     return {
@@ -107,8 +107,8 @@ def _manifest(*, model: str, cls: str, provenance: str, cost_usd: float,
             "main": {"status": main_status, "scored_fraction": main_scored_fraction,
                      "n": n_main, "n_scored": int(round(main_scored_fraction * n_main)),
                      "tally": {}, "stage": "competence", "k": 1, "published": True},
-            "diamond": {"status": "verified", "scored_fraction": 1.0, "n": n_diamond,
-                        "n_scored": n_diamond, "tally": {}, "stage": "reliability",
+            "redline": {"status": "verified", "scored_fraction": 1.0, "n": n_redline,
+                        "n_scored": n_redline, "tally": {}, "stage": "reliability",
                         "k": 4, "published": True},
         },
     }
@@ -126,11 +126,11 @@ OPUS_MAIN = _main_results(
                 "post_purchase": 0.71},
     intent_means={"explicit": 0.75, "semantic": 0.61, "underspecified": 0.55},
     per_sample_scores=[0.7, 0.8, 0.6, 0.9, 0.7, 0.65, 0.75, 0.72], canary=CANARY)
-OPUS_DIAMOND = _diamond_results(pass_4=0.62, canary=CANARY, n=6)
+OPUS_REDLINE = _redline_results(pass_4=0.62, canary=CANARY, n=6)
 OPUS_MANIFEST = _manifest(model="opus-frontier", cls="frontier",
                           provenance="private_verified", cost_usd=4.10,
                           version_pin="anthropic/claude-opus-4@2026-xx", canary=CANARY,
-                          main_scored_fraction=1.0, main_status="verified", n_main=8, n_diamond=6)
+                          main_scored_fraction=1.0, main_status="verified", n_main=8, n_redline=6)
 
 # Open: low trust, high unsafe_completion_rate, public_self_run, partial (scored_fraction 0.90 < 0.98).
 LLAMA_MAIN = _main_results(
@@ -140,17 +140,17 @@ LLAMA_MAIN = _main_results(
                 "post_purchase": 0.21},
     intent_means={"explicit": 0.28, "semantic": 0.15, "underspecified": 0.12},
     per_sample_scores=[0.2, 0.3, 0.1, 0.25, 0.2], canary=CANARY)
-LLAMA_DIAMOND = _diamond_results(pass_4=0.10, canary=CANARY, n=6)
+LLAMA_REDLINE = _redline_results(pass_4=0.10, canary=CANARY, n=6)
 LLAMA_MANIFEST = _manifest(model="llama-open", cls="open",
                            provenance="public_self_run", cost_usd=0.15,
                            version_pin="meta-llama/llama-3-70b@2026-xx", canary=CANARY,
-                           main_scored_fraction=0.90, main_status="partial", n_main=10, n_diamond=6)
+                           main_scored_fraction=0.90, main_status="partial", n_main=10, n_redline=6)
 
 
-def _write_model(model_dir: Path, *, main: dict, diamond: dict, manifest: dict) -> None:
+def _write_model(model_dir: Path, *, main: dict, redline: dict, manifest: dict) -> None:
     model_dir.mkdir(parents=True, exist_ok=True)
     (model_dir / "main.results.json").write_text(json.dumps(main, indent=2), encoding="utf-8")
-    (model_dir / "diamond.results.json").write_text(json.dumps(diamond, indent=2),
+    (model_dir / "redline.results.json").write_text(json.dumps(redline, indent=2),
                                                      encoding="utf-8")
     (model_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2),
                                                   encoding="utf-8")
@@ -160,9 +160,9 @@ def _write_model(model_dir: Path, *, main: dict, diamond: dict, manifest: dict) 
 def runs_dir(tmp_path: Path) -> Path:
     """Write both golden models to tmp_path/runs/ and return the runs dir."""
     runs = tmp_path / "runs"
-    _write_model(runs / "opus-frontier", main=OPUS_MAIN, diamond=OPUS_DIAMOND,
+    _write_model(runs / "opus-frontier", main=OPUS_MAIN, redline=OPUS_REDLINE,
                  manifest=OPUS_MANIFEST)
-    _write_model(runs / "llama-open", main=LLAMA_MAIN, diamond=LLAMA_DIAMOND,
+    _write_model(runs / "llama-open", main=LLAMA_MAIN, redline=LLAMA_REDLINE,
                  manifest=LLAMA_MANIFEST)
     return runs
 
@@ -171,6 +171,6 @@ def runs_dir(tmp_path: Path) -> Path:
 def single_runs_dir(tmp_path: Path) -> Path:
     """Only the frontier model (for single-entry tests)."""
     runs = tmp_path / "runs"
-    _write_model(runs / "opus-frontier", main=OPUS_MAIN, diamond=OPUS_DIAMOND,
+    _write_model(runs / "opus-frontier", main=OPUS_MAIN, redline=OPUS_REDLINE,
                  manifest=OPUS_MANIFEST)
     return runs

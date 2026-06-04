@@ -29,7 +29,7 @@ def test_sample_round_trips_through_json():
     sample = Sample(
         sample_id="spar_decline_recovery_0001", axis=Axis.DECLINE_RECOVERY,
         difficulty=Difficulty.EASY, is_trap=False, intent_spec=IntentSpec.EXPLICIT,
-        diamond=False, model_graded=False, seed=42, canary="spar:test-uuid",
+        redline=False, model_graded=False, seed=42, canary="spar:test-uuid",
         world_config=WorldConfig(acquirers=[], max_steps=30),
         mandate=IntentMandate(
             goal="buy widget", amount_limit=Decimal("100"), currency="USD",

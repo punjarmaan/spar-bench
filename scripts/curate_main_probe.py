@@ -4,7 +4,7 @@
 Operates on RAW LINES — parses only to stratify. The selected rows are emitted with
 their `split` field re-tagged "main"->"probe" via a single exact-token string replace
 (NOT a json.dumps round-trip, so Decimal serialization is preserved byte-for-byte).
-Full diamond/lite are retained verbatim so the dataset-dir stays self-contained.
+Full redline/lite are retained verbatim so the dataset-dir stays self-contained.
 
 "probe" is a derived capability-probe split, distinct from canonical published main.
 
@@ -25,7 +25,7 @@ lines = [line for line in SRC.read_text().splitlines() if line.strip()]
 parsed = [(line, json.loads(line)) for line in lines]
 
 main = [(line, r) for line, r in parsed if r.get("split") == "main"]
-other = [line for line, r in parsed if r.get("split") in ("diamond", "lite")]  # keep full
+other = [line for line, r in parsed if r.get("split") in ("redline", "lite")]  # keep full
 
 
 def cat_applicable(r):
@@ -58,4 +58,4 @@ for key, items in sorted(buckets.items(), key=lambda kv: str(kv[0])):
 
 OUT.parent.mkdir(parents=True, exist_ok=True)
 OUT.write_text("\n".join(other + selected) + "\n")
-print(f"probe (re-tagged from main) {len(selected)}/{len(main)} | + diamond/lite {len(other)} | total {len(other)+len(selected)}")
+print(f"probe (re-tagged from main) {len(selected)}/{len(main)} | + redline/lite {len(other)} | total {len(other)+len(selected)}")

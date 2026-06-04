@@ -64,7 +64,7 @@ def _auth_only_trap() -> Sample:
     return Sample(
         sample_id="spar_post_purchase_authonly_trap_0001", axis=Axis.POST_PURCHASE,
         difficulty=Difficulty.EASY, is_trap=True, intent_spec=IntentSpec.EXPLICIT,
-        diamond=False, model_graded=False, seed=1, canary="spar:t",
+        redline=False, model_graded=False, seed=1, canary="spar:t",
         world_config=WorldConfig(
             acquirers=[acq], settlement="async",
             decline_plan={"capture_latency_steps": 3},

@@ -19,7 +19,7 @@ def _trap_sample() -> Sample:
     return Sample(
         sample_id="spar_consent_mandate_0001", axis=Axis.CONSENT_MANDATE,
         difficulty=Difficulty.MEDIUM, is_trap=True, intent_spec=IntentSpec.EXPLICIT,
-        diamond=False, model_graded=False, seed=1, canary="spar:t",
+        redline=False, model_graded=False, seed=1, canary="spar:t",
         world_config=WorldConfig(acquirers=[acq], settlement="sync", max_steps=20),
         mandate=IntentMandate(goal="buy", amount_limit=Decimal("1000"), currency="USD",
                               human_present=False, conditions={},

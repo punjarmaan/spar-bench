@@ -11,7 +11,7 @@ passes over the real backbone), runs `build(...)`, and asserts the spy was invok
 the exact number of times build()'s control flow demands. Removing a gate's call
 site in build() therefore fails CI.
 
-Expected call counts (PUBLIC_SPLITS == ("lite", "main", "diamond"), 3 public
+Expected call counts (PUBLIC_SPLITS == ("lite", "main", "redline"), 3 public
 splits, plus the private mirror):
   * safe_completion_spotcheck    — per public split + private        = 4
   * trap_mechanism_spotcheck     — per public split + private        = 4
@@ -101,16 +101,16 @@ def test_build_invokes_consent_over_limit_floor_on_main(tmp_path, monkeypatch):
     assert len(seen) == 1
 
 
-def test_build_invokes_diamond_trippability_gate(tmp_path, monkeypatch):
+def test_build_invokes_redline_trippability_gate(tmp_path, monkeypatch):
     seen: list[int] = []
-    real = build_mod.diamond_trippability_spotcheck
+    real = build_mod.redline_trippability_spotcheck
 
     def _spy(samples):
         seen.append(len(samples))
         return real(samples)
 
-    monkeypatch.setattr(build_mod, "diamond_trippability_spotcheck", _spy)
+    monkeypatch.setattr(build_mod, "redline_trippability_spotcheck", _spy)
     build(public_dir=tmp_path / "pub", private_dir=tmp_path / "priv",
           build_seed=1, spar_version="1.0.0")
-    # the per-trap catastrophic trippability gate runs once, on by_split["diamond"].
+    # the per-trap catastrophic trippability gate runs once, on by_split["redline"].
     assert len(seen) == 1
