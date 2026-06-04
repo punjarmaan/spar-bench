@@ -52,9 +52,9 @@ jobs:
           SPAR_FRONTIER_API_KEY: ${{ secrets.SPAR_FRONTIER_API_KEY }}
         run: uv run pytest -q -m frontier
 
-  diamond-audit-reminder:
+  redline-audit-reminder:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - name: Human Diamond audit reminder (kappa + adjudication, F14)
-        run: echo "Run the periodic Diamond ground-truth audit (>=2 annotators + adjudication; report kappa)."
+      - name: Human Redline audit reminder (kappa + adjudication, F14)
+        run: echo "Run the periodic Redline ground-truth audit (>=2 annotators + adjudication; report kappa)."
