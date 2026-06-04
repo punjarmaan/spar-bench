@@ -1,8 +1,7 @@
-# Rung-1 validation profile — `lite` ONLY, both stages, never published.
-# Used to validate the live eval pipeline end-to-end on one cheap model before widening.
-# Temperature is a property of the STAGE, not the model (spec §5.3): pinned here, applied
-# identically to every model. competence = pass^1 @ temp 0; reliability = pass^4 @ temp 0.7
-# (pass^k at temp 0 would make all k trajectories identical and measure nothing).
+# Validation profile — lite only, both stages, never published. Validates the live eval pipeline
+# end-to-end on one cheap model before widening. Temperature is a property of the stage, not the
+# model: competence = pass^1 @ temp 0; reliability = pass^4 @ temp 0.7 (pass^k at temp 0 would make
+# all k trajectories identical and measure nothing).
 
 [competence]
 temperature = 0.0
@@ -16,7 +15,7 @@ top_p = 1.0
 max_tokens = 2048
 seed = 7
 
-# Ordered split × k plan — lite only, both stages, published = false (dev/validation).
+# lite only, both stages, dev/validation.
 [[plan]]
 split = "lite"
 k = 1

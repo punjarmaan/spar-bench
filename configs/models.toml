@@ -1,17 +1,11 @@
-# Spar cross-model evaluation roster — model IDENTITY ONLY (no sampling knobs; those live in
-# profile.toml so no model can be tuned). OpenRouter is the default route; set OPENROUTER_API_KEY.
-# Adding/switching a model = editing this file. Roster is NOT a frozen surface (the freeze contract
-# explicitly allows adding/swapping contestants — only dataset/grader/profile/responder are frozen).
-# Prices are per-Mtok, from the live OpenRouter catalog on 2026-06-02 (cost-reporting fallback).
+# Spar cross-model evaluation roster — model identity only; sampling knobs live in profile.toml
+# so no model can be tuned. OpenRouter is the default route; set OPENROUTER_API_KEY. The roster is
+# not a frozen surface: adding or swapping contestants is allowed.
+# Prices are per-Mtok from the OpenRouter catalog on 2026-06-02, used as a cost-reporting fallback.
+# supports_response_format=false uniformly: json_object caused gemini's wrong-envelope outputs, so
+# everything uses the prompt-format path. reasoning runs at effort=high.
 #
-# Revised 2026-06-02: roster upgraded to each lab's current-generation flagship + a curated
-# open-weight set. `supports_response_format=false` uniformly (prompt-format path; the validated-clean
-# route — json_object caused gemini's 30% wrong-envelope before the lenient parser). `reasoning=true`
-# is set per each model's OpenRouter `supported_parameters`; reasoning runs at effort=high (agent.py).
-#
-# ===========================================================================================
-# FRONTIER TIER — each lab's current flagship (replaces the prior -4 / v3.2 / 235b pins).
-# ===========================================================================================
+# FRONTIER TIER — each lab's current flagship.
 
 [[model]]
 id            = "claude-opus-4.8"
@@ -44,10 +38,8 @@ version_pin   = "openai/gpt-5.5"
 reasoning     = true
 
 [[model]]
-# FRONTIER GEMINI — included as a contestant per request. CAVEAT (must carry a published footnote):
-# the frozen responder+grader is gemini-2.5-flash, so this row is graded by a SAME-VENDOR model.
-# This breaks the grader-neutrality the freeze chose flash for. The grader pin cannot be changed
-# without forcing canonical-r2 + a full re-run, so the score stands with a same-family-grader footnote.
+# Graded by a same-vendor model: the grader is gemini-2.5-flash, so this row needs a
+# same-family-grader footnote when published.
 id            = "gemini-3.1-pro"
 route         = "openrouter/google/gemini-3.1-pro-preview"
 class         = "frontier"
@@ -68,7 +60,6 @@ version_pin   = "deepseek/deepseek-v4-pro"
 reasoning     = true
 
 [[model]]
-# Qwen frontier (proprietary max tier).
 id            = "qwen3.7-max"
 route         = "openrouter/qwen/qwen3.7-max"
 class         = "frontier"
@@ -78,13 +69,9 @@ price_out_per_mtok = 3.75
 version_pin   = "qwen/qwen3.7-max"
 reasoning     = true
 
-# ===========================================================================================
-# OPEN-WEIGHT TIER — Qwen open-weight flagship + a curated, lab-diverse set of current-gen
-# open models. All cheap; reasoning=true where the route supports it.
-# ===========================================================================================
+# OPEN-WEIGHT TIER — reasoning=true where the route supports it.
 
 [[model]]
-# Qwen open-weight flagship (large MoE).
 id            = "qwen3.5-397b-a17b"
 route         = "openrouter/qwen/qwen3.5-397b-a17b"
 class         = "open"
@@ -125,7 +112,7 @@ version_pin   = "minimax/minimax-m3"
 reasoning     = true
 
 [[model]]
-# Meta Llama 4 (non-reasoning route — no reasoning param exposed).
+# Non-reasoning route — no reasoning param exposed.
 id            = "llama-4-maverick"
 route         = "openrouter/meta-llama/llama-4-maverick"
 class         = "open"
@@ -135,7 +122,7 @@ price_out_per_mtok = 0.60
 version_pin   = "meta-llama/llama-4-maverick"
 
 [[model]]
-# OpenAI open-weights (paid route — reliable; the prior :free route was rate-limited).
+# Paid route; the :free route was rate-limited.
 id            = "gpt-oss-120b"
 route         = "openrouter/openai/gpt-oss-120b"
 class         = "open"
@@ -146,7 +133,7 @@ version_pin   = "openai/gpt-oss-120b"
 reasoning     = true
 
 [[model]]
-# Mistral (reasoning) — the cheap reasoning Mistral; medium-3-5 is the pricier (1.5/7.5) alternative.
+# Cheap reasoning Mistral.
 id            = "mistral-small-2603"
 route         = "openrouter/mistralai/mistral-small-2603"
 class         = "open"
@@ -157,8 +144,7 @@ version_pin   = "mistralai/mistral-small-2603"
 reasoning     = true
 
 [[model]]
-# Higher Mistral (reasoning) — medium tier. Pricier (1.5/7.5); raise the OpenRouter limit before a
-# full reasoning-high run. (mistral-large-2512 is the flagship but NON-reasoning → plain mode.)
+# Medium-tier reasoning Mistral; raise the OpenRouter limit before a full reasoning-high run.
 id            = "mistral-medium-3-5"
 route         = "openrouter/mistralai/mistral-medium-3-5"
 class         = "open"
