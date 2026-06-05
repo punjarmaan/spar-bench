@@ -244,29 +244,30 @@ class ModelAgent:
         ]
 
     def _sampling_kwargs(self) -> dict[str, object]:
-        kw: dict[str, object] = {
-            "temperature": self.sampling.temperature,
-            "top_p": self.sampling.top_p,
-            "max_tokens": self.sampling.max_tokens,
-        }
-        if self.sampling.seed is not None:
-            kw["seed"] = self.sampling.seed
+        kw: dict[str, object] = {"max_tokens": self.sampling.max_tokens}
+        # Native Anthropic/OpenAI thinking rejects fixed temperature/top_p/seed (drop_params won't
+        # strip them) — omit there; every other route keeps the profile sampling.
+        _native_reasoning = self.reasoning and (
+            self.route.startswith("anthropic/") or self.route.startswith("openai/")
+        )
+        if not _native_reasoning:
+            kw["temperature"] = self.sampling.temperature
+            kw["top_p"] = self.sampling.top_p
+            if self.sampling.seed is not None:
+                kw["seed"] = self.sampling.seed
         if self.supports_response_format:
             kw["response_format"] = {"type": "json_object"}
         if self.reasoning:
-            # Native reasoning for the model-under-test. These three kwargs are coupled:
-            #  - reasoning_effort: the pinned effort level (see REASONING_EFFORT).
-            #  - include_reasoning=True: required — without it some providers return content=None
-            #    (reasoning-only), which would parse as malformed.
-            #  - drop_params=True: some reasoning models reject temperature/top_p; this lets litellm
-            #    silently drop the unsupported sampling params instead of erroring.
+            # reasoning_effort: pinned level, maps to provider-native thinking. include_reasoning:
+            # OpenRouter-only (without it some OR providers return content=None; native APIs reject it
+            # and drop_params won't strip it). drop_params: lets litellm drop sampling params a
+            # reasoning model rejects.
             kw["reasoning_effort"] = REASONING_EFFORT
-            kw["include_reasoning"] = True
+            if self.route.startswith("openrouter/"):
+                kw["include_reasoning"] = True
             kw["drop_params"] = True
-            # Reasoning tokens count toward max_tokens. effort=high emits ~2.6k+ reasoning tokens, so
-            # the profile's 2048 truncates (finish_reason=length -> empty content -> malformed) on
-            # complex turns. Raise the cap so reasoning + the JSON answer both fit. As a cap it's only
-            # consumed if the model reasons that far, so it adds no cost on typical turns.
+            # Reasoning tokens count toward max_tokens; effort=high overruns the profile's 2048
+            # (truncates to empty content). Raise the cap — only consumed if the model reasons that far.
             kw["max_tokens"] = REASONING_MAX_TOKENS
         return kw
 

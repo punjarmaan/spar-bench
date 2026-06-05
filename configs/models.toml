@@ -1,6 +1,9 @@
 # Model roster: identity only; sampling knobs live in profile.toml. OpenRouter is the default
-# route; set OPENROUTER_API_KEY. Adding or swapping models is allowed.
-# Prices are per-Mtok, used as a cost-reporting fallback.
+# route (set OPENROUTER_API_KEY) and is also used by the responder/grader. The Anthropic flagships
+# (opus, sonnet) route DIRECT to the native API (set ANTHROPIC_API_KEY); litellm resolves the
+# provider + key from each route prefix. (gpt-5.5 stays on OpenRouter until OPENAI_API_KEY is set —
+# then flip its route to "openai/gpt-5.5".) Adding or swapping models is allowed.
+# Prices are per-Mtok, used as a cost-reporting fallback (and to arm the budget cap).
 # supports_response_format=false everywhere: json_object caused gemini's wrong-envelope outputs,
 # so everything uses the prompt-format path. reasoning runs at effort=high.
 #
@@ -8,27 +11,27 @@
 
 [[model]]
 id            = "claude-opus-4.8"
-route         = "openrouter/anthropic/claude-opus-4.8"
+route         = "anthropic/claude-opus-4-8"   # direct Anthropic API (ANTHROPIC_API_KEY); native id uses hyphens
 class         = "frontier"
 supports_response_format = false
 price_in_per_mtok  = 5.0
 price_out_per_mtok = 25.0
-version_pin   = "anthropic/claude-opus-4.8"
+version_pin   = "anthropic/claude-opus-4-8"
 reasoning     = true
 
 [[model]]
 id            = "claude-sonnet-4.6"
-route         = "openrouter/anthropic/claude-sonnet-4.6"
+route         = "anthropic/claude-sonnet-4-6"   # direct Anthropic API (ANTHROPIC_API_KEY); native id uses hyphens
 class         = "frontier"
 supports_response_format = false
 price_in_per_mtok  = 3.0
 price_out_per_mtok = 15.0
-version_pin   = "anthropic/claude-sonnet-4.6"
+version_pin   = "anthropic/claude-sonnet-4-6"
 reasoning     = true
 
 [[model]]
 id            = "gpt-5.5"
-route         = "openrouter/openai/gpt-5.5"
+route         = "openrouter/openai/gpt-5.5"   # OpenRouter for now; flip to "openai/gpt-5.5" once OPENAI_API_KEY is set
 class         = "frontier"
 supports_response_format = false
 price_in_per_mtok  = 5.0

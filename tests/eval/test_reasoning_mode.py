@@ -28,7 +28,7 @@ def _make_model(*, reasoning: bool) -> ModelConfig:
     """Minimal ModelConfig with reasoning flag set."""
     return ModelConfig(
         id="test-model",
-        route="fake/model",
+        route="openrouter/fake/model",
         cls="open",
         supports_response_format=False,
         reasoning=reasoning,
@@ -154,7 +154,7 @@ def test_reasoning_model_receives_reasoning_kwargs():
         content='{"tool": "abort", "args": {"reason": "malformed_action"}}'
     )
     agent = ModelAgent(
-        route="fake/model",
+        route="openrouter/fake/model",
         policy_text=_POLICY,
         sampling=_SAMPLING,
         supports_response_format=False,
@@ -168,10 +168,31 @@ def test_reasoning_model_receives_reasoning_kwargs():
     assert len(fake.recorded_kwargs) >= 1
     first_kwargs = fake.recorded_kwargs[0]
     assert first_kwargs.get("reasoning_effort") == REASONING_EFFORT
-    assert first_kwargs.get("include_reasoning") is True
+    assert first_kwargs.get("include_reasoning") is True  # OpenRouter route
     assert first_kwargs.get("drop_params") is True
     # reasoning overrides the profile max_tokens so thinking can't truncate the JSON answer
     assert first_kwargs.get("max_tokens") == REASONING_MAX_TOKENS
+
+
+def test_native_reasoning_route_omits_unsupported_sampling():
+    """Native Anthropic reasoning routes must omit temperature/top_p and the OpenRouter-only
+    include_reasoning (their thinking APIs reject fixed sampling); reasoning_effort, drop_params, and
+    the raised max_tokens still apply."""
+    for route in ("anthropic/claude-opus-4-8", "anthropic/claude-sonnet-4-6",):
+        fake = _RecordingFake(content='{"tool": "abort", "args": {"reason": "malformed_action"}}')
+        agent = ModelAgent(
+            route=route, policy_text=_POLICY, sampling=_SAMPLING,
+            supports_response_format=False, completion_fn=fake, mandate_text=_MANDATE,
+            reasoning=True,
+        )
+        agent.act(_make_observation())
+        kw = fake.recorded_kwargs[0]
+        assert "temperature" not in kw, route
+        assert "top_p" not in kw, route
+        assert "include_reasoning" not in kw, route
+        assert kw.get("reasoning_effort") == REASONING_EFFORT
+        assert kw.get("drop_params") is True
+        assert kw.get("max_tokens") == REASONING_MAX_TOKENS
 
 
 def test_non_reasoning_model_does_not_receive_reasoning_kwargs():

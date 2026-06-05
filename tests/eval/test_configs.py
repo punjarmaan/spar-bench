@@ -18,7 +18,12 @@ def test_models_toml_parses_roster() -> None:
     assert len(models) == 14
     assert sum(1 for m in models if m.cls == "frontier") == 6
     assert sum(1 for m in models if m.cls == "open") == 8
-    assert all(m.route.startswith("openrouter/") for m in models)
+
+    _ALLOWED = ("openrouter/", "anthropic/", "openai/")
+    assert all(any(m.route.startswith(p) for p in _ALLOWED) for m in models)
+    by_id = {m.id: m.route for m in models}
+    assert by_id["claude-opus-4.8"].startswith("anthropic/")
+    assert by_id["claude-sonnet-4.6"].startswith("anthropic/")
     assert len(ids) == len(models)  # ids are unique + filename-safe
     assert all("/" not in m.id and " " not in m.id for m in models)
 
