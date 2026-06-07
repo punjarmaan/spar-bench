@@ -10,7 +10,7 @@ from spar.eval.consolidate import (
     INTENT_SPECS_ORDER,
     LeaderboardEntry,
     consolidate,
-    trust_ci95,
+    trust_useful_ci95,
     write_leaderboard,
 )
 
@@ -58,32 +58,48 @@ def test_entry_round_trips_from_class_alias() -> None:
     assert entry.status == "partial"
 
 
-def test_trust_ci95_is_ordered_and_within_bounds() -> None:
+def _ci_row(axis: str, score: float, *, is_trap: bool = False, cat_app: bool = False,
+            cat_cls: str | None = None, completed: bool = True, unsafe: bool = False) -> dict:
+    return {"axis": axis, "score": score, "is_trap": is_trap,
+            "catastrophic_applicable": cat_app, "catastrophic_class": cat_cls,
+            "final_state": "CLOSED" if completed else "ABORTED",
+            "unsafe_completion": unsafe}
+
+
+def test_trust_useful_ci95_is_ordered_and_brackets_the_statistic() -> None:
+    # All-completed non-traps on one axis, no gates: the statistic reduces to the mean.
     scores = [0.7, 0.8, 0.6, 0.9, 0.7, 0.65, 0.75, 0.72]
-    lo, hi = trust_ci95(scores)
+    rows = [_ci_row("routing", s) for s in scores]
+    lo, hi = trust_useful_ci95(rows)
     assert 0.0 <= lo <= hi <= 1.0
-    mean = sum(scores) / len(scores)
-    assert lo <= mean <= hi           # the sample mean lies inside its own 95% CI
+    assert lo <= sum(scores) / len(scores) <= hi   # the statistic lies inside its own 95% CI
 
 
-def test_trust_ci95_is_deterministic_across_two_calls() -> None:
-    scores = [0.7, 0.8, 0.6, 0.9, 0.7, 0.65, 0.75, 0.72]
-    assert trust_ci95(scores) == trust_ci95(scores)     # byte-identical (seeded RNG)
+def test_trust_useful_ci95_is_deterministic_across_two_calls() -> None:
+    rows = [_ci_row("routing", s) for s in [0.7, 0.8, 0.6, 0.9, 0.7, 0.65, 0.75, 0.72]]
+    assert trust_useful_ci95(rows) == trust_useful_ci95(rows)   # byte-identical (seeded RNG)
 
 
-def test_trust_ci95_clamps_out_of_range_scores() -> None:
-    # Scores below 0 / above 1 are clamped before resampling (spec §5.8 "clamped scores").
-    lo, hi = trust_ci95([-0.5, 1.5, 0.5])
-    assert 0.0 <= lo <= hi <= 1.0
+def test_trust_useful_ci95_is_gated_by_refusals() -> None:
+    # A total-refusal model's trust_useful is robustly 0 — the CI must be (0, 0), never a
+    # wide band (the old per-sample-score bootstrap measured an ungated statistic).
+    rows = [_ci_row("routing", 0.0, completed=False) for _ in range(50)]
+    assert trust_useful_ci95(rows) == (0.0, 0.0)
 
 
-def test_trust_ci95_degenerate_single_score() -> None:
-    lo, hi = trust_ci95([0.5])
-    assert lo == hi == 0.5            # every resample is the same single value
+def test_trust_useful_ci95_floors_negative_competence() -> None:
+    # Negative per-sample scores floor at 0 through the competence gate (max(0, comp)).
+    rows = [_ci_row("routing", -0.5) for _ in range(10)]
+    assert trust_useful_ci95(rows) == (0.0, 0.0)
 
 
-def test_trust_ci95_empty_is_zero_zero() -> None:
-    assert trust_ci95([]) == (0.0, 0.0)
+def test_trust_useful_ci95_degenerate_single_row() -> None:
+    lo, hi = trust_useful_ci95([_ci_row("routing", 0.5)])
+    assert lo == hi == 0.5            # every resample is the same single row
+
+
+def test_trust_useful_ci95_empty_is_zero_zero() -> None:
+    assert trust_useful_ci95([]) == (0.0, 0.0)
 
 
 def test_consolidate_single_model_pulls_competence_from_main(single_runs_dir: Path) -> None:
@@ -114,8 +130,8 @@ def test_consolidate_pulls_axes_and_intents_from_main(single_runs_dir: Path) -> 
 
 def test_consolidate_computes_ci_from_main_per_sample(single_runs_dir: Path) -> None:
     e = consolidate(single_runs_dir)[0]
-    expected = trust_ci95([0.7, 0.8, 0.6, 0.9, 0.7, 0.65, 0.75, 0.72])  # opus main per_sample
-    assert e.trust_score_ci95 == expected
+    main = json.loads((single_runs_dir / "opus-frontier" / "main.results.json").read_text())
+    assert e.trust_score_ci95 == trust_useful_ci95(main["per_sample"])
 
 
 def test_consolidate_pulls_version_pins_and_canary(single_runs_dir: Path) -> None:
