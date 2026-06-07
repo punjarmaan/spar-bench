@@ -1,14 +1,14 @@
-"""`spar-submit` — the leaderboard submission CLIENT (module 50 §3, C5).
+"""`spar-submit` — the leaderboard submission CLIENT.
 
 Submits a TRAJECTORY-REPLAY `predictions.jsonl` to the Spar-Private leaderboard for
-server-side grading. C5 (binding): the client offers NO `--agent module:Class` flag — the
+server-side grading. Binding constraint: the client offers NO `--agent module:Class` flag — the
 server replays recorded trajectories only and NEVER imports attacker code in the process
 holding the private split + hidden gold + canary. A single static trajectory per sample yields
-pass^1 only (`pass_4` is null, F7); supplying k>=4 trajectories per sample enables pass^4.
+pass^1 only (`pass_4` is null); supplying k>=4 trajectories per sample enables pass^4.
 
 The Private leaderboard SERVER (network/FS-isolated sandbox, real per-token quotas, redacted
 per-sample results) is DESCOPED from v1 — only this client ships. Until the server exists,
-`spar run --split private` is refused locally (C5). The HTTP boundary below is a thin,
+`spar run --split private` is refused locally. The HTTP boundary below is a thin,
 stubbable seam so CI never makes a network call.
 """
 
@@ -29,7 +29,7 @@ _DEFAULT_ENDPOINT = "https://leaderboard.spar.eval"
 def classify_predictions(path: Path) -> dict[str, Any]:
     """Inspect a predictions.jsonl: max trajectories per sample + whether pass^4 is available.
 
-    A single static trajectory per sample is pass^1 only (F7); >=4 enable the pass^4 estimate.
+    A single static trajectory per sample is pass^1 only; >=4 enable the pass^4 estimate.
     """
     counts: dict[str, int] = {}
     for line in Path(path).read_text(encoding="utf-8").splitlines():
@@ -76,7 +76,7 @@ def submit(
     endpoint: str = typer.Option(_DEFAULT_ENDPOINT, "--endpoint"),
     token: str = typer.Option("", "--token", help="leaderboard API token"),
 ) -> None:
-    """Submit a trajectory-replay predictions.jsonl (the default action; no --agent path, C5).
+    """Submit a trajectory-replay predictions.jsonl (the default action; no --agent path).
 
     Curated frontier results are landed via a reviewed PR to the `spar-experiments` repo.
     """
@@ -88,8 +88,8 @@ def submit(
     info = classify_predictions(predictions)
     if not info["pass_4_available"]:
         typer.echo(
-            "note: a single static trajectory per sample yields pass_1 only; pass_4 is null "
-            "(F7). Supply >=4 trajectories per sample (distinct trial_index) to enable pass_4."
+            "note: a single static trajectory per sample yields pass_1 only; pass_4 is null. "
+            "Supply >=4 trajectories per sample (distinct trial_index) to enable pass_4."
         )
     result = _post_submission(predictions=predictions, model_name=model_name,
                               endpoint=endpoint, token=token)

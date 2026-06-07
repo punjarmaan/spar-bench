@@ -1,9 +1,11 @@
 """The live agent call layer.
 
 `default_completion_fn()` lazily imports `litellm` and returns `litellm.completion`. This is the
-production `completion_fn` for the agent under test when `spar eval` injects no fake. OpenRouter is
-the default route: model strings look like "openrouter/<provider>/<model>", and LiteLLM reads
-`OPENROUTER_API_KEY` from the environment automatically — no key plumbing here.
+production `completion_fn` for the agent under test when `spar eval` injects no fake. Model routes
+are plain LiteLLM model strings — any LiteLLM-supported provider works (e.g.
+"openrouter/<provider>/<model>", "anthropic/<model>", "openai/<model>") — and LiteLLM resolves the
+provider and reads its API key (OPENROUTER_API_KEY, ANTHROPIC_API_KEY, …) from the environment
+automatically — no key plumbing here.
 
 The import is lazy so `spar/eval/` stays importable without the optional `llm` extra; only an actual
 live run resolves litellm.
@@ -18,8 +20,9 @@ CompletionFn = Callable[..., Any]
 
 
 def load_env() -> str | None:
-    """Load a repo-root `.env` into `os.environ` so a key placed there (e.g. OPENROUTER_API_KEY)
-    is visible to LiteLLM, which reads provider keys from the environment.
+    """Load a repo-root `.env` into `os.environ` so a key placed there (e.g. OPENROUTER_API_KEY,
+    ANTHROPIC_API_KEY, or any other provider's key) is visible to LiteLLM, which reads provider
+    keys from the environment.
 
     `python-dotenv` ships as a LiteLLM dependency, so the `llm` extra already provides it; if it
     is somehow absent this is a no-op (the user can still export the key manually). `override=False`
@@ -47,6 +50,7 @@ def default_completion_fn() -> CompletionFn:
     except ImportError as exc:  # pragma: no cover - exercised only without the llm extra
         raise ImportError(
             "litellm is required for live model calls. Install it with: "
-            'uv pip install -e ".[llm]"  (and set OPENROUTER_API_KEY).'
+            'uv pip install -e ".[llm]"  (and set the API key for your model routes\' '
+            "provider, e.g. OPENROUTER_API_KEY)."
         ) from exc
     return litellm.completion  # type: ignore[no-any-return]

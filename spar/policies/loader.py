@@ -1,4 +1,4 @@
-"""Load an in-context policy document by id (module 20 §6)."""
+"""Load an in-context policy document by id."""
 
 from __future__ import annotations
 
