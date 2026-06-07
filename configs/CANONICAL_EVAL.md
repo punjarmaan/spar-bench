@@ -12,7 +12,7 @@ Invocation:
       --out-dir runs_canonical --cache-dir .eval_cache_canon --budget-usd <cap> --concurrency <n>
 
 - responder-model: a cheap, capable, NEUTRAL model not under evaluation (`google/gemini-2.5-flash`).
-  It roleplays the principal; it is injection-defended (C4).
+  It roleplays the principal; it is injection-defended.
 - grader-model: a pinned judge for the Tier-C semantic gray zone (model-graded surface <=10%,
   enforced by MODEL_GRADED_CAP). Omit only for offline smoke (stub grader is crude).
 - Both model ids + the dataset canary are stamped into runs_canonical/<model>/run_manifest.json.

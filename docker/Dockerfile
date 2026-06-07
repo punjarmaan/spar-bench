@@ -1,4 +1,4 @@
-# Reproducibility anchor (module 50 §3). Frozen, no resolver drift.
+# Reproducibility anchor. Frozen, no resolver drift.
 #
 # RELEASE NOTE: pin BOTH the base image and the uv installer BY DIGEST (sha256) on a
 # deliberate spar_version bump and record the digests in the HF card. Tags are used here so
@@ -19,8 +19,8 @@ COPY tests ./tests
 RUN uv sync --frozen --extra dev
 
 # Default reproducibility check: the deterministic validation gate (no model calls). A green
-# gate in a clean frozen environment IS the "baselines reproduce" guarantee (F1/F10). The
+# gate in a clean frozen environment IS the "baselines reproduce" guarantee. The
 # published per-split baselines are reproduced server-side from the frozen splits (the local
-# CLI never serves the private split — C5).
+# CLI never serves the private split).
 ENTRYPOINT ["uv", "run", "--frozen"]
 CMD ["pytest", "tests/test_baselines.py", "-q"]

@@ -1,8 +1,11 @@
-# Model roster: identity only; sampling knobs live in profile.toml. OpenRouter is the default
-# route (set OPENROUTER_API_KEY) and is also used by the responder/grader. The Anthropic flagships
-# (opus, sonnet) route DIRECT to the native API (set ANTHROPIC_API_KEY); litellm resolves the
-# provider + key from each route prefix. (gpt-5.5 stays on OpenRouter until OPENAI_API_KEY is set —
-# then flip its route to "openai/gpt-5.5".) Adding or swapping models is allowed.
+# Model roster: identity only; sampling knobs live in profile.toml. Every `route` is a plain
+# LiteLLM model string ("<provider>/<model>") — ANY LiteLLM-supported provider works; litellm
+# resolves the provider + API key from each route prefix. OpenRouter is the default route here
+# (set OPENROUTER_API_KEY) and is also used by the responder/grader, but it is NOT required:
+# swap a route's prefix (e.g. "deepseek/...", "together_ai/...") and set that provider's key.
+# The Anthropic flagships (opus, sonnet) route DIRECT to the native API (set ANTHROPIC_API_KEY).
+# (gpt-5.5 stays on OpenRouter until OPENAI_API_KEY is set — then flip its route to
+# "openai/gpt-5.5".) Adding or swapping models is allowed.
 # Prices are per-Mtok, used as a cost-reporting fallback (and to arm the budget cap).
 # supports_response_format=false everywhere: json_object caused gemini's wrong-envelope outputs,
 # so everything uses the prompt-format path. reasoning runs at effort=high.

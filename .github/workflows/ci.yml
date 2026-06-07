@@ -56,5 +56,5 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - name: Human Redline audit reminder (kappa + adjudication, F14)
+      - name: Human Redline audit reminder (kappa + adjudication)
         run: echo "Run the periodic Redline ground-truth audit (>=2 annotators + adjudication; report kappa)."
