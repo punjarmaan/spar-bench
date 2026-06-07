@@ -1937,6 +1937,7 @@ dev = [
 ]
 llm = [
     { name = "litellm" },
+    { name = "python-dotenv" },
 ]
 
 [package.metadata]
@@ -1947,6 +1948,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.26" },
     { name = "pydantic", specifier = ">=2.6" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "python-dotenv", marker = "extra == 'llm'", specifier = ">=1.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
     { name = "typer", specifier = ">=0.12" },
 ]
