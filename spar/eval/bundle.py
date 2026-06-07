@@ -7,10 +7,11 @@ from __future__ import annotations
 
 import json
 import shutil
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from spar.eval.trajectory import EpisodeRecord
+from spar.eval.trajectory import EpisodeRecord, TRAJECTORY_SCHEMA_VERSION
 
 
 def export_schema() -> dict[str, Any]:
@@ -60,6 +61,9 @@ def _index_rows(model_dir: Path) -> dict[str, Any]:
                 "sample_id": ps["sample_id"], "axis": ps.get("axis"),
                 "is_trap": ps.get("is_trap"), "score": ps.get("score"),
                 "split": data.get("split"),
+                "intent_spec": ps.get("intent_spec"),
+                "final_state": ps.get("final_state"),
+                "trials_n": ps.get("trials_n"),
             })
     return {
         "id": manifest.get("model"), "class": manifest.get("class"),
@@ -106,7 +110,24 @@ def write_fixtures(*, bundle_dir: Path, max_examples: int = 6) -> list[Path]:
     return out
 
 
-def build_bundle(*, runs_dir: Path, out_dir: Path) -> None:
+CANARY_PLACEHOLDER = "spar:REDACTED-CANARY"
+
+
+def _scrub(text: str, canaries: Iterable[str]) -> str:
+    """Replace every real canary occurrence with the public placeholder."""
+    for c in canaries:
+        if c:
+            text = text.replace(c, CANARY_PLACEHOLDER)
+    return text
+
+
+def _write_scrubbed(src: Path, dst: Path, canaries: Iterable[str]) -> None:
+    dst.write_text(_scrub(src.read_text(), canaries))
+
+
+def build_bundle(*, runs_dir: Path, out_dir: Path, spar_version: str,
+                 models: list[str] | None = None) -> None:
+    out_dir = out_dir / spar_version
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "schema").mkdir(exist_ok=True)
     (out_dir / "types").mkdir(exist_ok=True)
@@ -114,20 +135,40 @@ def build_bundle(*, runs_dir: Path, out_dir: Path) -> None:
     (out_dir / "schema" / "trajectory.schema.json").write_text(json.dumps(schema, indent=2))
     (out_dir / "types" / "spar.d.ts").write_text(schema_to_typescript(schema))
 
-    models: list[dict[str, Any]] = []
-    for model_dir in sorted(p for p in runs_dir.iterdir() if (p / "run_manifest.json").is_file()):
+    model_dirs = sorted(p for p in runs_dir.iterdir() if (p / "run_manifest.json").is_file())
+    if models is not None:
+        wanted = set(models)
+        model_dirs = [p for p in model_dirs if p.name in wanted]
+
+    canaries = {
+        json.loads((d / "run_manifest.json").read_text()).get("canary") for d in model_dirs
+    }
+    canaries.discard(None)
+
+    model_rows: list[dict[str, Any]] = []
+    for model_dir in model_dirs:
         row = _index_rows(model_dir)
-        models.append(row)
+        if row.get("canary"):
+            row["canary"] = CANARY_PLACEHOLDER
+        model_rows.append(row)
         dest = out_dir / model_dir.name
         (dest / "episodes").mkdir(parents=True, exist_ok=True)
-        shutil.copy(model_dir / "run_manifest.json", dest / "manifest.json")
+        _write_scrubbed(model_dir / "run_manifest.json", dest / "manifest.json", canaries)
         for results in model_dir.glob("*.results.json"):
-            shutil.copy(results, dest / results.name)
+            _write_scrubbed(results, dest / results.name, canaries)
         traj_dir = model_dir / "trajectories"
         if traj_dir.is_dir():
             for traj in traj_dir.glob("*.jsonl"):
-                shutil.copy(traj, dest / "episodes" / traj.name)
-    (out_dir / "index.json").write_text(json.dumps({"models": models}, indent=2))
+                _write_scrubbed(traj, dest / "episodes" / traj.name, canaries)
+    (out_dir / "index.json").write_text(_scrub(json.dumps({"models": model_rows}, indent=2), canaries))
+    (out_dir / "bundle_manifest.json").write_text(json.dumps({
+        "schema_version": TRAJECTORY_SCHEMA_VERSION,
+        "spar_version": spar_version,
+        "model_count": len(model_rows),
+        "sample_count": sum(len(m["samples"]) for m in model_rows),
+        "canary_scrubbed": True,
+        "canary_placeholder": CANARY_PLACEHOLDER,
+    }, indent=2))
     try:
         write_fixtures(bundle_dir=out_dir)
     except (KeyError, FileNotFoundError, IndexError):

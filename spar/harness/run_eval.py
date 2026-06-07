@@ -115,20 +115,20 @@ def _run_eval(
 
 @app.command()
 def run(
-    split: str = typer.Option(..., help="lite | main | redline | probe  (private is server-only, C5)"),
+    split: str = typer.Option(..., help="lite | main | redline | probe  (private is server-only)"),
     agent: str = typer.Option(..., help="module:Class implementing the Agent protocol "
                                         "(TRUSTED LOCAL import only)"),
     out: Path = typer.Option(Path("results.json")),
     grader_model: str = typer.Option(
         None, help="Tier-C grader: omit for the offline StubModelGrader; pass a LiteLLM "
-                   "model id for the pinned LLM judge (temp=0, F12)."),
+                   "model id for the pinned LLM judge (temp=0)."),
 ) -> None:
     if split == "private":
         # The local --agent path imports code in-process and must never run against the
         # private split + hidden gold + canary. Private is served only by the trajectory-replay
         # leaderboard server, not the local CLI.
         typer.echo(
-            "refused: --split private is not served by the local CLI (C5). The local "
+            "refused: --split private is not served by the local CLI. The local "
             "--agent import is trusted-local-only and must never run against the private "
             "split + hidden gold + canary. Use the trajectory-replay leaderboard server instead."
         )
@@ -168,7 +168,7 @@ def grade(
     out: Path = typer.Option(Path("results.json")),
     grader_model: str = typer.Option(
         None, help="Tier-C grader: omit for the offline StubModelGrader; pass a LiteLLM "
-                   "model id for the pinned LLM judge (temp=0, F12)."),
+                   "model id for the pinned LLM judge (temp=0)."),
 ) -> None:
     """Grade a pre-recorded predictions.jsonl by replaying it against the canonical seed.
 
@@ -323,7 +323,7 @@ def eval_cost(
 
 @app.command()
 def leaderboard(
-    runs: Path = typer.Option(Path("runs"), help="directory of runs/<model>/ results (EM2 output)"),
+    runs: Path = typer.Option(Path("runs"), help="directory of runs/<model>/ results (spar eval output)"),
     out_dir: Path = typer.Option(Path("."), help="where to write leaderboard.{json,csv,md} + manifest"),
 ) -> None:
     """Consolidate every runs/<model>/ result into the published leaderboard artifacts."""
@@ -340,9 +340,11 @@ def leaderboard(
 @app.command()
 def bundle(
     runs: Path = typer.Option(Path("runs"), help="run outputs root: <runs>/<model>/…"),
-    out_dir: Path = typer.Option(Path("bundle"), help="static viewer bundle output dir"),
+    out: Path = typer.Option(Path("bundle"), help="base output dir; bundle written to <out>/<version>/"),
+    version: str = typer.Option(..., help="spar_version; names the subdir + manifest"),
+    model: list[str] = typer.Option(None, help="restrict to these models (repeatable); default all"),
 ) -> None:
-    """Build the static, lazy-loadable viewer bundle (index + per-episode files + schema + types)."""
+    """Build the static, lazy-loadable, canary-scrubbed viewer bundle into <out>/<version>/."""
     from spar.eval.bundle import build_bundle
-    build_bundle(runs_dir=runs, out_dir=out_dir)
-    typer.echo(f"wrote {out_dir}/index.json + per-model episodes + schema/ + types/")
+    build_bundle(runs_dir=runs, out_dir=out, spar_version=version, models=model or None)
+    typer.echo(f"wrote {out}/{version}/index.json + per-model episodes + schema/ + types/")
