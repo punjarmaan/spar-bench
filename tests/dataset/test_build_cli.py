@@ -1,4 +1,4 @@
-"""M7 Task 13: `spar build` cuts public + private into SEPARATE directories."""
+"""`spar build` cuts public + private into SEPARATE directories."""
 
 from __future__ import annotations
 

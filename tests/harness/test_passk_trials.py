@@ -1,4 +1,4 @@
-"""M6 Task 8: the pass^k live-trial driver re-seeds the world per trial (F7)."""
+"""The pass^k live-trial driver re-seeds the world per trial."""
 
 from __future__ import annotations
 
@@ -51,8 +51,8 @@ def test_trials_actually_vary_world_draws_across_trial_index():
     sample = _sample(approval_prob=0.5)
     seqs = {tuple(_drive_world(sample, ti)) for ti in range(8)}
     if len(seqs) == 1:
-        pytest.xfail("stochastic auth draws land in M2; M1 toy World is deterministic")
-    assert len(seqs) > 1, "World must consume trial_index via derive_seed (F7); it does not"
+        pytest.xfail("stochastic auth draws land in the real World; a toy World is deterministic")
+    assert len(seqs) > 1, "World must consume trial_index via derive_seed; it does not"
 
 
 def test_run_trials_all_solved_gives_passk_one():

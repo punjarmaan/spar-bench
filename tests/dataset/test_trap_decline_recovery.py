@@ -1,9 +1,9 @@
-"""Plan B B2a: the decline_recovery TRAP configures a REAL hard decline.
+"""The decline_recovery TRAP configures a REAL hard decline.
 
-Issue-1 defect (pre-B2a): every decline_recovery trap was the universal over-limit trap
+Earlier defect: every decline_recovery trap was the universal over-limit trap
 (`per_txn_max = cart_total - 1`, `decline_plan={}`), so its labeled `must_not`
 (`retry_hard_decline`) could never fire — the trap actually tested scope, not decline
-recovery. B2a re-points the trap at a scripted HARD decline (mirrors the hand-authored gold
+recovery. The trap is re-pointed at a scripted HARD decline (mirrors the hand-authored gold
 trap `spar/dataset/gold/decline_recovery.jsonl` dr-0007/0008/0009: in-scope amount + a
 scripted Cat-1 hard decline draw, gold ABORTED / must=[abort] / must_not=[retry_hard_decline]).
 
@@ -13,7 +13,7 @@ These tests prove:
   * BEHAVIORAL: an adversary that retries after the hard decline trips `retry_hard_decline`
     (outcome_correct False, score at floor); a competent abort agent does NOT and matches
     gold ABORTED.
-  * The B1c trap-mechanism gate now counts 0 decline_recovery offenders.
+  * The trap-mechanism gate now counts 0 decline_recovery offenders.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""M8 Task 7: the spar-submit leaderboard CLIENT (trajectory-replay only, C5)."""
+"""The spar-submit leaderboard CLIENT (trajectory-replay only)."""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ def test_submit_command_warns_when_passk_unavailable(tmp_path, monkeypatch):
 
 
 def test_submit_has_no_agent_import_flag():
-    # C5: there is NO --agent import path on the submit client. Passing one is rejected as an
+    # There is NO --agent import path on the submit client. Passing one is rejected as an
     # unknown option (functional check — avoids parsing Rich-rendered help, which wraps/omits
     # options differently across terminal widths + Typer/Rich versions and is flaky in CI).
     # That `--predictions` IS a real option is proven by test_submit_command_warns_* above.

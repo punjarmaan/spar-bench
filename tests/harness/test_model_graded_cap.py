@@ -1,4 +1,4 @@
-"""M6 Task 12: the Tier-C model-graded weight fraction is a hard <10% gate (module 40 §3.3)."""
+"""The Tier-C model-graded weight fraction is a hard <10% gate."""
 
 from __future__ import annotations
 

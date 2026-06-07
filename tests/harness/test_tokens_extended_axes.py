@@ -1,8 +1,8 @@
-"""M5 axis token predicates ADDED to the M2-owned registry (module 40 §3.2 vocabulary).
+"""Axis token predicates ADDED to the shared registry vocabulary.
 
 These exercise the predicates through the real registry API (`token_occurred` via
 `must_satisfied` / `must_not_occurred` over a `TokenContext`), reading the World-set hidden
-flags stashed by the grader into `ctx.extra["hidden"]`. The G1-tightened rules:
+flags stashed by the grader into `ctx.extra["hidden"]`. The tightened rules:
 `revalidate_before_submit` requires the re-read AT/AFTER the drift step; `verify_capture_result`
 needs a deliberate observe (never a sync auto-stamp); `treat_pending_as_captured` catches
 `relied_on_capture_success` without a verified result.

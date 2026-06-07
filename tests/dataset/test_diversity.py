@@ -1,8 +1,8 @@
-"""Task B3a: L1 scenario diversity — the drawn axes must BIND (constrain behavior),
+"""L1 scenario diversity — the drawn axes must BIND (constrain behavior),
 not just decorate. Build `main` and assert genuine independent per-sample diversity:
 multiple currencies / geos / instrument families / MCCs / categories, amounts that
 straddle per_txn_max, and a high count of distinct world-config signatures per axis
-(no pseudo-replication). These FAIL on the pre-B3a single-currency/geo/coffee_maker build.
+(no pseudo-replication). These FAIL on an earlier single-currency/geo/coffee_maker build.
 """
 
 from __future__ import annotations

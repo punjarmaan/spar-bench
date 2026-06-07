@@ -1,4 +1,4 @@
-"""EM2 Tasks 5-11: orchestrator status taxonomy, resume, cost cap, manifest."""
+"""Orchestrator status taxonomy, resume, cost cap, manifest."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def test_infra_error_classification() -> None:
     assert _is_infra_error(RuntimeError("429 Too Many Requests"))
     assert _is_infra_error(RuntimeError("503 Service Unavailable"))
     assert _is_infra_error(TimeoutError("read timed out"))
-    # context-overflow is NOT an infra error (Task 4.2: deterministic, must not be retried)
+    # context-overflow is NOT an infra error (deterministic, must not be retried)
     assert not _is_infra_error(RuntimeError("context_length_exceeded: too many tokens"))
     assert not _is_infra_error(ValueError("plain bug"))
 
@@ -132,7 +132,7 @@ def test_cached_completion_fn_serves_second_call_from_cache(tmp_path) -> None:
 
 
 def test_pass_k_trials_not_collapsed_by_cache(tmp_path) -> None:
-    """B1 regression: distinct trial indices must NOT share one cached completion (pass^k
+    """Regression: distinct trial indices must NOT share one cached completion (pass^k
     diversity preserved), yet re-running the same trial replays from cache (resume)."""
     cache = CompletionCache(tmp_path)
     raw = FakeCompletion(mode="counter", response_cost=0.0)
@@ -297,7 +297,7 @@ def test_evaluate_all_runs_each_model_and_honors_only(tmp_path) -> None:
 
 
 def test_exit_criterion_main_pass1_plus_redline_pass4_offline(tmp_path) -> None:
-    """EM2 exit: one model runs Main pass^1 + Redline pass^4 offline, resumable, with confirmed
+    """Exit: one model runs Main pass^1 + Redline pass^4 offline, resumable, with confirmed
     cost + cap, writing results.json + trajectories + manifest."""
     model = make_model(id="exit")
     out_dir = tmp_path / "runs"

@@ -1,4 +1,4 @@
-"""Plan B B3b: each CATASTROPHIC class must be realized by >=3 distinct, seeded knob
+"""Each CATASTROPHIC class must be realized by >=3 distinct, seeded knob
 fingerprints (no single-hardcoded-constant memorization vector) AND each realization must
 still latch EXACTLY its `intended_violation_class` when an over-completion adversary runs.
 

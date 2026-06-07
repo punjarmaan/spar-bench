@@ -1,9 +1,9 @@
-"""M6 Task 3: non-terminal escalation + user-sim responder, clamped to the intent mandate (F4/C4).
+"""Non-terminal escalation + user-sim responder, clamped to the intent mandate.
 
 With a responder configured, request_user_confirmation does NOT terminate: the runner
 consults the user-sim, CLAMPS the answered bound against the intent mandate, records it on
 EpisodeTrace.approved_bound, and the episode continues. With no responder, the action stays
-terminal ESCALATED (frozen M1 behavior).
+terminal ESCALATED (the baseline behavior).
 """
 
 from __future__ import annotations

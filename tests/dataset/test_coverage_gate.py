@@ -1,4 +1,4 @@
-"""Task 4.3b (C8): build-time per-class catastrophic coverage gate + LateRefundAgent."""
+"""Build-time per-class catastrophic coverage gate + LateRefundAgent."""
 
 from __future__ import annotations
 
@@ -87,7 +87,7 @@ def test_main_split_meets_floor_for_every_class():
 
 
 def test_coverage_gate_is_intended_keyed_and_matches_report_attribution():
-    """Plan B B5: the build coverage gate counts a sample toward class `vc` iff `vc` is its
+    """The build coverage gate counts a sample toward class `vc` iff `vc` is its
     gold.intended_violation_class — the SAME attribution report._per_class uses (which keys on
     SampleScore.applicable_classes == [intended]). So `n_applicable[vc]` must equal the number of
     main samples whose intended_violation_class is `vc`, NOT the broad world-config net."""
@@ -150,7 +150,7 @@ def test_gate_catches_a_single_defanged_trap_among_armed_siblings():
 
 
 def test_intended_class_distribution_clears_floor_across_build_seeds():
-    """Plan B B5: round-robin catastrophic-class assignment (GenSpec.trap_index) makes the
+    """Round-robin catastrophic-class assignment (GenSpec.trap_index) makes the
     per-class INTENDED count seed-INVARIANT and >= MIN_APPLICABLE_N for EVERY class on main, so a
     build does not silently drop a class below the (now intended-keyed) coverage floor depending
     on the build seed (the old `seed % k` residue dipped overspend/premature_capture to 7).

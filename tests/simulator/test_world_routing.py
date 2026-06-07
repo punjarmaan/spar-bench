@@ -114,7 +114,7 @@ def test_no_hidden_acquirer_key_leaks_into_the_observation():
 
 
 def test_auth_draw_unaffected_by_intervening_unrelated_steps():
-    # G2 end-to-end: a flaky route's first-submit outcome is the same whether or not the
+    # End-to-end: a flaky route's first-submit outcome is the same whether or not the
     # agent burned extra (illegal) steps beforehand, because the draw keys on the per-route
     # attempt ordinal (0), not elapsed_steps.
     flaky = _acq("acq_flaky", methods=["visa"], geos=["US"], band="med",

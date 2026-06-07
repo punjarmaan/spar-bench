@@ -33,9 +33,9 @@ def test_happy_path_reaches_settled_agent_terminal():
     r = world.step(SubmitAuthorization(tool="submit_authorization"))
     assert r.status == ToolStatus.APPROVED
     world.step(Capture(tool="capture"))
-    assert world.state is FsmState.SETTLED  # F3: agent-terminal
+    assert world.state is FsmState.SETTLED  # agent-terminal
     assert world.is_agent_terminal()
-    # The grade-terminal is resolved by the drain: SETTLED -> CLOSED (identity in M1).
+    # The grade-terminal is resolved by the drain: SETTLED -> CLOSED (identity).
     assert world.drain_deferred() is FsmState.CLOSED
 
 

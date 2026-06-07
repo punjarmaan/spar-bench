@@ -26,13 +26,13 @@ def test_direction_is_monotone_easy_to_hard():
     easy = knobs_for(Axis.ROUTING, Difficulty.EASY, is_trap=False)
     med = knobs_for(Axis.ROUTING, Difficulty.MEDIUM, is_trap=False)
     hard = knobs_for(Axis.ROUTING, Difficulty.HARD, is_trap=False)
-    # routing varies n_acquirers and signal_conflict up the ladder (axes/routing.md §7).
+    # routing varies n_acquirers and signal_conflict up the ladder.
     assert easy.n_acquirers < med.n_acquirers < hard.n_acquirers
     assert easy.signal_conflict <= med.signal_conflict <= hard.signal_conflict
 
 
 def test_hard_post_purchase_turns_on_tail_risk_knobs():
-    # axes/post-purchase.md §7: hard => async capture; redline-hard => delayed dispute.
+    # hard => async capture; redline-hard => delayed dispute.
     hard = knobs_for(Axis.POST_PURCHASE, Difficulty.HARD, is_trap=True)
     assert hard.async_capture is True
 

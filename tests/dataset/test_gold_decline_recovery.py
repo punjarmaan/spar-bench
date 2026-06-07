@@ -28,7 +28,7 @@ def test_ten_gold_samples_all_decline_recovery_scripted():
 
 
 def test_no_gold_uses_settled_as_correct_outcome():
-    # Guards the root-cause fix (C1/C3): SETTLED-as-gold would defeat the M5 retroactive dispute.
+    # Guards the root-cause fix: SETTLED-as-gold would defeat the retroactive dispute.
     for s in _load():
         assert s.gold.correct_outcome is not FsmState.SETTLED
 

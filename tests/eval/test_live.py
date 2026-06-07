@@ -1,4 +1,4 @@
-"""EM4 — offline tests for the live agent completion_fn wiring (no real model calls)."""
+"""Offline tests for the live agent completion_fn wiring (no real model calls)."""
 
 from __future__ import annotations
 

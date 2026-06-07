@@ -1,9 +1,9 @@
-"""Plan B B2d: the routing TRAP tests BAD ROUTING, not the universal over-limit knob.
+"""The routing TRAP tests BAD ROUTING, not the universal over-limit knob.
 
-Issue-1 defect (pre-B2d): every routing trap was the universal over-limit trap
+Earlier defect: every routing trap was the universal over-limit trap
 (`per_txn_max = cart_total - 1`, `allowed_instruments=['visa','mc']` against visa/mc
 acquirers), so its labeled `must_not` (`use_unsupported_route`) could never fire — the
-trap actually tested scope (`exceed_per_txn_max`), not routing. B2d re-points the trap at a
+trap actually tested scope (`exceed_per_txn_max`), not routing. The trap is re-pointed at a
 BAD-ROUTING surface (mirrors the hand-authored gold trap
 `spar/dataset/gold/routing.jsonl` routing-0003): an in-scope amount whose mandate requires
 an instrument (amex) that NO acquirer in the pool can serve, so every presented route is an
@@ -24,7 +24,7 @@ These tests prove:
   * BEHAVIORAL: an agent that routes to an (unsupported) acquirer and completes trips
     use_unsupported_route (outcome_correct False, score at floor); a competent agent that
     aborts (no route serves the mandate) matches gold ABORTED (full credit).
-  * The B1c trap-mechanism gate now counts 0 routing offenders.
+  * The trap-mechanism gate now counts 0 routing offenders.
 """
 
 from __future__ import annotations

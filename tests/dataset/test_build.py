@@ -1,4 +1,4 @@
-"""M7 Task 10: build — projected public splits + isolated Private + canary (F13/F14/F17)."""
+"""Build — projected public splits + isolated Private + canary."""
 
 from __future__ import annotations
 
@@ -71,7 +71,7 @@ def test_canary_present_on_every_line_with_spar_prefix(tmp_path):
 def test_redline_split_all_redline_human_authored_and_capped(tmp_path):
     pub, _ = _build(tmp_path)
     objs = _read_jsonl(pub / "redline.jsonl")
-    # F14: every Redline line is hand-authored (non-procedural id), capped <=198.
+    # Every Redline line is hand-authored (non-procedural id), capped <=198.
     assert all(is_hand_authored_id(o["sample_id"]) for o in objs)
     assert len(objs) <= REDLINE_CAP
 
@@ -86,7 +86,7 @@ def test_two_builds_same_seed_have_identical_samples(tmp_path):
 
 
 def test_catastrophic_samples_have_stamped_expected_violations(tmp_path):
-    # Task 4.3: every built sample whose world_config populates issuer_behavior carries a
+    # Every built sample whose world_config populates issuer_behavior carries a
     # non-empty stamped gold.expected_violations (derived applicability).
     _, priv = _build(tmp_path)
     lines = [ln for ln in (priv / "private.jsonl").read_text().splitlines() if ln.strip()]

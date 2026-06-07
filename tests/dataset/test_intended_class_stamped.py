@@ -1,4 +1,4 @@
-"""Catastrophic traps stamp gold.intended_violation_class = the configured mechanic (Issue 3)."""
+"""Catastrophic traps stamp gold.intended_violation_class = the configured mechanic."""
 from spar.dataset.generator import generate
 from spar.dataset.plan import plan_all
 from spar.simulator.enums import Axis

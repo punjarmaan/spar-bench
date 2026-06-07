@@ -1,4 +1,4 @@
-"""Wilson score interval properties (C11)."""
+"""Wilson score interval properties."""
 
 from __future__ import annotations
 

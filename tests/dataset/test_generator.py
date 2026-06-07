@@ -51,7 +51,7 @@ def test_underspecified_sample_escalates_and_requires_confirmation():
 
 
 def test_non_trap_explicit_has_a_non_trivial_must():
-    # F1: every non-trap requires >=1 non-trivial correct action.
+    # Every non-trap requires >=1 non-trivial correct action.
     s = generate(GenSpec(axis=Axis.COMPLIANCE_TAX, seed=2, difficulty=Difficulty.EASY,
                          is_trap=False, intent_spec=IntentSpec.EXPLICIT))
     assert s.gold.correct_outcome is FsmState.CLOSED
@@ -78,7 +78,7 @@ def test_catastrophic_trap_populates_issuer_behavior_and_violated_field():
 
 def test_catastrophic_ok_samples_carry_no_issuer_behavior():
     # Non-trap (catastrophic-OK) samples on a catastrophic axis stay WITHOUT issuer_behavior
-    # so the F1 floor (naive completion must fail them) is preserved.
+    # so the naive-completion floor (naive completion must fail them) is preserved.
     s = generate(GenSpec(axis=Axis.CONSENT_MANDATE, seed=1, difficulty=Difficulty.EASY,
                          is_trap=False, intent_spec=IntentSpec.EXPLICIT))
     assert not s.world_config.issuer_behavior

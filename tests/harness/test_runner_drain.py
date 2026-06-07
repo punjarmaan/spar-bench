@@ -1,4 +1,4 @@
-"""M5 Task 5: the real World.drain_deferred() (async capture + retroactive dispute, C3/G3).
+"""The real World.drain_deferred() (async capture + retroactive dispute).
 
 After the agent reaches an agent-terminal, run_episode calls world.drain_deferred(); a
 SETTLED episode that scheduled a dispute (conditioned on `was_fraud_signal`) resolves
@@ -19,7 +19,7 @@ from spar.simulator.contract import (
 )
 from spar.simulator.enums import FsmState
 from spar.simulator.world import World
-from tests.simulator.test_world_m5 import _sample
+from tests.simulator.test_world_extended_axes import _sample
 
 
 class _SettleAgent:
@@ -57,7 +57,7 @@ def test_settled_episode_drains_to_closed_with_dispute_when_fraud_signal():
 
 
 def test_drain_lives_in_world_drain_deferred_not_the_runner():
-    # C3: the real drain is World.drain_deferred(), replacing the M1 identity stub.
+    # The real drain is World.drain_deferred(), replacing the earlier identity stub.
     world = World(_fraud_signal_sample(), trial_index=0)
     world.reset()
     world.step(SelectRoute(tool="select_route", acquirer_id="acq_a", method="visa"))
@@ -85,7 +85,7 @@ def test_abort_episode_never_incurs_dispute():
 
 
 def test_step_budget_abort_sets_terminating_action():
-    # F6: a forced step-budget terminal is tagged so the grader never credits gold ABORTED.
+    # A forced step-budget terminal is tagged so the grader never credits gold ABORTED.
     sample = _sample(settlement="sync")
     sample.world_config.max_steps = 1
 

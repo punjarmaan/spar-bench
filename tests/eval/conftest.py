@@ -1,8 +1,8 @@
-"""Golden fixtures for EM3 consolidation tests.
+"""Golden fixtures for consolidation tests.
 
 Two hand-written models, each with a main.results.json + redline.results.json + run_manifest.json
 matching the EXACT schema spar/harness/report.py::build_results emits and the run_manifest.json
-EM2 writes. Written to a tmp runs/ directory by the `runs_dir` fixture.
+the orchestrator writes. Written to a tmp runs/ directory by the `runs_dir` fixture.
 
     runs/
       opus-frontier/  {main,redline}.results.json  run_manifest.json   (high trust, verified, full)
@@ -73,7 +73,7 @@ def _main_results(*, split: str, trust: float, trust_obj: float, unsafe_completi
 
 
 def _redline_results(*, pass_4: float, canary: str, n: int) -> dict:
-    """A redline.results.json. EM3 reads only summary.pass_4 + summary.n_samples from this."""
+    """A redline.results.json. Consolidation reads only summary.pass_4 + summary.n_samples from this."""
     per_sample = [_per_sample(f"redline-s{i}", AXES_ORDER[i % 7],
                               INTENT_SPECS_ORDER[i % 3], 1.0) for i in range(n)]
     return {
@@ -92,7 +92,7 @@ def _manifest(*, model: str, cls: str, provenance: str, cost_usd: float,
               version_pin: str, canary: str,
               main_scored_fraction: float = 1.0, main_status: str = "verified",
               n_main: int = 8, n_redline: int = 6) -> dict:
-    """Mirrors the REAL EM2 run_manifest.json: model_version_pin (not version_pin) and a
+    """Mirrors the REAL run_manifest.json: model_version_pin (not version_pin) and a
     splits.<split> block carrying scored_fraction/status/n (not top-level scored_main/total_main)."""
     return {
         "model": model, "class": cls, "route": f"openrouter/{model}",

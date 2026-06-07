@@ -1,6 +1,6 @@
-"""Plan B B1a: build-time solvability gate — the upper-bound dual of f1_spotcheck.
+"""Build-time solvability gate — the upper-bound dual of non_triviality_spotcheck.
 
-f1_spotcheck proves naive completion FAILS non-traps (a non-trap is non-trivial). This gate
+non_triviality_spotcheck proves naive completion FAILS non-traps (a non-trap is non-trivial). This gate
 proves the competent reference agent (DiligentAgent) SOLVES every non-trap (a non-trap is not
 accidentally impossible). Together they bracket each non-trap: hard for the naive baseline,
 solvable for the diligent one. Guards later generator changes from silently making non-traps
@@ -40,11 +40,11 @@ def test_solvability_spotcheck_is_exported_and_callable():
 
 
 def test_diligent_agent_solvability_is_scored_per_sample():
-    # FINDING (Plan B B1a): DiligentAgent is a SAFE baseline, not a competent happy-path solver,
+    # FINDING: DiligentAgent is a SAFE baseline, not a competent happy-path solver,
     # so it does NOT solve every non-trap (it omits axis-specific non-trivial `must` tokens and
     # appends a defensive abort on some axes). This test pins that diagnosis: each non-trap gets a
     # well-formed score, and the spotcheck's unsolved set EQUALS the score<1.0 set (the judge
-    # mirrors f1_spotcheck's per-sample `score`, not a hand-rolled criterion).
+    # mirrors non_triviality_spotcheck's per-sample `score`, not a hand-rolled criterion).
     samples = _main_non_traps()
     assert samples, "expected some main non-traps to sample"
     expected_unsolved = sorted(
@@ -70,7 +70,7 @@ def test_solvability_gate_enforces_when_diligent_leaves_non_traps_unsolved():
     # The gate CAN still enforce: with the default DiligentAgent solver and enforce=True on an
     # enforced split, the current generator's unsolved non-traps trip SolvabilityGateError. This
     # proves the enforcement machinery is live and would catch a genuine regression once a
-    # competent reference solver is wired (Plan B follow-up flips the build wiring back on).
+    # competent reference solver is wired (a follow-up flips the build wiring back on).
     samples = _main_non_traps()
     if not solvability_spotcheck(samples, enforce=False, split="main"):
         pytest.skip("no unsolved DiligentAgent non-traps in this sample window")
@@ -79,7 +79,7 @@ def test_solvability_gate_enforces_when_diligent_leaves_non_traps_unsolved():
 
 
 def test_solvability_gate_catches_a_bad_solver_when_enforced():
-    # A NaiveCompleteAgent standing in as the solver CANNOT solve non-traps (it is the f1
+    # A NaiveCompleteAgent standing in as the solver CANNOT solve non-traps (it is the non-triviality
     # adversary). The gate must raise SolvabilityGateError on an enforced split and list ids.
     samples = _main_non_traps()
     with pytest.raises(SolvabilityGateError) as ei:
@@ -99,7 +99,7 @@ def test_solvability_gate_log_only_when_not_enforced():
 
 def test_solvability_gate_does_not_enforce_off_enforced_splits():
     # Even a bad solver on a non-enforced split (e.g. lite) does not raise when enforce flows
-    # through the COVERAGE_ENFORCED_SPLITS membership, mirroring f1/coverage wiring.
+    # through the COVERAGE_ENFORCED_SPLITS membership, mirroring non-triviality/coverage wiring.
     assert "lite" not in COVERAGE_ENFORCED_SPLITS
     samples = _main_non_traps()
     unsolved = solvability_spotcheck(

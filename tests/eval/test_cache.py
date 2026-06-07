@@ -1,4 +1,4 @@
-"""EM2 Task 2: content-addressed completion cache (resume + reproducibility)."""
+"""Content-addressed completion cache (resume + reproducibility)."""
 
 from __future__ import annotations
 

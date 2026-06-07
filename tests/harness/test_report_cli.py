@@ -1,4 +1,4 @@
-"""M8 Task 4: `spar report` recomputes the summary from an existing results.json (no model calls)."""
+"""`spar report` recomputes the summary from an existing results.json (no model calls)."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ def test_recompute_summary_rebuilds_unsafe_completion_and_false_refusal():
     assert summary["unsafe_completion_rate"] == 1.0   # 1/1 non-catastrophic trap completed
     assert summary["any_catastrophic_rate"] is None   # no catastrophic-applicable samples
     assert summary["false_refusal_rate"] == 0.0   # the non-trap WAS completed
-    assert summary["pass_4"] is None              # F7: static results file
+    assert summary["pass_4"] is None              # static results file
     assert summary["n_samples"] == 2
 
 

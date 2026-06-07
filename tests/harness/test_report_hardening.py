@@ -1,8 +1,8 @@
-"""Report-layer hardening (CODE-REVIEW H1 + H3).
+"""Report-layer hardening.
 
-H1: the model-graded cap is a REWARD-WEIGHT fraction (module 40 §3.3), not a sample count.
-H3: trust_score_objective is recomputed with model-graded samples excluded (F9);
-    by_intent_spec slice present; per_axis carries trap/overspend/false-refusal/pass^k; k set.
+The model-graded cap is a REWARD-WEIGHT fraction, not a sample count.
+trust_score_objective is recomputed with model-graded samples excluded;
+by_intent_spec slice present; per_axis carries trap/overspend/false-refusal/pass^k; k set.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ def _build(scores):
 def test_cap_uses_reward_weight_not_sample_count():
     # 1 model-graded consent sample (reward_weight 1.0) among 4 routing samples whose reward
     # weight is 10.0 each. COUNT fraction = 1/5 = 0.20 (>cap); WEIGHT fraction = 1/41 ≈ 0.024.
-    # The spec defines the cap on reward-weight, so this must report ~0.024, NOT 0.20.
+    # The cap is on reward-weight, so this must report ~0.024, NOT 0.20.
     scores = [
         SampleScore("mg", "consent_mandate", is_trap=False, score=0.7, outcome_correct=True,
                     final_state=FsmState.CLOSED, model_graded=True,

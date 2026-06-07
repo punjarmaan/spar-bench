@@ -1,4 +1,4 @@
-"""M6 Task 11: `spar grade` replays a predictions.jsonl against the canonical seed (pass^1)."""
+"""`spar grade` replays a predictions.jsonl against the canonical seed (pass^1)."""
 
 from __future__ import annotations
 
@@ -25,6 +25,6 @@ def test_spar_grade_replays_predictions_pass1_only(tmp_path):
     assert result.exit_code == 0, result.output
     data = json.loads(out.read_text())
     assert data["split"] == "lite"
-    assert data["summary"]["pass_4"] is None         # F7: static trajectory -> pass^1 only
+    assert data["summary"]["pass_4"] is None         # static trajectory -> pass^1 only
     assert data["summary"]["pass_1"] is not None
     assert data["per_sample"][0]["final_state"] in {"SETTLED", "CLOSED"}

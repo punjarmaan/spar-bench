@@ -6,7 +6,7 @@ from spar.dataset.generator import GenSpec, generate
 
 
 def test_make_canary_is_fresh_random_and_prefixed():
-    # PLANS-REVIEW M7: the canary is a FRESH random UUID per build, NOT a function
+    # The canary is a FRESH random UUID per build, NOT a function
     # of build_seed — otherwise a leaked seed lets a trainer pre-compute + scrub it.
     c1 = make_canary()
     c2 = make_canary()
@@ -26,6 +26,6 @@ def test_apply_canary_stamps_every_sample():
 
 
 def test_no_assign_split_export():
-    # The old layered second-hash mechanism is removed (PLANS-REVIEW M7).
+    # The old layered second-hash mechanism is removed.
     import spar.dataset.splits as splits_mod
     assert not hasattr(splits_mod, "assign_split")

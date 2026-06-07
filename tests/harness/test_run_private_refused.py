@@ -1,4 +1,4 @@
-"""M8 Task 7b: the local CLI refuses `--split private` (C5 — never local over hidden gold)."""
+"""The local CLI refuses `--split private` (never local over hidden gold)."""
 
 from __future__ import annotations
 

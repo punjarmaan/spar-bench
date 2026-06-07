@@ -1,6 +1,6 @@
-"""Substream-layer determinism proof (foundation-revision Task 5.2, correction C10).
+"""Substream-layer determinism proof.
 
-C10 supersedes the plan's original `noop_prefix` approach (REJECTED: there is no
+Ordinal-keying supersedes the original `noop_prefix` approach (REJECTED: there is no
 universally-legal no-op). Instead we prove the two REAL determinism properties of the
 World as a deterministic function of (sample, trial_index, action sequence):
 
@@ -69,7 +69,7 @@ def test_extra_legal_action_does_not_shift_auth_draw(
 
     `ComputeTax` is legal from ROUTE_SELECTED and does NOT bump the auth ordinal, so both
     submits resolve at the SAME stable auth ordinal (auth_attempts['a1'] == 0 when read) ->
-    identical draw. The extra ComputeTax only shifts `elapsed_steps` (C10 ordinal-keying).
+    identical draw. The extra ComputeTax only shifts `elapsed_steps` (ordinal-keying).
     """
     wa = build_world(approval_prob=approval_prob)
     wa.step(SelectRoute(tool="select_route", acquirer_id="a1", method="card_visa"))

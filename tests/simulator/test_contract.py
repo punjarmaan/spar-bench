@@ -20,7 +20,7 @@ def test_tool_response_reason_code_only_on_declined():
 
 
 def test_observation_context_carries_attempt_history():
-    # F8: stateless agents need attempt history in context.
+    # Stateless agents need attempt history in context.
     ctx = ObsContext(buyer_geo="US", elapsed_steps=2, attempt_counts={"05": 1}, retry_count=1,
                      recent_events=["declined:05"])
     assert ctx.attempt_counts["05"] == 1 and ctx.retry_count == 1

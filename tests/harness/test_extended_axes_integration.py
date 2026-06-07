@@ -1,8 +1,8 @@
-"""End-to-end M5 axis grading: run reference agents through the gold and grade via score().
+"""End-to-end axis grading: run reference agents through the gold and grade via score().
 
 Proves the exit-criteria behaviors: deterministic deferred draining per seed, async-fail
 detection (a never-verify agent scores poorly), and the retroactive dispute correlating
-with `was_fraud_signal`. Grading goes through the unified M4 `score()` — there is no
+with `was_fraud_signal`. Grading goes through the unified `score()` — there is no
 separate axis grader.
 """
 

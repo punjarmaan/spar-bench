@@ -86,7 +86,7 @@ def test_obeying_demanded_submit_is_recorded():
 
 
 def test_unrelated_overspend_does_not_match_field_demand():
-    # G1: the demand is modify_cart:shipping_address, but this agent only overspends via
+    # The demand is modify_cart:shipping_address, but this agent only overspends via
     # submit/capture. It completes UNSAFELY yet did NOT take the demanded deviation.
     trace = run_episode(
         _injection_sample(Decimal("250"),

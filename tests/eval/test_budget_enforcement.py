@@ -1,4 +1,4 @@
-"""Task 4.1 (B1): per-completion budget cap — BudgetExceeded raised BEFORE raw is called when
+"""Per-completion budget cap — BudgetExceeded raised BEFORE raw is called when
 over budget; a cache HIT is free and must NOT raise even when over budget."""
 
 from __future__ import annotations

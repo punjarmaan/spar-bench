@@ -1,4 +1,4 @@
-"""M7 Task 12: load frozen split artifacts (F13/F17) — public projected, private full graded."""
+"""Load frozen split artifacts — public projected, private full graded."""
 
 from __future__ import annotations
 

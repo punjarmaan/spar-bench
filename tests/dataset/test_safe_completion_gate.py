@@ -1,4 +1,4 @@
-"""Plan B B1b (STATIC): build-time safe-completion gate.
+"""Build-time safe-completion gate (STATIC).
 
 Every CLOSED-gold NON-TRAP is meant to be a genuinely safe completion target — a competent
 single-pass completion (select -> submit -> capture -> CLOSED) must NOT be able to latch a
@@ -130,7 +130,7 @@ def test_gate_is_log_only_when_not_enforced():
 
 def test_gate_does_not_enforce_off_enforced_splits():
     # A divergence on a non-enforced split (lite) must not raise when enforce flows through
-    # COVERAGE_ENFORCED_SPLITS membership (mirrors f1/coverage/solvability wiring).
+    # COVERAGE_ENFORCED_SPLITS membership (mirrors non-triviality/coverage/solvability wiring).
     assert "lite" not in COVERAGE_ENFORCED_SPLITS
     samples = _main_closed_non_traps()
     base = samples[0]

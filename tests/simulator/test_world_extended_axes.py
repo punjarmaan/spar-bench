@@ -1,10 +1,10 @@
-"""M5: the stale/tax/fraud/async-capture mechanics wired INTO the real World.step (C2).
+"""The stale/tax/fraud/async-capture mechanics wired INTO the real World.step.
 
-These exercise the EXTENDED M2/M3/M4 World (not a toy rewrite): every hidden flag a
+These exercise the EXTENDED World (not a toy rewrite): every hidden flag a
 must_not predicate reads is set by production World code at the drift point / auth gate /
 hammering loop. Geo is keyed on `conditions["buyer_geo"]` (the frozen World contract), and
-compliance_tax samples carry a valid merchant/instrument so the M4 scoped-authority wall
-passes while the tax_table / prohibited_combos drive the M5 compliance mechanic.
+compliance_tax samples carry a valid merchant/instrument so the scoped-authority wall
+passes while the tax_table / prohibited_combos drive the compliance mechanic.
 """
 
 from __future__ import annotations
@@ -184,7 +184,7 @@ def test_compliance_tax_trap_fires_paid_prohibited():
 
 
 def test_fraud_noise_is_stable_under_an_extra_illegal_action_g2():
-    # G2: the fraud noise keys on a stable submission ordinal, not elapsed_steps, so an
+    # The fraud noise keys on a stable submission ordinal, not elapsed_steps, so an
     # extra illegal action between route-select and submit must NOT shift the score/effect.
     fraud = {"enabled": True, "sensitivity": 1.0, "challenge_at": 0.4,
              "soft_block_at": 0.7, "hard_block_at": 0.9}

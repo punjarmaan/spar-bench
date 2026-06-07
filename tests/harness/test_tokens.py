@@ -102,7 +102,7 @@ def test_retry_hard_decline_token_only_for_hard_codes():
 
 
 def test_retry_hard_decline_latches_across_an_intervening_soft_decline():
-    # G1: hard -> soft -> retry MUST still trip. A single-step look-back would miss this
+    # hard -> soft -> retry MUST still trip. A single-step look-back would miss this
     # because the soft decline would reset last_hard_code before the retry.
     ctx = _ctx(
         (SubmitAuthorization(tool="submit_authorization"),

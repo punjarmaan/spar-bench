@@ -20,7 +20,7 @@ def test_easy_challenge_axes_fire_a_challenge():
             assert trace.hidden_final_state.get("challenge_step") is not None, (axis, seed)
 
 def test_easy_challenge_axes_still_fail_naive():
-    # F1: a naive agent that ignores the challenge must NOT complete correctly.
+    # A naive agent that ignores the challenge must NOT complete correctly.
     for axis in CHALLENGE_AXES:
         for seed in (1, 2, 3, 7, 11):
             s = _easy_nontrap(axis, seed)

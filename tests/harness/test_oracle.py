@@ -86,7 +86,7 @@ def test_cheapest_advertised_low_band_route_scores_below_one():
     sample = _routing_sample(_three(), oracle_route="acq_b")
     s = oracle_route_score(sample, _completed_trace("acq_a"))
     assert 0.0 < s < 1.0
-    # Ratio of NET per-route EVs (with retry+dispute costs, per Task 1's enumerate_evs):
+    # Ratio of NET per-route EVs (with retry+dispute costs, per enumerate_evs):
     # achieved EV(acq_a)=68.7698, oracle EV(acq_b)=90.6939.
     assert round(s, 4) == round(68.7698 / 90.6939, 4)
 
@@ -112,7 +112,7 @@ def test_score_uses_route_score_on_routing_axis_for_completed_oracle_route():
     assert s.score == 1.0  # oracle route + reached gold -> full credit
 
 
-def test_per_sample_score_discriminates_oracle_from_cheapest():  # PLANS-REVIEW M3 goal
+def test_per_sample_score_discriminates_oracle_from_cheapest():
     sample = _routing_sample(_three(), oracle_route="acq_b", correct_outcome=FsmState.CLOSED)
     oracle = score(sample, _completed_trace("acq_b"))      # route_score 1.0
     cheapest = score(sample, _completed_trace("acq_a"))     # route_score ~0.758

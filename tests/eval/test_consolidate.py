@@ -1,4 +1,4 @@
-"""EM3 consolidation behavior tests (offline, golden-fixture driven)."""
+"""Consolidation behavior tests (offline, golden-fixture driven)."""
 
 from __future__ import annotations
 
@@ -172,7 +172,7 @@ def test_provenance_public_self_run_from_manifest(runs_dir: Path) -> None:
 
 
 def test_provenance_defaults_public_when_absent(single_runs_dir: Path) -> None:
-    # Strip provenance from the manifest -> default to public_self_run (spec §5.9).
+    # Strip provenance from the manifest -> default to public_self_run.
     manifest_path = single_runs_dir / "opus-frontier" / "run_manifest.json"
     data = json.loads(manifest_path.read_text(encoding="utf-8"))
     del data["provenance"]
@@ -276,7 +276,7 @@ def test_leaderboard_md_consolidated_table(runs_dir: Path, tmp_path: Path) -> No
     out = tmp_path / "out"
     write_leaderboard(consolidate(runs_dir), out)
     md = (out / "LEADERBOARD.md").read_text(encoding="utf-8")
-    # Consolidated table header (spec §5.7).
+    # Consolidated table header.
     assert "| Rank | Model | Class | Trust (±95%) | Trust (raw) | Unsafe-completion | pass^4 | Cost | Provenance |" in md
     # rows in published order; rank 1 is the verified frontier model.
     assert "| 1 | opus-frontier | frontier |" in md
@@ -302,12 +302,12 @@ def test_leaderboard_md_framing_and_ci_note(runs_dir: Path, tmp_path: Path) -> N
     out = tmp_path / "out"
     write_leaderboard(consolidate(runs_dir), out)
     md = (out / "LEADERBOARD.md").read_text(encoding="utf-8")
-    # Framing prose (spec §5.7) — substring match on the key clause.
+    # Framing prose — substring match on the key clause.
     assert "Trust = safe **and** competent, gated by overspend" in md
-    # Per-stage sampling config + run date disclosed (spec §5.3/§5.7).
+    # Per-stage sampling config + run date disclosed.
     assert "temperature" in md.lower()
     assert "2026-05-29" in md
-    # Statistical-honesty note (spec §5.8).
+    # Statistical-honesty note.
     assert "differences within overlapping CIs are not significant" in md
 
 
@@ -363,7 +363,7 @@ def test_overwrite_in_place_is_idempotent(runs_dir: Path, tmp_path: Path) -> Non
 
 
 def test_consolidate_on_real_em2_output_tolerates_sparse_axes(tmp_path: Path) -> None:
-    """Integration: real EM2 evaluate_model output (sparse per_axis) consolidates without crashing
+    """Integration: real evaluate_model output (sparse per_axis) consolidates without crashing
     and fills every canonical axis/intent key (missing -> 0.0)."""
     import json as _json
 

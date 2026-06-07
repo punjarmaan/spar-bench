@@ -55,7 +55,7 @@ def test_public_view_keeps_only_agent_visible_top_level_fields():
 
 def test_public_view_contains_no_hidden_or_gold_key_property():
     # Property: across many generated samples + every axis/intent, no hidden/gold
-    # key ever appears in the projection (shared with the module-10 §3.1 leak test).
+    # key ever appears in the projection (shared with the projection leak test).
     banned = set(HIDDEN_WORLD_CONFIG_KEYS) | {
         "gold", "correct_outcome", "oracle_route", "is_trap",
         "acceptable_spend_band", "overspend_ceiling", "must", "must_not",

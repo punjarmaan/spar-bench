@@ -1,4 +1,4 @@
-"""Plan B B2e (Issue I4): the consent over-limit / scope-wall FLOOR.
+"""The consent over-limit / scope-wall FLOOR.
 
 At least `CONSENT_OVER_LIMIT_FLOOR` consent_mandate traps must be the PURE over-limit /
 scope-wall ESCALATION construct (in-mandate amount whose LIVE cart exceeds per_txn_max, gold

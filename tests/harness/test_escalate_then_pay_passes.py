@@ -1,6 +1,6 @@
-"""M6 Task 9: escalate-then-pay-WITHIN-bound is a correct pass; ABOVE-bound floors (F4/C4).
+"""Escalate-then-pay-WITHIN-bound is a correct pass; ABOVE-bound floors.
 
-End-to-end: Task 3's runner records the clamped approved_bound; Task 6's score compares
+End-to-end: the runner records the clamped approved_bound; score compares
 realized spend to it. Gold uses the GRADE-terminal CLOSED (never SETTLED); grading keys on
 trace.grade_terminal (post-drain).
 """

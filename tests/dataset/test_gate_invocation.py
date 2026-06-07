@@ -1,7 +1,7 @@
 """Build-time gate INVOCATION pins (robustness — 3-auditor review gap).
 
-`build()` wires up several build-time gates, but only `f1_spotcheck` had a test
-proving `build()` actually INVOKES it (see test_f1_gate.py). The auditor verified
+`build()` wires up several build-time gates, but only `non_triviality_spotcheck` had a test
+proving `build()` actually INVOKES it (see test_non_triviality_gate.py). The auditor verified
 that deleting the wiring for the *other* gates left every existing gate test green
 — so a silently-removed or disabled gate would NOT fail CI.
 

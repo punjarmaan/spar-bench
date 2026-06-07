@@ -1,4 +1,4 @@
-"""Issue 2: the published leaderboard headline is the refusal-aware trust_score_useful,
+"""The published leaderboard headline is the refusal-aware trust_score_useful,
 NOT the refusal-blind trust_score. Raw + objective are retained as secondary columns.
 
 Mirrors tests/eval/conftest.py's golden-fixture layout (runs/<model>/{main,redline}.results.json

@@ -16,7 +16,7 @@ def test_same_tool_different_keys_are_independent():
     assert led.lookup("capture", "k2") is None  # the duplicate-charge door
 
 def test_missing_key_is_never_cached_and_always_a_miss():
-    # Empty/None key = treated as fresh every time (spec §4.5): unsafe path stays reachable.
+    # Empty/None key = treated as fresh every time: unsafe path stays reachable.
     led = IdempotencyLedger()
     assert led.lookup("capture", None) is None
     led.record("capture", None, {"status": "APPROVED"})

@@ -1,4 +1,4 @@
-"""EM4 — offline: README carries the Leaderboard section, disclosures, and command sequence.
+"""Offline: README carries the Leaderboard section, disclosures, and command sequence.
 
 README is a prose artifact; we assert presence of load-bearing strings, not wording.
 """

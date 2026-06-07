@@ -1,4 +1,4 @@
-"""Tests for applicability_from_world_config (Task 4.2 / C1 tuned).
+"""Tests for applicability_from_world_config.
 
 Covers the tuned boundary: scope/payment/lifecycle classes key on issuer_behavior
 presence; routing/decline_recovery samples carry no issuer_behavior and stay competence.

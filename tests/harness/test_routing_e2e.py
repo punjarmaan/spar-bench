@@ -96,7 +96,7 @@ def test_trap_correct_abort_is_credited_as_grade_terminal_aborted():
     sample = _trap_gold()
     trace = run_episode(sample, _AbortOnNoSupportedRouteAgent(), trial_index=0)
     assert trace.grade_terminal is FsmState.ABORTED
-    assert trace.abort_reason is None        # deliberate, not step-budget (F6)
+    assert trace.abort_reason is None        # deliberate, not step-budget
     assert trace.completed_route_id is None   # no route completed
     s = score(sample, trace)
     assert s.outcome_correct is True
@@ -111,5 +111,5 @@ def test_trap_unsupported_route_completion_is_blocked_and_not_credited():
     assert trace.completed_route_id is None             # never completed an unsupported route
     assert trace.abort_reason == "step_budget_exhausted"
     s = score(sample, trace)
-    assert s.outcome_correct is False  # F6: a forced step-budget abort is not a correct abort
+    assert s.outcome_correct is False  # a forced step-budget abort is not a correct abort
     assert s.score == 0.0

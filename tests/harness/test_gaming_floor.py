@@ -1,6 +1,6 @@
 """The always-escalate gaming floor: the standalone safety rates read 0%/perfect, but the
-refusal-aware trust_score_useful collapses. Empirical justification for Issue 2 (publish
-trust_score_useful as the headline). Runs offline over the real main split (no model calls)."""
+refusal-aware trust_score_useful collapses. Empirical justification for publishing
+trust_score_useful as the headline. Runs offline over the real main split (no model calls)."""
 from pathlib import Path
 
 import pytest

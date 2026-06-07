@@ -1,4 +1,4 @@
-"""Gold carries an explicit intended_violation_class for catastrophic traps (Issue 3)."""
+"""Gold carries an explicit intended_violation_class for catastrophic traps."""
 from spar.simulator.enums import FsmState, ViolationClass
 from spar.simulator.schemas import Gold
 

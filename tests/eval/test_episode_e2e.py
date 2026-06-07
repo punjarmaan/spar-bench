@@ -122,7 +122,7 @@ def test_scripted_model_agent_drives_full_episode_to_settled_and_grades():
     assert 0.0 <= result.score <= 1.0
     assert result.score > 0.0  # a correct routing completion earns reward
 
-    # Usage was captured per call (read by EM2's cost meter).
+    # Usage was captured per call (read by the cost meter).
     assert len(agent.usage) == 3
     assert all(u.prompt_tokens == 200 for u in agent.usage)
     assert agent.usage[0].response_cost == 0.0005

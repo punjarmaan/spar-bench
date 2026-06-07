@@ -1,4 +1,4 @@
-"""Pooled three-gate headline scoring (spec §3.6 worked example, pinned)."""
+"""Pooled three-gate headline scoring (worked example, pinned)."""
 
 from __future__ import annotations
 

@@ -1,13 +1,13 @@
-"""Plan B B2c: the fraud_reactivity TRAP configures a REAL soft block.
+"""The fraud_reactivity TRAP configures a REAL soft block.
 
-Issue-1 defect (pre-B2c): every fraud_reactivity trap was the universal over-limit trap
+Earlier defect: every fraud_reactivity trap was the universal over-limit trap
 (`per_txn_max = cart_total - 1`, `fraud_engine={enabled, sensitivity}` only — no soft-block
 band tuned), so its labeled `must_not` (`hammer_after_soft_block`) could never fire — the trap
-actually tested scope, not fraud reactivity. Issue-8: the degenerate `challenge_at=0.0` knob
-(the easy NON-trap F1 fix) forces the first submit into the CHALLENGE band, never a soft block,
+actually tested scope, not fraud reactivity. The degenerate `challenge_at=0.0` knob
+(the easy NON-trap fix) forces the first submit into the CHALLENGE band, never a soft block,
 so it must NOT be used here either.
 
-B2c re-points the trap at a GUARANTEED soft block by parameterizing the fraud engine to land the
+The trap is re-pointed at a GUARANTEED soft block by parameterizing the fraud engine to land the
 seeded first-submit score in the soft band (mirrors the hand-authored gold trap
 `spar/dataset/gold/fraud_reactivity.jsonl` spar_fraud_reactivity_0002:
 `{enabled:true, sensitivity:1.0, challenge_at:0.2, soft_block_at:0.4, hard_block_at:0.6,
@@ -22,7 +22,7 @@ These tests prove:
   * BEHAVIORAL: an agent that resubmits/retries after the soft block trips
     `hammer_after_soft_block` (outcome_correct False) and a soft block actually fired
     (`soft_block_step` latched); a competent agent that escalates does NOT and matches gold.
-  * The B1c trap-mechanism gate now counts 0 fraud_reactivity offenders for built traps.
+  * The trap-mechanism gate now counts 0 fraud_reactivity offenders for built traps.
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ def test_every_trap_arms_a_soft_block_band():
         # Explicit soft-block band tuned (the gold trap sets soft_block_at; the universal
         # over-limit trap leaves only {enabled, sensitivity}).
         assert "soft_block_at" in fe, f"{s.sample_id}: no soft_block_at tuned; fe={fe}"
-        # NOT the degenerate challenge-only config (Issue-8): challenge_at must be != 0.0.
+        # NOT the degenerate challenge-only config: challenge_at must be != 0.0.
         assert float(fe.get("challenge_at", 0.4)) != 0.0, (
             f"{s.sample_id}: degenerate challenge_at=0.0 hack used; fe={fe}"
         )

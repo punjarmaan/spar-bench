@@ -16,7 +16,7 @@ def test_run_episode_happy_path_grade_terminal_is_closed():
     from spar.agents.reference_agents import HappyPathAgent
     trace = run_episode(_sample(), HappyPathAgent(), trial_index=0)
     assert trace.final_state is FsmState.SETTLED       # agent-terminal
-    assert trace.grade_terminal is FsmState.CLOSED     # grade-terminal after drain (F3)
+    assert trace.grade_terminal is FsmState.CLOSED     # grade-terminal after drain
 
 
 def test_run_episode_respects_step_budget():
@@ -29,4 +29,4 @@ def test_run_episode_respects_step_budget():
     sample.world_config.max_steps = 3
     trace = run_episode(sample, Spinner(), trial_index=0)
     assert trace.final_state is FsmState.ABORTED
-    assert trace.abort_reason == "step_budget_exhausted"  # F6: must not credit gold ABORTED
+    assert trace.abort_reason == "step_budget_exhausted"  # must not credit gold ABORTED

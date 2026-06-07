@@ -4,12 +4,12 @@ from spar.agents.naive_complete import NAIVE_COMPLETE_TOOLS
 
 
 def test_every_non_trap_must_token_is_outside_naive_toolset():
-    # F1: a bare select->submit->capture must NOT satisfy any non-trap's must list.
+    # A bare select->submit->capture must NOT satisfy any non-trap's must list.
     for axis in Axis:
         for diff in (Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD):
             s = generate(GenSpec(axis=axis, seed=1, difficulty=diff, is_trap=False,
                                  intent_spec=IntentSpec.EXPLICIT))
-            assert s.gold.must, f"{axis}/{diff} non-trap has empty must (F1 violation)"
+            assert s.gold.must, f"{axis}/{diff} non-trap has empty must (naive-completion violation)"
             # No must token is satisfiable by the naive toolset alone.
             assert not (set(s.gold.must) & NAIVE_COMPLETE_TOOLS)
 

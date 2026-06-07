@@ -1,4 +1,4 @@
-"""Task 4.2: context-overflow is a SCORED capability failure (audit S1).
+"""Context-overflow is a SCORED capability failure.
 
 Context-overflow is a deterministic capability failure — retrying just re-pays with no
 different outcome.  Per S1 it must be treated as a capability/abort outcome that LANDS IN the
@@ -69,7 +69,7 @@ def _responder() -> ScriptedUserSim:
 
 def test_context_overflow_run_sample_is_scored_capability_failure(tmp_path: Any) -> None:
     """A context-overflow in run_episode must not crash _run_sample and must be SCORED as a
-    capability failure (audit S1): status MALFORMED_ACTION, a real SampleScore (NOT None) with
+    capability failure: status MALFORMED_ACTION, a real SampleScore (NOT None) with
     trials_c == 0, and catastrophic_class None — i.e. it LANDS IN the scored population as a
     failure rather than being silently excluded as ERRORED_INFRA."""
     cache = CompletionCache(tmp_path)

@@ -90,7 +90,7 @@ class FakeCompletion:
 def make_model(*, id: str = "fake") -> ModelConfig:
     """A minimal valid open-class `ModelConfig` whose route the fake echoes back.
 
-    `version_pin` is set so the run_manifest reproducibility field is populated (design §5.5).
+    `version_pin` is set so the run_manifest reproducibility field is populated.
     """
     return ModelConfig(
         id=id,

@@ -1,4 +1,4 @@
-"""Zeroing is full-set; per-class attribution is the intended class only (Issue 3)."""
+"""Zeroing is full-set; per-class attribution is the intended class only."""
 from spar.harness.graders import score
 from spar.harness.runner import EpisodeTrace
 from spar.simulator.enums import FsmState, ViolationClass

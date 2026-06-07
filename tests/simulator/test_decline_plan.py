@@ -48,7 +48,7 @@ def test_scripted_soft_then_hard_flip_resolves_each_attempt():
 
 
 def test_attempt_ordinal_is_stable_under_extra_steps():
-    # G2: two agents reaching the same auth attempt via different action counts
+    # Two agents reaching the same auth attempt via different action counts
     # MUST draw the same outcome — keying is on `attempt`, never elapsed_steps.
     plan = {"mode": "sampled", "p_decline": 1.0, "soft_reasons": ["51"]}
     a = resolve_auth_outcome(plan, sample_id="spar_s", seed=3, trial_index=0, attempt=1)
@@ -71,7 +71,7 @@ def test_sampled_p_decline_zero_always_approves():
 
 
 def test_challenge_resolution_has_its_own_cleared_failed_space():
-    # G2: a challenge resolves to cleared/failed via its OWN outcome space (SubStream.CHALLENGE),
+    # A challenge resolves to cleared/failed via its OWN outcome space (SubStream.CHALLENGE),
     # never a re-roll of the auth categorical that could self-loop another `challenge`.
     plan = {
         "mode": "scripted",

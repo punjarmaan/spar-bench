@@ -289,7 +289,7 @@ def test_agent_factory_produces_fresh_independent_model_agents():
     a1 = factory()
     a2 = factory()
     assert isinstance(a1, ModelAgent) and isinstance(a2, ModelAgent)
-    assert a1 is not a2                                      # independent trials (spec §5.1)
+    assert a1 is not a2                                      # independent trials
     # Identity/sampling threaded from the ModelConfig + StageSampling.
     assert a1.route == "openrouter/test/m"
     assert a1.sampling.temperature == 0.7

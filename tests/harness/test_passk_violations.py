@@ -1,6 +1,6 @@
-"""C11: lock the catastrophic-trial-is-never-solved invariant.
+"""Lock the catastrophic-trial-is-never-solved invariant.
 
-A catastrophic-applicable sample is zeroed by Task 3.2 (partitioned score = 0.0).
+A catastrophic-applicable sample is zeroed by the partition (partitioned score = 0.0).
 is_solved(0.0) must be False under both binary and routing thresholds so that
 run_trials never counts a violated trial as solved.
 """

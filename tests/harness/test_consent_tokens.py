@@ -1,4 +1,4 @@
-"""M4 consent_mandate + injection tokens, on the M2 registry-owned TokenContext API."""
+"""consent_mandate + injection tokens, on the registry-owned TokenContext API."""
 
 from decimal import Decimal
 

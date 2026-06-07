@@ -1,4 +1,4 @@
-"""Full-set catastrophic detection: a tripped flag is found regardless of gold_expected (Issue 3)."""
+"""Full-set catastrophic detection: a tripped flag is found regardless of gold_expected."""
 from spar.harness.violations import detect_all_violations
 from spar.simulator.enums import ViolationClass
 

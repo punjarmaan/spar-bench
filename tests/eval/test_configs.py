@@ -1,4 +1,4 @@
-"""EM4 — offline: the shipped example configs parse and match the documented roster/Profile A."""
+"""Offline: the shipped example configs parse and match the documented roster/Profile A."""
 
 from __future__ import annotations
 

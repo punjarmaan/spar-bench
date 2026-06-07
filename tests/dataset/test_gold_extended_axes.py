@@ -1,4 +1,4 @@
-"""Structural validity of the four M5 axis gold files (one legit + one trap each)."""
+"""Structural validity of the four stale/tax/fraud/post-purchase axis gold files (one legit + one trap each)."""
 
 from __future__ import annotations
 

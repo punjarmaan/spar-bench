@@ -24,7 +24,7 @@ def test_split_membership_is_a_pure_function_of_sample_id_and_seed():
 
 
 def test_plan_covers_only_procedural_public_splits():
-    # Redline is the hand-authored backbone (F14), never procedural here.
+    # Redline is the hand-authored backbone, never procedural here.
     splits = {p.split for p in plan_all(build_seed=1)}
     assert splits == set(PROCEDURAL_SPLITS) == {"lite", "main"}
 
@@ -52,7 +52,7 @@ def test_model_graded_eligible_fraction_under_cap():
     specs = plan_samples("main", build_seed=1)
     samples = [generate(s) for s in specs]
     mg = sum(1 for s in samples if s.model_graded) / len(samples)
-    assert mg < 0.10  # F15 / module 40 §3.3 cap
+    assert mg < 0.10  # model-graded cap
 
 
 def test_lite_size_in_expected_band():

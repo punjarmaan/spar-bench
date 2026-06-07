@@ -1,4 +1,4 @@
-"""M6 Task 6: live Tier-C model-grader wiring (tagged) + C4 spend-vs-bound in score()."""
+"""Live Tier-C model-grader wiring (tagged) + spend-vs-bound in score()."""
 
 from __future__ import annotations
 

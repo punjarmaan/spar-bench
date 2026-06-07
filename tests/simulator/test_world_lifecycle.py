@@ -37,7 +37,7 @@ def test_reused_key_replays_full_response_not_just_status():
     w.step(SelectRoute(tool="select_route", acquirer_id="a1", method="card_visa"))
     r1 = w.step(SubmitAuthorization(tool="submit_authorization", idempotency_key="k1"))
     r2 = w.step(SubmitAuthorization(tool="submit_authorization", idempotency_key="k1"))
-    assert r2 == r1  # full ToolResponse equality (C6 loss-free round-trip)
+    assert r2 == r1  # full ToolResponse equality (loss-free round-trip)
 
 
 def test_txn_ordinal_stable_across_reused_key_replay():
@@ -74,7 +74,7 @@ def test_lifecycle_and_world_state_agree_after_refund():
 
 
 def test_txn_ordinal_path_independent_across_action_counts():
-    # C14: reaching the same logical (acq, method, amount) via different legal action counts
+    # Reaching the same logical (acq, method, amount) via different legal action counts
     # yields the same _txn_ordinal.
     a = build_world()
     _route_and_auth(a)

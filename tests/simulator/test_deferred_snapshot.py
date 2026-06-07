@@ -1,4 +1,4 @@
-"""Determinism snapshot (module 10 §9): the drained grade-terminal + hidden state hash to a
+"""Determinism snapshot: the drained grade-terminal + hidden state hash to a
 stable digest for a fixed (sample_id, seed, trial_index), guarding against any future
 reordering of the deferred queue or sub-stream keys."""
 
@@ -7,7 +7,7 @@ from __future__ import annotations
 import hashlib
 
 from spar.harness.runner import EpisodeTrace, run_episode
-from tests.harness.test_m5_integration import _VerifyAgent, _load
+from tests.harness.test_extended_axes_integration import _VerifyAgent, _load
 
 
 def _digest(trace: EpisodeTrace) -> str:

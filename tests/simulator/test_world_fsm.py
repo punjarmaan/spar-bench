@@ -82,7 +82,7 @@ def test_challenge_surfaces_requires_action_not_a_decline():
 
 
 def test_handle_challenge_clears_to_approved():
-    # The challenge resolves through its OWN cleared/failed space (G2); unpinned -> cleared.
+    # The challenge resolves through its OWN cleared/failed space; unpinned -> cleared.
     plan = {"mode": "scripted", "draws": [{"attempt": 1, "outcome": "challenge"}]}
     world = World(_sample(plan), trial_index=0)
     world.reset()
@@ -138,7 +138,7 @@ def test_abort_from_declined_is_aborted_terminal():
 
 
 def test_drain_deferred_resolves_settled_to_closed_identity():
-    # Frozen M1 contract: drain_deferred() -> FsmState, identity SETTLED -> CLOSED in M2.
+    # Frozen contract: drain_deferred() -> FsmState, identity SETTLED -> CLOSED.
     plan = {"mode": "scripted", "draws": []}
     world = World(_sample(plan), trial_index=0)
     world.reset()
@@ -160,7 +160,7 @@ def test_drain_deferred_passes_aborted_through_unchanged():
 
 
 def test_auth_draw_is_stable_under_extra_illegal_steps_end_to_end():
-    # G2 end-to-end: reaching auth attempt 1 via different elapsed_steps counts (extra illegal
+    # End-to-end: reaching auth attempt 1 via different elapsed_steps counts (extra illegal
     # actions that bump the clock but don't advance state) MUST draw the SAME sampled outcome,
     # because the draw keys on the per-route `attempt` ordinal, never `elapsed_steps`.
     plan = {"mode": "sampled", "p_decline": 1.0, "soft_reasons": ["51", "05", "91"]}

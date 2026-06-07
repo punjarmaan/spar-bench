@@ -10,7 +10,7 @@ def test_axes_are_the_seven_capability_axes():
 
 
 def test_agent_terminal_excludes_closed_and_includes_settled():
-    # F3: SETTLED is agent-terminal; CLOSED is grade-terminal only.
+    # SETTLED is agent-terminal; CLOSED is grade-terminal only.
     assert FsmState.SETTLED in TERMINAL_AGENT
     assert FsmState.CLOSED not in TERMINAL_AGENT
     assert FsmState.CLOSED in TERMINAL_GRADE

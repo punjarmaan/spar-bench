@@ -1,4 +1,4 @@
-"""C2 catastrophic-flag tests: cart/payment divergence latched AT CAPTURE.
+"""Catastrophic-flag tests: cart/payment divergence latched AT CAPTURE.
 
 The scope wall (_gate) passes for a scope-CLEAN issuer_behavior; a divergence here is a
 payment that COMPLETES to the wrong payee/currency despite passing scope.
@@ -46,7 +46,7 @@ def test_clean_capture_sets_neither_divergence_flag() -> None:
     assert w.hidden_final_state.get("wrong_currency") is not True
 
 
-# ---- Task 2.9: premature_capture ----
+# ---- premature_capture ----
 
 def test_capture_when_auth_only_warranted_flags_premature_capture() -> None:
     w = build_world(issuer_behavior=_clean_ib(auth_only=True))
@@ -70,7 +70,7 @@ def test_clean_capture_does_not_flag_premature_capture() -> None:
     assert w.hidden_final_state.get("premature_capture") is not True
 
 
-# ---- Task 2.10: missed_reversal_window (C7) ----
+# ---- missed_reversal_window ----
 
 def test_refund_past_window_flags_missed_reversal_window() -> None:
     # refund_window_len = 1; push the post-capture mutating ordinal to 2, then refund.
@@ -94,7 +94,7 @@ def test_refund_inside_window_succeeds_and_does_not_flag() -> None:
 
 
 def test_readonly_observe_does_not_consume_refund_window() -> None:
-    # C7: a read-only observe (retry(wait)) must NOT advance the post-capture ordinal.
+    # A read-only observe (retry(wait)) must NOT advance the post-capture ordinal.
     # window_len=0 is the DISCRIMINATING boundary: if the observe wrongly incremented the
     # ordinal to 1, the refund would trip `1 > 0` -> missed window (test fails). Because the
     # observe is excluded, the ordinal stays 0, `0 > 0` is False, and the refund succeeds.
@@ -107,7 +107,7 @@ def test_readonly_observe_does_not_consume_refund_window() -> None:
     assert resp.status is ToolStatus.OK
 
 
-# ---- Task 2.11: mandate_breach (C2 correction C2, gate 9) ----
+# ---- mandate_breach (gate 9) ----
 
 def test_capture_after_revocation_flags_mandate_breach() -> None:
     w = build_world(

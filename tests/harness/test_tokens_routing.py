@@ -1,4 +1,4 @@
-"""M7 prereq: the select_oracle_route routing `must` token (completed == gold.oracle_route)."""
+"""The select_oracle_route routing `must` token (completed == gold.oracle_route)."""
 
 from __future__ import annotations
 

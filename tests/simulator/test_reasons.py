@@ -25,7 +25,7 @@ def test_all_ten_codes_present_with_full_metadata():
 
 
 def test_one_a_is_an_auth_challenge_not_a_decline():
-    # module 10 §6: 1A is a 3DS/SCA step-up, surfaced as requires_action.
+    # 1A is a 3DS/SCA step-up, surfaced as requires_action.
     assert is_decline("1A") is False
     assert is_hard("1A") is False
     assert REASONS["1A"].cls == "auth_challenge"
@@ -59,7 +59,7 @@ def test_hard_codes_are_cat1_and_cat3_correctables_are_not_hard_blocks():
 
 
 def test_14_is_correct_card_data_not_account_updater():
-    # module 10 §6 + axis §4: 14 fixes a typo'd PAN; 54 uses Account Updater.
+    # 14 fixes a typo'd PAN; 54 uses Account Updater.
     assert "correct_card_data" in correct_behaviors("14")
     assert "account_updater" not in correct_behaviors("14")
     assert "account_updater" in correct_behaviors("54")
@@ -96,14 +96,14 @@ def test_step_up_required_is_escalate():
 
 
 def test_hard_correctable_and_ambiguous_fold_into_soft():
-    # C15: only cls=="hard" -> HARD; hard_correctable/ambiguous -> SOFT (bounded retry).
+    # Only cls=="hard" -> HARD; hard_correctable/ambiguous -> SOFT (bounded retry).
     assert classify_decline("14") is DeclinePolicy.SOFT   # hard_correctable
     assert classify_decline("05") is DeclinePolicy.SOFT   # ambiguous
 
 
 @pytest.mark.parametrize("code", sorted(REASONS.keys()))
 def test_every_reason_code_classifies_without_falling_through(code):
-    # No emitted code may fall through unclassified (C15). Cross-check against the source of truth.
+    # No emitted code may fall through unclassified. Cross-check against the source of truth.
     result = classify_decline(code)
     assert isinstance(result, DeclinePolicy)
     cls = REASONS[code].cls

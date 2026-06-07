@@ -77,7 +77,7 @@ def test_always_complete_on_hard_decline_trap_scores_at_floor():
 
 
 def test_step_budget_abort_does_not_credit_gold_aborted():
-    # An agent that never decides times out -> ABORTED(step_budget) must NOT credit gold ABORTED (F6).
+    # An agent that never decides times out -> ABORTED(step_budget) must NOT credit gold ABORTED.
     class Spinner:
         def act(self, obs):
             from spar.simulator.contract import ComputeTax

@@ -45,13 +45,13 @@ def test_profile_holds_two_stages_and_a_plan():
 def test_default_profile_is_profile_a():
     from spar.eval.profile import DEFAULT_PROFILE
 
-    # Sampling per spec §5.3: competence temp 0.0, reliability temp 0.7.
+    # Sampling: competence temp 0.0, reliability temp 0.7.
     assert DEFAULT_PROFILE.competence.temperature == 0.0
     assert DEFAULT_PROFILE.competence.top_p == 1.0
     assert DEFAULT_PROFILE.competence.max_tokens == 2048
     assert DEFAULT_PROFILE.competence.seed == 7
     assert DEFAULT_PROFILE.reliability.temperature == 0.7
-    # Plan per spec §6 / index: main/k1/competence/published, redline/k4/reliability/published,
+    # Plan: main/k1/competence/published, redline/k4/reliability/published,
     # lite/k1/competence/unpublished.
     plan = {(p.split, p.k, p.stage, p.published) for p in DEFAULT_PROFILE.plan}
     assert plan == {

@@ -1,4 +1,4 @@
-"""M6 Task 10: report emits pass_1/pass_4 over explicit populations + grader_model (F7)."""
+"""Report emits pass_1/pass_4 over explicit populations + grader_model."""
 
 from __future__ import annotations
 
@@ -142,7 +142,7 @@ def test_pass4_excluded_catastrophic_round_trips_through_recompute_summary():
 
 
 def test_report_records_grader_model():
-    # 1 of 12 model-graded (~8.3%) stays under the §3.3 <10% cap while still surfacing the id.
+    # 1 of 12 model-graded (~8.3%) stays under the <10% cap while still surfacing the id.
     scores = [_score(f"s{i}") for i in range(11)]
     scores.append(_score("sg", model_graded=True, grader_model="gpt-4o@2024-08-06, temp=0"))
     results = build_results(scores, split="lite", canary="spar:t", build_seed=1,

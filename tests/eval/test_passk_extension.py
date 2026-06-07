@@ -1,4 +1,4 @@
-"""EM2 Task 1: run_trials threads the pinned responder + grader (backwards compatible)."""
+"""run_trials threads the pinned responder + grader (backwards compatible)."""
 
 from __future__ import annotations
 

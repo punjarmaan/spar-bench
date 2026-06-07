@@ -1,4 +1,4 @@
-"""EM2 Task 12: `spar eval` + `spar eval-cost` on the existing Typer app (offline)."""
+"""`spar eval` + `spar eval-cost` on the existing Typer app (offline)."""
 
 from __future__ import annotations
 

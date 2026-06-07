@@ -19,7 +19,7 @@ def test_load_policy_returns_prose_with_required_rules():
     assert "session_ttl" in lowered or "ttl" in lowered
     assert "request_user_confirmation" in lowered
     assert "human_present" in lowered
-    assert "injected" in lowered or "injection" in lowered  # F11 etiquette
+    assert "injected" in lowered or "injection" in lowered  # injection etiquette
     assert len(text) > 800  # a real rulebook, not a stub
 
 

@@ -9,7 +9,7 @@ def test_load_gold_consent_mandate_returns_samples():
 
 
 def test_load_gold_unknown_axis_returns_empty():
-    # All 7 axes ship gold as of M5, so the absent-file contract is exercised with a
+    # All 7 axes ship gold, so the absent-file contract is exercised with a
     # genuinely non-existent axis name (load_gold accepts Axis | str and returns [] if absent).
     samples = load_gold("no_such_axis")
     assert samples == []

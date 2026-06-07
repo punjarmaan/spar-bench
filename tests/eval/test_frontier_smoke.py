@@ -1,4 +1,4 @@
-"""EM4 — the SINGLE live smoke test (spec §9). ONE real cheap model end-to-end through
+"""The SINGLE live smoke test. ONE real cheap model end-to-end through
 evaluate_model → consolidate → write_leaderboard.
 
 RUN ONLY: OPENROUTER_API_KEY=… uv run pytest -q -m frontier tests/eval/test_frontier_smoke.py
@@ -46,7 +46,7 @@ def test_one_cheap_model_produces_a_leaderboard_row(tmp_path: Path) -> None:
         **{"class": "open"},
     )
     # The leaderboard consolidates the COMPETENCE (main) + RELIABILITY (redline) splits — a
-    # lite-only run writes no main.results.json and cannot consolidate (spec §6: lite is dev,
+    # lite-only run writes no main.results.json and cannot consolidate (lite is dev,
     # never published). Run the published shape at k=1 (cheapest publishable end-to-end path; the
     # bundled main/redline splits are tiny, so this stays ~cents).
     profile = Profile(

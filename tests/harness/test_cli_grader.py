@@ -1,4 +1,4 @@
-"""The live CLI wires a model-grader so Tier-C does not crash (CODE-REVIEW H4).
+"""The live CLI wires a model-grader so Tier-C does not crash.
 
 Previously `spar run`/`grade` called `score(sample, trace)` with no grader, so a Tier-C
 (gray-zone) semantic sample raised NotImplementedError on the live path. The CLI now supplies
@@ -66,7 +66,7 @@ def test_named_grader_model_uses_litellm():
 
 
 def test_tier_c_sample_does_not_crash_with_cli_grader():
-    # The whole point of H4: without a grader this raised NotImplementedError.
+    # The whole point: without a grader this raised NotImplementedError.
     s = score(_gray_zone_sample(), _gray_zone_trace(), model_grader=_make_grader(None))
     assert s.model_graded is True
     assert s.grader_model == "stub-model-grader@1"

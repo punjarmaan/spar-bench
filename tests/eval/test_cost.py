@@ -1,4 +1,4 @@
-"""EM2 Tasks 3-4: confirmed-cost accrual, budget cap, and the pre-flight estimate."""
+"""Confirmed-cost accrual, budget cap, and the pre-flight estimate."""
 
 from __future__ import annotations
 
