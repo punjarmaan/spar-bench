@@ -1,4 +1,4 @@
-# --- Design docs & context (intentionally NOT version-controlled) ---
+# --- Local notes & context (intentionally NOT version-controlled) ---
 /SPAR_CONTEXT.md
 /docs/
 # any stray context/notes markdown at the repo root
@@ -44,3 +44,9 @@ build/offline-smoke/
 /schema/*.json
 /types/*.d.ts
 /fixtures/
+
+# --- Claude Code local tooling (session/lock state) ---
+/.claude/
+
+# --- Logs (run/eval output) ---
+*.log
