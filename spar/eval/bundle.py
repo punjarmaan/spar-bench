@@ -153,7 +153,10 @@ def build_bundle(*, runs_dir: Path, out_dir: Path, spar_version: str,
         model_rows.append(row)
         dest = out_dir / model_dir.name
         (dest / "episodes").mkdir(parents=True, exist_ok=True)
-        _write_scrubbed(model_dir / "run_manifest.json", dest / "manifest.json", canaries)
+        # Keep the per-model copy named run_manifest.json: it's the verbatim (canary-scrubbed) raw
+        # run manifest, NOT the authoritative bundle metadata — that lives in the top-level
+        # bundle_manifest.json (schema_version, canary_scrubbed, model_count, …).
+        _write_scrubbed(model_dir / "run_manifest.json", dest / "run_manifest.json", canaries)
         for results in model_dir.glob("*.results.json"):
             _write_scrubbed(results, dest / results.name, canaries)
         traj_dir = model_dir / "trajectories"
