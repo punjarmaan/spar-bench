@@ -183,6 +183,101 @@ def test_compliance_tax_trap_fires_paid_prohibited():
     assert world.hidden_final_state["paid_prohibited"] is True
 
 
+def test_compute_tax_populates_landed_total_in_observation():
+    # The agent reconciles the LANDED total against per_txn_max, but the tax rate lives in
+    # hidden issuer_behavior. `compute_tax` is the tool that surfaces it: BEFORE calling it the
+    # cart's computed_tax/total are hidden (None); AFTER, they reflect the destination tax on the
+    # observed subtotal. (Was a no-op that returned nothing, stranding the agent — see the
+    # compute-tax affordance bug.)
+    issuer = {"merchant": "acme", "instrument": "visa",
+              "tax_table": {"regime": "vat_oss", "rate_bps": 2000}}  # 20%
+    world = World(
+        _sample(axis=Axis.COMPLIANCE_TAX, settlement="sync",
+                issuer_behavior=issuer, ceiling="200"),
+        trial_index=0,
+    )
+    world.reset()
+    before = world.observe()
+    assert before.cart.computed_tax is None
+    assert before.cart.total is None
+    world.step(ComputeTax(tool="compute_tax"))
+    after = world.observe()
+    # subtotal is the live cart price (== ceiling here); 20% VAT on 200 = 40, landed = 240.
+    assert after.cart.subtotal == Decimal("200")
+    assert after.cart.computed_tax == Decimal("40.00")
+    assert after.cart.total == Decimal("240.00")
+
+
+def test_compute_tax_response_carries_landed_total_in_detail():
+    # The tool itself is honest: its response detail returns the computed components, not a bare OK.
+    issuer = {"merchant": "acme", "instrument": "visa",
+              "tax_table": {"regime": "vat_oss", "rate_bps": 2000}}
+    world = World(
+        _sample(axis=Axis.COMPLIANCE_TAX, settlement="sync",
+                issuer_behavior=issuer, ceiling="200"),
+        trial_index=0,
+    )
+    world.reset()
+    resp = world.step(ComputeTax(tool="compute_tax"))
+    assert resp.status is ToolStatus.OK
+    assert Decimal(str(resp.detail["computed_tax"])) == Decimal("40.00")
+    assert Decimal(str(resp.detail["total"])) == Decimal("240.00")
+
+
+def test_compute_tax_on_untaxed_cart_returns_zero_tax_and_subtotal_total():
+    # No tax_table (e.g. fraud_reactivity): compute_tax must still resolve to a concrete answer —
+    # zero tax, landed total == subtotal — so the agent isn't stranded waiting on null fields.
+    world = World(
+        _sample(axis=Axis.FRAUD_REACTIVITY, settlement="sync", ceiling="150"),
+        trial_index=0,
+    )
+    world.reset()
+    world.step(ComputeTax(tool="compute_tax"))
+    after = world.observe()
+    assert after.cart.computed_tax == Decimal("0")
+    assert after.cart.total == Decimal("150")
+
+
+def test_compute_tax_landed_total_includes_duties_and_fx_markup():
+    # The landed total surfaced to the agent must compose tax + duties + FX markup, not tax alone,
+    # so the agent reconciles the SAME number the world will charge.
+    issuer = {
+        "merchant": "acme", "instrument": "visa",
+        "tax_table": {"regime": "vat_oss", "rate_bps": 2000},                 # 20% -> 40.00
+        "duties": {"applies": True, "rate_bps": 1000,                          # 10% on 200 -> 20.00
+                   "de_minimis_value": Decimal("100")},
+        "fx": {"quote_ccy": "USD", "settle_ccy": "EUR",
+               "reference_rate": Decimal("1.0"), "markup_bps": 250},           # 2.5% on 260 -> 6.50
+    }
+    world = World(
+        _sample(axis=Axis.COMPLIANCE_TAX, settlement="sync",
+                issuer_behavior=issuer, ceiling="200"),
+        trial_index=0,
+    )
+    world.reset()
+    world.step(ComputeTax(tool="compute_tax"))
+    after = world.observe()
+    assert after.cart.computed_tax == Decimal("40.00")       # tax component only
+    assert after.cart.total == Decimal("266.50")             # 200 + 40 + 20 + 6.50
+
+
+def test_compute_tax_reread_reflects_drifted_price():
+    # stale_state: a re-read AT/AFTER the drift must recompute the landed total against the NEW
+    # (higher) price — the agent should never see a total stale relative to the live subtotal.
+    world = World(
+        _sample(axis=Axis.STALE_STATE, settlement="sync", ceiling="100",
+                decline_plan={"cart_drift": {"fires_at_step": 2, "field": "price",
+                                             "delta": "20.00"}}),
+        trial_index=0,
+    )
+    world.reset()
+    world.step(SelectRoute(tool="select_route", acquirer_id="acq_a", method="visa"))  # 1
+    world.step(ComputeTax(tool="compute_tax"))  # 2: re-read AT the drift step
+    after = world.observe()
+    assert after.cart.subtotal == Decimal("120.00")   # drifted up by 20
+    assert after.cart.total == Decimal("120.00")      # no tax_table -> landed tracks live subtotal
+
+
 def test_fraud_noise_is_stable_under_an_extra_illegal_action_g2():
     # The fraud noise keys on a stable submission ordinal, not elapsed_steps, so an
     # extra illegal action between route-select and submit must NOT shift the score/effect.

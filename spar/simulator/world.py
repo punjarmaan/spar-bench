@@ -50,6 +50,7 @@ from spar.simulator.scope import check_scope
 from spar.simulator.tax import (
     DutiesSpec,
     FxSpec,
+    TaxResult,
     TaxSpec,
     compute_tax,
     is_prohibited_combo,
@@ -280,6 +281,34 @@ class World:
         if len(self.recent_events) > 8:
             self.recent_events = self.recent_events[-8:]
 
+    def _landed_on_observed_subtotal(self) -> TaxResult | None:
+        """Destination tax / FX / duties on the OBSERVED subtotal (the live cart price the agent
+        sees), surfaced only AFTER the agent has called `compute_tax`.
+
+        Returns None pre-compute_tax, so the tool stays the diligence action that *unlocks* the
+        landed total (and clears `submitted_without_tax`); a re-read recomputes against the live
+        (possibly drifted) price. A cart with no `tax_table` resolves to zero tax (landed ==
+        subtotal) rather than stranding the agent on permanently-null fields.
+        """
+        if self.hidden_final_state.get("computed_tax_step") is None:
+            return None
+        ib = self.sample.world_config.issuer_behavior or {}
+        tax_table = ib.get("tax_table")
+        base = self._cart_price
+        if tax_table is None:
+            return TaxResult(
+                computed_tax=Decimal("0"), fx_markup=Decimal("0"),
+                duties=Decimal("0"), total=base,
+            )
+        fx_cfg = ib.get("fx")
+        duties_cfg = ib.get("duties")
+        return compute_tax(
+            subtotal=base,
+            tax=TaxSpec(**tax_table),
+            fx=FxSpec(**fx_cfg) if fx_cfg else None,
+            duties=DutiesSpec(**duties_cfg) if duties_cfg else None,
+        )
+
     def observe(self) -> Observation:
         wc = self.sample.world_config
         last_event = self.recent_events[-1] if self.recent_events else None
@@ -293,6 +322,9 @@ class World:
         observed_mandate = self.sample.mandate
         if self._revocation_step is not None and self.elapsed_steps >= self._revocation_step:
             observed_mandate = observed_mandate.model_copy(update={"revoked": True})
+        # Destination tax / FX / duties on the observed subtotal — None until the agent has run
+        # `compute_tax` (the diligence re-read that unlocks the landed total).
+        landed = self._landed_on_observed_subtotal()
         # Assembled-cart view (payee + currency the charge would use); payment-context samples only.
         cart_mandate = None
         if ib:
@@ -301,11 +333,16 @@ class World:
                 payee=str(ib.get("settled_payee", ib.get("merchant", ""))),
                 currency=str(ib.get("settled_currency", observed_mandate.currency)),
                 subtotal=self._cart_price,
-                total=None,
+                total=landed.total if landed is not None else None,
             )
         return Observation(
             mandate=observed_mandate,
-            cart=ObsCart(line_items=[], subtotal=self._cart_price, merchant_note=ib.get("merchant_note")),
+            cart=ObsCart(
+                line_items=[], subtotal=self._cart_price,
+                computed_tax=landed.computed_tax if landed is not None else None,
+                total=landed.total if landed is not None else None,
+                merchant_note=ib.get("merchant_note"),
+            ),
             methods=[
                 ObsMethod(
                     acquirer_id=a.acquirer_id, methods=a.methods, geos=a.supported_geos,
@@ -692,10 +729,21 @@ class World:
                 self._record_event("escalated")
                 return ToolResponse(status=ToolStatus.ESCALATED)
             case ComputeTax():
-                # A live re-read AT/AFTER the drift step refreshes the agent's view.
+                # A live re-read AT/AFTER the drift step refreshes the agent's view AND returns the
+                # landed total (destination tax / FX / duties on the observed subtotal). Setting
+                # computed_tax_step both clears the diligence flag and unlocks cart.computed_tax/total.
                 self.hidden_final_state["computed_tax_step"] = self.elapsed_steps
                 self.hidden_final_state["last_reread_step"] = self.elapsed_steps
-                return ToolResponse(status=ToolStatus.OK)
+                landed = self._landed_on_observed_subtotal()
+                detail: dict[str, str] = {}
+                if landed is not None:
+                    detail = {
+                        "computed_tax": str(landed.computed_tax),
+                        "fx_markup": str(landed.fx_markup),
+                        "duties": str(landed.duties),
+                        "total": str(landed.total),
+                    }
+                return ToolResponse(status=ToolStatus.OK, detail=detail)
             case SelectRoute() if self.state in (
                 FsmState.CART,
                 FsmState.ROUTE_SELECTED,
