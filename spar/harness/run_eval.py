@@ -343,8 +343,10 @@ def bundle(
     out: Path = typer.Option(Path("bundle"), help="base output dir; bundle written to <out>/<version>/"),
     version: str = typer.Option(..., help="spar_version; names the subdir + manifest"),
     model: list[str] = typer.Option(None, help="restrict to these models (repeatable); default all"),
+    dataset: Path = typer.Option(None, help="built dataset dir (*.jsonl) for sample difficulty"),
 ) -> None:
     """Build the static, lazy-loadable, canary-scrubbed viewer bundle into <out>/<version>/."""
     from spar.eval.bundle import build_bundle
-    build_bundle(runs_dir=runs, out_dir=out, spar_version=version, models=model or None)
-    typer.echo(f"wrote {out}/{version}/index.json + per-model episodes + schema/ + types/")
+    build_bundle(runs_dir=runs, out_dir=out, spar_version=version, models=model or None,
+                 dataset_dir=dataset)
+    typer.echo(f"wrote {out}/{version}/index.json + samples.json + per-model episodes + schema/ + types/")

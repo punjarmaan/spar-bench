@@ -106,3 +106,108 @@ def test_bundle_cli_writes_versioned_dir(tmp_path: Path):
     assert result.exit_code == 0, result.output
     assert (out / "1.0.0" / "index.json").is_file()
     assert (out / "1.0.0" / "bundle_manifest.json").is_file()
+
+
+def _seed_two_model_run(root: Path):
+    """Two models over one main sample + one redline sample, with rich per_sample fields."""
+    for model in ("m-a", "m-b"):
+        model_dir = root / model
+        (model_dir / "trajectories").mkdir(parents=True)
+        (model_dir / "run_manifest.json").write_text(json.dumps(
+            {"model": model, "class": "open", "canary": "spar:abc"}))
+        (model_dir / "main.results.json").write_text(json.dumps(
+            {"split": "main", "per_sample": [
+                {"sample_id": "s1", "axis": "routing", "is_trap": False, "score": 0.5,
+                 "intent_spec": "explicit", "final_state": "CLOSED", "trials_n": 1,
+                 "trials_c": 1, "trials_safe_c": 1, "pass_4": None, "pass_4_safety": None}]}))
+        (model_dir / "redline.results.json").write_text(json.dumps(
+            {"split": "redline", "per_sample": [
+                {"sample_id": "t1", "axis": "consent_mandate", "is_trap": True, "score": 0.0,
+                 "intent_spec": "semantic", "final_state": "ESCALATED", "trials_n": 4,
+                 "trials_c": 3, "trials_safe_c": 3, "pass_4": 0.0, "pass_4_safety": 0.0}]}))
+        (model_dir / "trajectories" / "s1.jsonl").write_text(
+            json.dumps({"schema_version": 1, "sample_id": "s1", "trial_index": 0, "turns": []}) + "\n")
+    # only m-a has the redline trajectory file → m-b's t1 run must say has_trajectory False
+    (root / "m-a" / "trajectories" / "t1.jsonl").write_text(
+        json.dumps({"schema_version": 1, "sample_id": "t1", "trial_index": 0, "turns": []}) + "\n")
+
+
+def _seed_dataset(ds: Path):
+    ds.mkdir(parents=True)
+    (ds / "main.jsonl").write_text(
+        json.dumps({"sample_id": "s1", "difficulty": "easy"}) + "\n")
+    (ds / "redline.jsonl").write_text(
+        json.dumps({"sample_id": "t1", "difficulty": "hard"}) + "\n")
+
+
+def test_samples_json_one_row_per_sample_with_embedded_runs(tmp_path: Path):
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    _seed_two_model_run(runs)
+    _seed_dataset(tmp_path / "ds")
+    out = tmp_path / "bundle"
+    build_bundle(runs_dir=runs, out_dir=out, spar_version="1.0.0",
+                 dataset_dir=tmp_path / "ds")
+    data = json.loads((out / "1.0.0" / "samples.json").read_text())
+    assert data["schema_version"] == 1 and data["spar_version"] == "1.0.0"
+    by_id = {s["sample_id"]: s for s in data["samples"]}
+    assert set(by_id) == {"s1", "t1"}
+    s1, t1 = by_id["s1"], by_id["t1"]
+    # sample-level fields incl. difficulty from the dataset
+    assert s1["axis"] == "routing" and s1["split"] == "main" and s1["difficulty"] == "easy"
+    assert t1["is_trap"] is True and t1["split"] == "redline" and t1["difficulty"] == "hard"
+    # every model embedded, sorted by model id
+    assert [r["model"] for r in s1["runs"]] == ["m-a", "m-b"]
+    # main rows: scalar score kept, redline trial fields nulled
+    assert s1["runs"][0]["score"] == 0.5 and s1["runs"][0]["trials_n"] == 1
+    assert s1["runs"][0]["trials_safe_c"] is None and s1["runs"][0]["pass_4_safety"] is None
+    # redline rows: trial fields kept
+    assert t1["runs"][0]["trials_n"] == 4 and t1["runs"][0]["trials_c"] == 3
+    assert t1["runs"][0]["trials_safe_c"] == 3 and t1["runs"][0]["pass_4_safety"] == 0.0
+    # has_trajectory reflects the episode file on disk
+    assert t1["runs"][0]["has_trajectory"] is True   # m-a wrote t1.jsonl
+    assert t1["runs"][1]["has_trajectory"] is False  # m-b did not
+
+
+def test_samples_json_without_dataset_dir_has_null_difficulty(tmp_path: Path):
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    _seed_run(runs)
+    out = tmp_path / "bundle"
+    build_bundle(runs_dir=runs, out_dir=out, spar_version="1.0.0")
+    data = json.loads((out / "1.0.0" / "samples.json").read_text())
+    assert data["samples"][0]["difficulty"] is None
+
+
+def test_samples_json_is_canary_scrubbed(tmp_path: Path):
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    _seed_run(runs)  # manifest canary = "spar:abc"
+    # plant the canary in a field that flows into samples.json (manifest canary never does)
+    (runs / "test-model" / "main.results.json").write_text(json.dumps(
+        {"split": "main", "per_sample": [
+            {"sample_id": "s1", "axis": "routing", "is_trap": False, "score": 0.5,
+             "intent_spec": "spar:abc do not train", "final_state": "CLOSED", "trials_n": 1}]}))
+    out = tmp_path / "bundle"
+    build_bundle(runs_dir=runs, out_dir=out, spar_version="1.0.0")
+    blob = (out / "1.0.0" / "samples.json").read_text()
+    assert "spar:abc" not in blob
+    assert "spar:REDACTED-CANARY" in blob
+
+
+def test_bundle_cli_accepts_dataset_dir(tmp_path: Path):
+    from typer.testing import CliRunner
+
+    from spar.harness.run_eval import app
+
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    _seed_run(runs)
+    _seed_dataset(tmp_path / "ds")
+    out = tmp_path / "bundle"
+    result = CliRunner().invoke(
+        app, ["bundle", "--runs", str(runs), "--out", str(out), "--version", "1.0.0",
+              "--dataset", str(tmp_path / "ds")]
+    )
+    assert result.exit_code == 0, result.output
+    assert (out / "1.0.0" / "samples.json").is_file()

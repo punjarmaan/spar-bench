@@ -1,5 +1,6 @@
 """Static, lazy-loadable viewer bundle. Reads runs_*/<model>/ outputs and emits: index.json
-(small — drives lists), per-model manifest+summary, per-episode files fetched on demand, plus the
+(small — drives lists), samples.json (sample-centric rows embedding every model's run summary),
+per-model manifest+summary, per-episode files fetched on demand, plus the
 exported JSON Schema + generated TS types. No network, no scoring. The bundle is gitignored; the
 in-code EpisodeRecord schema is the committed source of truth."""
 
@@ -72,6 +73,58 @@ def _index_rows(model_dir: Path) -> dict[str, Any]:
     }
 
 
+def _load_difficulties(dataset_dir: Path | None) -> dict[str, str]:
+    """sample_id -> difficulty, from the built dataset's *.jsonl files. Empty when no dataset
+    is given (difficulty then emits as null; the viewer renders an em dash)."""
+    if dataset_dir is None:
+        return {}
+    out: dict[str, str] = {}
+    for f in sorted(dataset_dir.glob("*.jsonl")):
+        for line in f.read_text().splitlines():
+            if not line.strip():
+                continue
+            d = json.loads(line)
+            if d.get("sample_id") and d.get("difficulty"):
+                out[d["sample_id"]] = d["difficulty"]
+    return out
+
+
+def _sample_rows(model_dirs: list[Path], difficulties: dict[str, str]) -> list[dict[str, Any]]:
+    """samples.json rows: one per sample_id, embedding every model's run summary. Redline trial
+    fields (trials_c/trials_safe_c/pass_4_safety) are nulled on main rows — per-sample pass^k
+    only means something on the multi-trial redline split."""
+    by_sample: dict[str, dict[str, Any]] = {}
+    for model_dir in model_dirs:
+        model_id = json.loads((model_dir / "run_manifest.json").read_text()).get("model")
+        for results in sorted(model_dir.glob("*.results.json")):
+            data = json.loads(results.read_text())
+            split = data.get("split")
+            redline = split == "redline"
+            for ps in data.get("per_sample", []):
+                sid = ps["sample_id"]
+                # sample-level fields take the first model's values ("first model wins")
+                row = by_sample.setdefault(sid, {
+                    "sample_id": sid, "axis": ps.get("axis"), "split": split,
+                    "intent_spec": ps.get("intent_spec"), "is_trap": ps.get("is_trap"),
+                    "difficulty": difficulties.get(sid), "trials_n": ps.get("trials_n"),
+                    "runs": [],
+                })
+                row["runs"].append({
+                    "model": model_id,
+                    "score": ps.get("score"),
+                    "final_state": ps.get("final_state"),
+                    "trials_n": ps.get("trials_n"),
+                    "trials_c": ps.get("trials_c") if redline else None,
+                    "trials_safe_c": ps.get("trials_safe_c") if redline else None,
+                    "pass_4_safety": ps.get("pass_4_safety") if redline else None,
+                    "has_trajectory":
+                        (model_dir / "trajectories" / f"{sid}.jsonl").is_file(),
+                })
+    for row in by_sample.values():
+        row["runs"].sort(key=lambda r: r["model"])
+    return list(by_sample.values())
+
+
 def write_fixtures(*, bundle_dir: Path, max_examples: int = 6) -> list[Path]:
     """Copy a small, diverse set of real episode files into bundle/fixtures/ for frontend dev:
     prefer one trap, one malformed, and otherwise spread across axes. Best-effort; bundle-local."""
@@ -126,7 +179,7 @@ def _write_scrubbed(src: Path, dst: Path, canaries: Iterable[str]) -> None:
 
 
 def build_bundle(*, runs_dir: Path, out_dir: Path, spar_version: str,
-                 models: list[str] | None = None) -> None:
+                 models: list[str] | None = None, dataset_dir: Path | None = None) -> None:
     out_dir = out_dir / spar_version
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "schema").mkdir(exist_ok=True)
@@ -164,6 +217,11 @@ def build_bundle(*, runs_dir: Path, out_dir: Path, spar_version: str,
             for traj in traj_dir.glob("*.jsonl"):
                 _write_scrubbed(traj, dest / "episodes" / traj.name, canaries)
     (out_dir / "index.json").write_text(_scrub(json.dumps({"models": model_rows}, indent=2), canaries))
+    (out_dir / "samples.json").write_text(_scrub(json.dumps({
+        "schema_version": TRAJECTORY_SCHEMA_VERSION,
+        "spar_version": spar_version,
+        "samples": _sample_rows(model_dirs, _load_difficulties(dataset_dir)),
+    }, indent=2), canaries))
     (out_dir / "bundle_manifest.json").write_text(json.dumps({
         "schema_version": TRAJECTORY_SCHEMA_VERSION,
         "spar_version": spar_version,
